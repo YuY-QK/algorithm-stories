@@ -5,12 +5,12 @@ export interface Speed {
   ms: number;
 }
 
-/** 切换等级时页面会派发这个事件，正在播放的演示应停下 */
-export const LEVEL_CHANGE_EVENT = 'algo:levelchange';
+/** 切换步骤（看、玩、做、延伸）时页面会派发这个事件，正在播放的演示应停下 */
+export const STAGE_CHANGE_EVENT = 'algo:stagechange';
 
 /**
  * 播放一条步骤轨迹：单步、自动播放、调速、跳转。
- * 所有算法的高级逐步执行面板都用它，自己只负责画出 step。
+ * 所有算法的逐步执行面板都用它，自己只负责画出 step。
  */
 export function usePlayer<S>(steps: Ref<S[]>, speeds: Speed[], defaultSpeed = 1) {
   const idx = ref(0);
@@ -67,10 +67,10 @@ export function usePlayer<S>(steps: Ref<S[]>, speeds: Speed[], defaultSpeed = 1)
     }
   });
 
-  onMounted(() => window.addEventListener(LEVEL_CHANGE_EVENT, stop));
+  onMounted(() => window.addEventListener(STAGE_CHANGE_EVENT, stop));
   onBeforeUnmount(() => {
     stop();
-    window.removeEventListener(LEVEL_CHANGE_EVENT, stop);
+    window.removeEventListener(STAGE_CHANGE_EVENT, stop);
   });
 
   return { idx, speed, speeds, step, total, atStart, atEnd, playing, toggle, next, prev, reset, jumpTo, stop };

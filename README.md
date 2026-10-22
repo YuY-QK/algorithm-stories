@@ -1,30 +1,30 @@
 # 算法小故事
 
-让学习算法变得简单有趣：每个算法一个小故事，加一个可以动手玩的网页演示，分「初级到高级」几个等级。
+用小故事和小游戏学算法。每个算法是一个小关卡：先看懂，再在玩的过程中练会。孩子玩到懂规则就停，大人继续练到能亲手写出来。
 
 在线体验：<https://yuy-qk.github.io/algorithm-stories/>
 
 ## 已完成
 
-| 算法 | 故事 | 等级 |
+| 算法 | 故事 | 已有步骤 |
 |---|---|---|
-| [二分查找](content/algorithms/binary-search/) | 小邮差找信箱 | 初级、高级 |
-| [冒泡排序](content/algorithms/bubble-sort/) | 排队拍合照 | 初级、高级 |
+| [二分查找](content/algorithms/binary-search/) | 小邮差找信箱 | 看、玩、做、延伸（样板关） |
+| [冒泡排序](content/algorithms/bubble-sort/) | 排队拍合照 | 玩、做、延伸（待按样板关重做） |
 
-完整的候选算法清单见 [docs/algorithm-catalog.md](docs/algorithm-catalog.md)。整体规划和路线图见 [docs/project-plan.md](docs/project-plan.md)。
+项目的基调见 [docs/overview.md](docs/overview.md)，候选算法清单见 [docs/algorithm-catalog.md](docs/algorithm-catalog.md)。
 
-## 等级
+## 每关四步
 
-| 等级 | 对象 | 学习方式 |
+| 步骤 | 给谁 | 内容 |
 |---|---|---|
-| 初级 | 小朋友 | 故事加点选和拖拽，不写代码 |
-| 进阶 | 初学者 | 可视化加逻辑拼接 |
-| 中级 | 在校生、转行者 | 可视化加简单代码 |
-| 高级 | IT 从业者 | 逐步执行、代码、复杂度对比、工程应用 |
+| 👀 看 | 孩子和大人 | 会动的绘本，图形和动画讲清楚算法在做什么 |
+| 🎮 玩 | 孩子停在这里 | 小游戏，孩子当主角，在提示里自己发现规律 |
+| 🛠️ 做 | 大人继续 | 逐步执行、猜下一步、找 bug、亲手写 Kotlin、挑战 |
+| 📖 延伸 | 通关以后 | 复杂度和真实世界里的用法 |
 
 ## 本地运行
 
-需要 Node.js 22 以上和 Python 3。
+网站需要 Node.js 22 以上和 Python 3；Kotlin 练习需要 JDK 17 以上，见 [exercises/README.md](exercises/README.md)。
 
 ```
 npm install
@@ -41,8 +41,9 @@ npm run build      # 构建静态网站到 dist/
 | 目录 | 内容 |
 |---|---|
 | `content/algorithms/<slug>/` | 每个算法的内容：`meta.json`、`story.md`、Python 参考实现 |
+| `exercises/` | Kotlin 练习项目：「亲手写」的函数框架、测试和参考答案 |
 | `src/engine/` | 算法引擎：纯函数，输出每一步的状态 |
-| `src/demos/<slug>/` | 每个算法的演示页和各等级的交互组件 |
+| `src/demos/<slug>/` | 每个算法的关卡页和四步的交互组件 |
 | `src/components/shared/` | 共享组件：播放控制、代码面板、对比图等 |
 | `tests/` | 引擎测试和 Python 对拍 |
 | `prototypes/` | 最早的单文件原型，留作参考 |
