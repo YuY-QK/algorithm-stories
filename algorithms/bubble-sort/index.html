@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style>
+<title>冒泡排序 - 算法小故事</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: same series look as binary-search. Kid level = five kids lined up by height, the player
+   decides swap/keep for the highlighted pair. Pro level = bars, pointers, code, comparison counts. */
+:root {
+  --bg: #EDF2EF;
+  --surface: #F9FBFA;
+  --fg: #13231F;
+  --muted: #566A63;
+  --line: #C5D3CC;
+  --accent: #0B7A62;
+  --accent-ink: #FFFFFF;
+  --mid: #F0A52E;
+  --mid-ink: #2A1B00;
+  --out: #DCE5E0;
+  --out-ink: #8A9C95;
+  --warn: #B3341F;
+  --code-bg: #12201C;
+  --code-fg: #D7E8E1;
+  --code-dim: #6F8B80;
+  --code-hl: rgba(240, 165, 46, 0.24);
+  --display: "ZCOOL KuaiLe", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --body: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1815;
+    --surface: #15231F;
+    --fg: #E4EFEA;
+    --muted: #93A89F;
+    --line: #2B433C;
+    --accent: #3CCBA4;
+    --accent-ink: #06231B;
+    --mid: #F2B24B;
+    --mid-ink: #2A1B00;
+    --out: #1B2C27;
+    --out-ink: #5C7369;
+    --warn: #FF8A73;
+    --code-bg: #0A1311;
+    --code-fg: #D7E8E1;
+    --code-dim: #6F8B80;
+    --code-hl: rgba(242, 178, 75, 0.22);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1815;
+  --surface: #15231F;
+  --fg: #E4EFEA;
+  --muted: #93A89F;
+  --line: #2B433C;
+  --accent: #3CCBA4;
+  --accent-ink: #06231B;
+  --mid: #F2B24B;
+  --mid-ink: #2A1B00;
+  --out: #1B2C27;
+  --out-ink: #5C7369;
+  --warn: #FF8A73;
+  --code-bg: #0A1311;
+  --code-fg: #D7E8E1;
+  --code-dim: #6F8B80;
+  --code-hl: rgba(242, 178, 75, 0.22);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.65;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; font-weight: 700; line-height: 1.25; }
+p { margin: 0; }
+
+/* masthead */
+.mast { display: flex; flex-direction: column; gap: 10px; }
+.brand { font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; color: var(--muted); }
+h1 { font-family: var(--display); font-size: clamp(2.4rem, 8vw, 3.4rem); font-weight: 400; letter-spacing: 0.02em; }
+.lede { color: var(--muted); max-width: 34em; }
+.levels { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.levels button {
+  font: inherit; font-weight: 700; cursor: pointer;
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 10px 18px; border-radius: 10px;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--fg);
+}
+.levels button span { font-weight: 400; font-size: 13px; color: var(--muted); }
+.levels button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.levels button[aria-selected="true"] span { color: inherit; opacity: 0.85; }
+
+/* shared */
+.panel { display: flex; flex-direction: column; gap: 22px; }
+h2 { font-family: var(--display); font-weight: 400; font-size: 1.7rem; }
+h3 { font-size: 1.05rem; }
+.story { max-width: 36em; }
+.btn {
+  font: inherit; font-weight: 500; cursor: pointer; line-height: 1.3;
+  padding: 11px 16px; border-radius: 8px;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--fg);
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.small { padding: 7px 12px; font-size: 14px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn:focus-visible, .levels button:focus-visible, .link:focus-visible, select:focus-visible, input:focus-visible, .seg button:focus-visible {
+  outline: 2px solid var(--fg); outline-offset: 2px;
+}
+.link { font: inherit; font-size: 14px; background: none; border: 0; padding: 4px 0; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.link:disabled { color: var(--muted); cursor: not-allowed; text-decoration: none; opacity: 0.6; }
+
+/* kid level */
+.lineup { display: grid; grid-template-columns: repeat(var(--n, 5), 1fr); gap: 10px; align-items: end; max-width: 520px; height: 230px; padding: 0 4px; border-bottom: 2px solid var(--line); }
+.kid { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 6px; min-width: 0; }
+.kid .body {
+  width: 100%; max-width: 64px; border-radius: 28px 28px 8px 8px; position: relative;
+  background: var(--surface); border: 1.5px solid var(--line);
+  transition: height 0.3s, background 0.25s, border-color 0.25s;
+}
+.kid .body::before {
+  content: ""; position: absolute; left: 50%; top: -30px; width: 26px; height: 26px; margin-left: -13px;
+  border-radius: 50%; background: inherit; border: inherit;
+}
+.kid .h { font: 600 13px var(--mono); font-variant-numeric: tabular-nums; }
+.kid .nm { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.kid.pair .body { background: var(--mid); border-color: var(--mid); }
+.kid.done .body { background: var(--accent); border-color: var(--accent); }
+.kidnames { display: grid; grid-template-columns: repeat(var(--n, 5), 1fr); gap: 10px; max-width: 520px; padding: 0 4px; text-align: center; }
+.ask { display: flex; flex-direction: column; gap: 14px; max-width: 520px; }
+.say { font-family: var(--display); font-size: 1.6rem; line-height: 1.35; }
+.say b { font-weight: 400; color: var(--accent); }
+.answers { display: flex; flex-wrap: wrap; gap: 10px; }
+.answers .btn { flex: 1 1 160px; }
+.status { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.oops { color: var(--warn); font-size: 15px; min-height: 1.6em; }
+.row { display: flex; gap: 18px; flex-wrap: wrap; }
+.result {
+  background: var(--surface); border: 1.5px solid var(--accent); border-radius: 12px;
+  padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; max-width: 560px;
+}
+.result .tip { color: var(--muted); }
+.result .btn { align-self: flex-start; }
+
+/* pro level */
+.controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end; }
+.field { display: flex; flex-direction: column; gap: 6px; border: 0; padding: 0; margin: 0; min-width: 0; }
+.field legend, .field > label, .field > .lab { font-size: 13px; color: var(--muted); padding: 0; }
+.field .inline { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg { display: flex; border: 1.5px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { font: 500 14px var(--mono); border: 0; background: transparent; color: var(--fg); padding: 8px 14px; cursor: pointer; }
+.seg button + button { border-left: 1.5px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+select { font: 500 15px var(--body); color: var(--fg); background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+
+.stage { display: flex; flex-direction: column; gap: 16px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 18px; }
+.arr { display: grid; grid-template-columns: repeat(var(--n, 10), minmax(0, 1fr)); gap: 4px; align-items: end; }
+.cell { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.bar { width: 100%; background: var(--out); border-radius: 4px 4px 0 0; transition: height 0.2s, background 0.2s; }
+.tag { height: 12px; font: 600 10px/12px var(--mono); color: var(--fg); white-space: nowrap; }
+.val {
+  width: 100%; height: 30px; display: grid; place-items: center;
+  font: 600 13px var(--mono); font-variant-numeric: tabular-nums;
+  border: 1.5px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg);
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.idx { font: 400 10px var(--mono); color: var(--muted); }
+.cell.cmp .bar, .cell.cmp .val { background: var(--mid); color: var(--mid-ink); border-color: var(--mid); }
+.cell.swap .bar, .cell.swap .val { background: var(--warn); color: var(--accent-ink); border-color: var(--warn); }
+.cell.sorted .bar { background: var(--accent); }
+.cell.sorted .val { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.vars { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: flex; gap: 8px; align-items: baseline; padding: 4px 10px; border-radius: 6px; background: var(--bg); border: 1.5px solid var(--line); font: 600 14px var(--mono); font-variant-numeric: tabular-nums; }
+.chip small { font: 400 12px var(--mono); color: var(--muted); }
+.note { min-height: 3.3em; }
+.transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.transport .speed { margin-left: auto; display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--muted); }
+.summary { border-top: 1.5px solid var(--line); padding-top: 14px; }
+
+.code { background: var(--code-bg); color: var(--code-fg); border-radius: 12px; overflow: hidden; }
+.codehead { font: 400 12px var(--mono); color: var(--code-dim); padding: 10px 16px 0; letter-spacing: 0.08em; }
+.code pre { margin: 0; padding: 8px 0 14px; overflow-x: auto; font: 400 14px/1.7 var(--mono); }
+.line { display: grid; grid-template-columns: 3em 1fr; white-space: pre; padding-right: 16px; }
+.line i { font-style: normal; text-align: right; padding-right: 1em; color: var(--code-dim); }
+.line.on { background: var(--code-hl); }
+.line.on i { color: var(--mid); }
+
+.cmpchart { display: flex; flex-direction: column; gap: 16px; }
+.cmp-row { display: grid; grid-template-columns: 8.5em 1fr; gap: 6px 14px; align-items: center; }
+.cmp-n { font: 600 14px var(--mono); font-variant-numeric: tabular-nums; }
+.cmp-n small { display: block; font: 400 12px var(--body); color: var(--muted); }
+.bars { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bar-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bar-name { width: 4.4em; font-size: 12px; color: var(--muted); flex: none; }
+.track { flex: 1; min-width: 0; height: 12px; border-radius: 6px; background: var(--out); overflow: hidden; }
+.fill { height: 100%; border-radius: 6px; }
+.fill.slow { background: var(--warn); }
+.fill.fast { background: var(--accent); }
+.num { flex: none; min-width: 9.6em; text-align: right; font: 600 13px var(--mono); font-variant-numeric: tabular-nums; }
+.small-note { color: var(--muted); font-size: 14px; }
+.pits { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 8px; max-width: 44em; }
+.pits code { font: 500 0.9em var(--mono); background: var(--out); padding: 1px 6px; border-radius: 4px; }
+.foot { color: var(--muted); font-size: 13px; border-top: 1.5px solid var(--line); padding-top: 14px; }
+
+@media (max-width: 520px) {
+  .cmp-row { grid-template-columns: 1fr; }
+  .transport .speed { margin-left: 0; }
+  .val { font-size: 11px; }
+  .num { min-width: 7.5em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kid .body, .bar, .val { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="mast">
+    <p class="brand">算法小故事</p>
+    <h1>冒泡排序</h1>
+    <p class="lede">同一个算法，两种讲法。小朋友帮摄影师给大家排队，工程师逐步看比较、交换、代码和代价。</p>
+    <div class="levels" role="tablist" aria-label="选择等级">
+      <button type="button" role="tab" id="tab-kid" aria-selected="true" aria-controls="kid">初级<span>小朋友</span></button>
+      <button type="button" role="tab" id="tab-pro" aria-selected="false" aria-controls="pro">高级<span>IT 从业者</span></button>
+    </div>
+  </header>
+
+  <main>
+    <!-- 初级 -->
+    <section id="kid" class="panel" role="tabpanel" aria-labelledby="tab-kid">
+      <h2>排队拍合照</h2>
+      <p class="story">摄影师叔叔要给 5 个小朋友拍合照：矮的站左边，高的站右边。他每次只看挨着的两个人，左边的比右边高就让他们换位置。现在请你来帮他！</p>
+      <div>
+        <div id="lineup" class="lineup" aria-hidden="true"></div>
+        <div id="kidnames" class="kidnames" aria-hidden="true"></div>
+      </div>
+      <div class="ask">
+        <p class="say" id="say" aria-live="polite"></p>
+        <div class="answers">
+          <button type="button" class="btn primary" id="btnSwap">左边高，换位置</button>
+          <button type="button" class="btn" id="btnKeep">左边矮，不用换</button>
+        </div>
+        <p class="oops" id="oops" aria-live="polite"></p>
+        <p class="status" id="kidStatus"></p>
+        <div class="row">
+          <button type="button" class="link" id="btnUndo">撤销上一步</button>
+          <button type="button" class="link" id="btnRestart">换一组小朋友</button>
+        </div>
+      </div>
+      <div id="kidResult" class="result" hidden>
+        <h3 id="resultTitle"></h3>
+        <p>每走一轮，剩下的人里最高的那个就会一路被换到最右边，像水里的气泡冒到水面，所以叫「冒泡排序」。</p>
+        <p class="tip">如果有一轮一次都没换，说明大家已经排好了，摄影师叔叔就可以提前拍照。</p>
+        <button type="button" class="btn primary" id="btnAgain">再排一组</button>
+      </div>
+    </section>
+
+    <!-- 高级 -->
+    <section id="pro" class="panel" role="tabpanel" aria-labelledby="tab-pro" hidden>
+      <h2>逐步执行</h2>
+      <p class="story">带「提前退出」优化的冒泡排序。黄色是正在比较的一对，红色是刚交换的一对，绿色是已经排到最终位置的元素。高亮行是当前执行的代码。</p>
+
+      <div class="controls">
+        <fieldset class="field">
+          <legend>数组大小</legend>
+          <div class="seg" id="sizeSeg">
+            <button type="button" data-size="6" aria-pressed="false">6</button>
+            <button type="button" data-size="10" aria-pressed="true">10</button>
+            <button type="button" data-size="16" aria-pressed="false">16</button>
+          </div>
+        </fieldset>
+        <fieldset class="field">
+          <legend>初始顺序</legend>
+          <div class="seg" id="shapeSeg">
+            <button type="button" data-shape="random" aria-pressed="true">随机</button>
+            <button type="button" data-shape="nearly" aria-pressed="false">几乎有序</button>
+            <button type="button" data-shape="reversed" aria-pressed="false">逆序</button>
+          </div>
+        </fieldset>
+        <div class="field">
+          <span class="lab">数据</span>
+          <div class="inline"><button type="button" class="btn small" id="btnNew">新数组</button></div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div id="arr" class="arr" aria-hidden="true"></div>
+        <div class="vars" id="vars"></div>
+        <p class="note" id="note" aria-live="polite"></p>
+        <div class="transport">
+          <button type="button" class="btn small" id="btnReset">重置</button>
+          <button type="button" class="btn small" id="btnPrev">上一步</button>
+          <button type="button" class="btn small primary" id="btnPlay">播放</button>
+          <button type="button" class="btn small" id="btnNext">下一步</button>
+          <button type="button" class="btn small" id="btnRound">跳到本轮结束</button>
+          <label class="speed" for="speed">速度
+            <select id="speed">
+              <option value="1000">慢</option>
+              <option value="450" selected>中</option>
+              <option value="160">快</option>
+              <option value="50">很快</option>
+            </select>
+          </label>
+        </div>
+        <p class="summary" id="summary" hidden></p>
+      </div>
+
+      <div class="code" role="group" aria-label="Python 代码">
+        <div class="codehead">PYTHON</div>
+        <pre id="code"></pre>
+      </div>
+
+      <h2>为什么慢</h2>
+      <p class="story">每一轮只能把一个元素送到最终位置，最坏要走 n−1 轮，总共比较 n(n−1)/2 次，也就是 O(n²)。归并排序、快速排序这类算法大约只要 n·log₂n 次。</p>
+      <div class="cmpchart" id="cmpchart"></div>
+      <p class="small-note">条形长度用对数刻度绘制。数字是比较次数：冒泡取最坏情况 n(n−1)/2，n·log₂n 是归并、快排这一档算法的量级。</p>
+
+      <h2>写对它的四个点</h2>
+      <ul class="pits">
+        <li>内层循环只到 <code>n - 1 - i</code>。后面 i 个已经排好了；写成 <code>n - 1</code> 结果没错但多做一倍的无用比较，写成 <code>n</code> 会越界。</li>
+        <li>比较用 <code>&gt;</code> 而不是 <code>&gt;=</code>。相等时不换，排序才是稳定的：同分的两条记录保持原来的先后顺序，按多个字段依次排序时这一点很重要。</li>
+        <li>加上 <code>swapped</code> 标志提前退出。已经有序的数据只需一轮 n−1 次比较，最好情况从 O(n²) 变成 O(n)。试试上面的「几乎有序」。</li>
+        <li>工程里别用它排大数据。10 万条数据最坏要比较约 50 亿次；直接用语言自带的 <code>sorted()</code>（Timsort），它对几乎有序的数据同样很快。</li>
+      </ul>
+    </section>
+  </main>
+
+  <p class="foot">原型版本：冒泡排序的初级和高级两档。进阶和中级待补充。</p>
+</div>
+
+<script id="logic">
+/* 纯逻辑：不碰 DOM，便于单独测试 */
+var KID_NAMES = ['小明', '小红', '小刚', '小美', '小天', '小雨', '小乐', '小安'];
+function kidHeights(n) {
+  var pool = [], out = [];
+  for (var h = 112; h <= 150; h += 2) pool.push(h);
+  for (var i = 0; i < n; i++) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  return out;
+}
+/* 初级状态：a 当前队伍，j 正在看的一对的左边下标，end 之后（含）已排好 */
+function kidInit(people) {
+  return { a: people.slice(), j: 0, end: people.length, swapped: false, compares: 0, swaps: 0, round: 1, done: people.length < 2, roundEnd: false };
+}
+function kidNeed(s, key) { return key(s.a[s.j]) > key(s.a[s.j + 1]) ? 'swap' : 'keep'; }
+/* answer 是 'swap' 或 'keep'；答错返回 null，状态不变 */
+function kidStep(s, answer, key) {
+  if (s.done) return s;
+  var need = kidNeed(s, key);
+  if (answer !== need) return null;
+  var a = s.a.slice(), swapped = s.swapped, swaps = s.swaps;
+  if (need === 'swap') { var t = a[s.j]; a[s.j] = a[s.j + 1]; a[s.j + 1] = t; swapped = true; swaps++; }
+  var n = { a: a, j: s.j + 1, end: s.end, swapped: swapped, compares: s.compares + 1, swaps: swaps, round: s.round, done: false, roundEnd: false };
+  if (n.j >= n.end - 1) {
+    n.end--; n.roundEnd = true;
+    if (!swapped || n.end <= 1) n.done = true;
+    n.j = 0; n.swapped = false; n.round++;
+  }
+  return n;
+}
+
+function genArray(n, shape) {
+  var a = [], i;
+  for (i = 0; i < n; i++) a.push(Math.floor(Math.random() * 90) + 5);
+  if (shape === 'reversed') a.sort(function (x, y) { return y - x; });
+  if (shape === 'nearly') {
+    a.sort(function (x, y) { return x - y; });
+    var k = Math.floor(Math.random() * (n - 1));
+    var t = a[k]; a[k] = a[k + 1]; a[k + 1] = t;
+  }
+  return a;
+}
+function buildTrace(input) {
+  var a = input.slice(), n = a.length, steps = [], compares = 0, swaps = 0, sortedFrom = n, i = null, j = null, swapped = null, round = 0;
+  function push(line, note, extra) {
+    steps.push(Object.assign({ line: line, a: a.slice(), i: i, j: j, round: round, sortedFrom: sortedFrom, compares: compares, swaps: swaps, swapped: swapped, note: note, cmp: false, swap: false, done: false }, extra || {}));
+  }
+  push(2, 'n = ' + n + '。');
+  for (i = 0; i < n - 1; i++) {
+    round = i + 1; j = null; swapped = null;
+    push(3, '第 ' + round + ' 轮：i = ' + i + '，前 ' + (n - i) + ' 个元素还没排好。');
+    swapped = false;
+    push(4, 'swapped = False，记录这一轮有没有交换过。');
+    for (j = 0; j < n - 1 - i; j++) {
+      push(5, 'j = ' + j + '，准备比较 a[' + j + '] 和 a[' + (j + 1) + ']。');
+      compares++;
+      var gt = a[j] > a[j + 1];
+      push(6, 'a[' + j + '] = ' + a[j] + (gt ? ' > ' : ' ≤ ') + 'a[' + (j + 1) + '] = ' + a[j + 1] + (gt ? '，前面的大，要交换。' : '，顺序没问题，不换。'), { cmp: true });
+      if (gt) {
+        var t = a[j]; a[j] = a[j + 1]; a[j + 1] = t; swaps++;
+        push(7, '交换：现在 a[' + j + '] = ' + a[j] + '，a[' + (j + 1) + '] = ' + a[j + 1] + '。', { swap: true });
+        swapped = true;
+        push(8, 'swapped = True。');
+      }
+    }
+    j = null;
+    sortedFrom = n - 1 - i;
+    push(9, swapped
+      ? '这一轮交换过。最大的 ' + a[sortedFrom] + ' 已经冒到下标 ' + sortedFrom + '，它的位置定了。'
+      : '这一轮一次都没交换，说明整个数组已经有序。');
+    if (!swapped) { sortedFrom = 0; push(10, '提前退出，省下了后面 ' + (n - 2 - i) + ' 轮。'); break; }
+  }
+  i = null; j = null; sortedFrom = 0;
+  push(11, '返回。一共比较 ' + compares + ' 次，交换 ' + swaps + ' 次。', { done: true });
+  return steps;
+}
+</script>
+
+<script>
+(function () {
+  var $ = function (s) { return document.querySelector(s); };
+
+  /* ---------- 等级切换 ---------- */
+  var tabs = { kid: $('#tab-kid'), pro: $('#tab-pro') };
+  var panels = { kid: $('#kid'), pro: $('#pro') };
+  function showLevel(k) {
+    Object.keys(tabs).forEach(function (key) {
+      tabs[key].setAttribute('aria-selected', String(key === k));
+      panels[key].hidden = key !== k;
+    });
+    if (k !== 'pro') stopPlay();
+  }
+  tabs.kid.addEventListener('click', function () { showLevel('kid'); });
+  tabs.pro.addEventListener('click', function () { showLevel('pro'); });
+
+  /* ---------- 初级：排队拍合照 ---------- */
+  var KN = 5, MINH = 100, MAXH = 150;
+  var heightOf = function (p) { return p.h; };
+  var kid, hist;
+  function kidReset() {
+    var hs = kidHeights(KN);
+    kid = kidInit(hs.map(function (h, k) { return { name: KN_NAMES[k], h: h }; }));
+    hist = [];
+    $('#oops').textContent = '';
+    kidRender();
+  }
+  var KN_NAMES = KID_NAMES.slice(0, KN);
+  $('#lineup').style.setProperty('--n', KN);
+  $('#kidnames').style.setProperty('--n', KN);
+
+  function kidRender() {
+    var lu = document.createDocumentFragment(), nm = document.createDocumentFragment();
+    kid.a.forEach(function (p, k) {
+      var d = document.createElement('div');
+      var cls = 'kid';
+      if (kid.done || k >= kid.end) cls += ' done';
+      else if (k === kid.j || k === kid.j + 1) cls += ' pair';
+      d.className = cls;
+      var body = document.createElement('div');
+      body.className = 'body';
+      body.style.height = Math.round((p.h - MINH) / (MAXH - MINH) * 140 + 30) + 'px';
+      var h = document.createElement('div'); h.className = 'h'; h.textContent = p.h;
+      d.appendChild(body); d.appendChild(h);
+      lu.appendChild(d);
+      var n = document.createElement('div'); n.className = 'nm'; n.textContent = p.name;
+      nm.appendChild(n);
+    });
+    $('#lineup').replaceChildren(lu);
+    $('#kidnames').replaceChildren(nm);
+
+    var say = $('#say');
+    if (kid.done) {
+      say.innerHTML = '排好啦，可以<b>拍照</b>了！';
+      $('#kidStatus').textContent = '一共比了 ' + kid.compares + ' 次，换了 ' + kid.swaps + ' 次';
+    } else {
+      var L = kid.a[kid.j], R = kid.a[kid.j + 1];
+      say.innerHTML = '<b>' + L.name + '</b> 和 <b>' + R.name + '</b>，要不要换位置？';
+      $('#kidStatus').textContent = '第 ' + kid.round + ' 轮 · 已经比了 ' + kid.compares + ' 次，换了 ' + kid.swaps + ' 次';
+    }
+    $('#btnSwap').disabled = kid.done;
+    $('#btnKeep').disabled = kid.done;
+    $('#btnUndo').disabled = hist.length === 0;
+    $('#kidResult').hidden = !kid.done;
+    if (kid.done) $('#resultTitle').textContent = '你帮摄影师比了 ' + kid.compares + ' 次、换了 ' + kid.swaps + ' 次，大家从矮到高站好了。';
+  }
+  function kidAnswer(ans) {
+    var before = kid;
+    var next = kidStep(kid, ans, heightOf);
+    if (!next) {
+      var L = kid.a[kid.j], R = kid.a[kid.j + 1];
+      $('#oops').textContent = ans === 'swap'
+        ? L.name + ' ' + L.h + ' 厘米，比 ' + R.name + ' 的 ' + R.h + ' 厘米矮，不用换哦。'
+        : L.name + ' ' + L.h + ' 厘米，比 ' + R.name + ' 的 ' + R.h + ' 厘米高，要换一下。';
+      return;
+    }
+    hist.push(before);
+    kid = next;
+    if (next.done) $('#oops').textContent = '';
+    else if (next.roundEnd) {
+      var top = next.a[next.end];
+      $('#oops').textContent = '';
+      kidRender();
+      $('#say').innerHTML = '第 ' + (next.round - 1) + ' 轮结束：<b>' + top.name + '</b> 冒到了位置上！' +
+        '<br>接着看 <b>' + next.a[0].name + '</b> 和 <b>' + next.a[1].name + '</b>，要换吗？';
+      return;
+    } else $('#oops').textContent = '';
+    kidRender();
+  }
+  $('#btnSwap').addEventListener('click', function () { kidAnswer('swap'); });
+  $('#btnKeep').addEventListener('click', function () { kidAnswer('keep'); });
+  $('#btnUndo').addEventListener('click', function () {
+    if (!hist.length) return;
+    kid = hist.pop(); $('#oops').textContent = ''; kidRender();
+  });
+  $('#btnRestart').addEventListener('click', kidReset);
+  $('#btnAgain').addEventListener('click', kidReset);
+  kidReset();
+
+  /* ---------- 高级：逐步执行 ---------- */
+  var CODE = [
+    'def bubble_sort(a):',
+    '    n = len(a)',
+    '    for i in range(n - 1):',
+    '        swapped = False',
+    '        for j in range(n - 1 - i):',
+    '            if a[j] > a[j + 1]:',
+    '                a[j], a[j + 1] = a[j + 1], a[j]',
+    '                swapped = True',
+    '        if not swapped:',
+    '            break',
+    '    return a'
+  ];
+  var codeEl = $('#code'), lineEls = [];
+  CODE.forEach(function (t, k) {
+    var row = document.createElement('div');
+    row.className = 'line';
+    var num = document.createElement('i'); num.textContent = k + 1;
+    var txt = document.createElement('span'); txt.textContent = t;
+    row.appendChild(num); row.appendChild(txt);
+    codeEl.appendChild(row);
+    lineEls[k + 1] = row;
+  });
+
+  var size = 10, shape = 'random', input, steps, idx = 0, timer = null;
+  var arrEl = $('#arr');
+
+  function freshArray() { input = genArray(size, shape); steps = buildTrace(input); idx = 0; stopPlay(); renderPro(); }
+
+  function renderPro() {
+    var s = steps[idx], n = s.a.length, max = Math.max.apply(null, s.a);
+    arrEl.style.setProperty('--n', n);
+    var frag = document.createDocumentFragment();
+    s.a.forEach(function (v, k) {
+      var c = document.createElement('div');
+      var cls = 'cell';
+      var inPair = s.j !== null && (k === s.j || k === s.j + 1);
+      if (k >= s.sortedFrom) cls += ' sorted';
+      else if (inPair && s.swap) cls += ' swap';
+      else if (inPair && s.cmp) cls += ' cmp';
+      c.className = cls;
+      var t = document.createElement('div'); t.className = 'tag';
+      t.textContent = s.j === null ? '' : k === s.j ? 'j' : k === s.j + 1 ? 'j+1' : '';
+      var bar = document.createElement('div'); bar.className = 'bar'; bar.style.height = Math.round(v / max * 110 + 6) + 'px';
+      var val = document.createElement('div'); val.className = 'val'; val.textContent = v;
+      var ix = document.createElement('div'); ix.className = 'idx'; ix.textContent = k;
+      c.appendChild(t); c.appendChild(bar); c.appendChild(val); c.appendChild(ix);
+      frag.appendChild(c);
+    });
+    arrEl.replaceChildren(frag);
+
+    var vars = [
+      ['轮次', s.round || '—'], ['i', s.i === null ? '—' : s.i], ['j', s.j === null ? '—' : s.j],
+      ['swapped', s.swapped === null ? '—' : s.swapped ? 'True' : 'False'],
+      ['比较', s.compares], ['交换', s.swaps]
+    ];
+    $('#vars').innerHTML = vars.map(function (p) { return '<span class="chip"><small>' + p[0] + '</small>' + p[1] + '</span>'; }).join('');
+    $('#note').textContent = '第 ' + (idx + 1) + '/' + steps.length + ' 步：' + s.note;
+    lineEls.forEach(function (el, k) { if (el) el.classList.toggle('on', k === s.line); });
+
+    var sum = $('#summary');
+    sum.hidden = !s.done;
+    if (s.done) {
+      var worst = n * (n - 1) / 2;
+      sum.textContent = '比较了 ' + s.compares + ' 次，交换了 ' + s.swaps + ' 次。n = ' + n + ' 时最坏要比较 ' + worst + ' 次' +
+        (s.compares < worst ? '，提前退出省下了 ' + (worst - s.compares) + ' 次。' : '，这次正好是最坏情况。');
+    }
+    $('#btnPrev').disabled = idx === 0;
+    $('#btnReset').disabled = idx === 0;
+    $('#btnNext').disabled = idx >= steps.length - 1;
+    $('#btnRound').disabled = idx >= steps.length - 1;
+    $('#btnPlay').textContent = timer ? '暂停' : '播放';
+  }
+  function stopPlay() { if (timer) { clearInterval(timer); timer = null; } if (steps) $('#btnPlay').textContent = '播放'; }
+  function startTimer() {
+    timer = setInterval(function () {
+      if (idx >= steps.length - 1) { stopPlay(); renderPro(); return; }
+      idx++; renderPro();
+    }, parseInt($('#speed').value, 10));
+  }
+  function togglePlay() {
+    if (timer) { stopPlay(); renderPro(); return; }
+    if (idx >= steps.length - 1) idx = 0;
+    startTimer(); renderPro();
+  }
+  function jumpRoundEnd() {
+    stopPlay();
+    while (idx < steps.length - 1) { idx++; if (steps[idx].line === 9) break; }
+    renderPro();
+  }
+
+  $('#btnPlay').addEventListener('click', togglePlay);
+  $('#btnNext').addEventListener('click', function () { stopPlay(); if (idx < steps.length - 1) idx++; renderPro(); });
+  $('#btnPrev').addEventListener('click', function () { stopPlay(); if (idx > 0) idx--; renderPro(); });
+  $('#btnReset').addEventListener('click', function () { stopPlay(); idx = 0; renderPro(); });
+  $('#btnRound').addEventListener('click', jumpRoundEnd);
+  $('#speed').addEventListener('change', function () { if (timer) { clearInterval(timer); startTimer(); } });
+  $('#btnNew').addEventListener('click', freshArray);
+  function segPick(segSel, attr, set) {
+    $(segSel).addEventListener('click', function (e) {
+      var b = e.target.closest('button[' + attr + ']');
+      if (!b) return;
+      set(b.getAttribute(attr));
+      $(segSel).querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      freshArray();
+    });
+  }
+  segPick('#sizeSeg', 'data-size', function (v) { size = parseInt(v, 10); });
+  segPick('#shapeSeg', 'data-shape', function (v) { shape = v; });
+  freshArray();
+
+  /* ---------- 比较次数对比（对数刻度） ---------- */
+  var rows = [
+    { label: '10', unit: '个元素', n: 10 },
+    { label: '1,000', unit: '一千', n: 1000 },
+    { label: '100,000', unit: '十万', n: 100000 },
+    { label: '1,000,000', unit: '一百万', n: 1000000 }
+  ];
+  var maxLog = Math.log10(1 + 1e6 * (1e6 - 1) / 2);
+  function fmt(v) { return Math.round(v).toLocaleString('en-US'); }
+  $('#cmpchart').innerHTML = rows.map(function (r) {
+    var slow = r.n * (r.n - 1) / 2, fast = r.n * Math.log2(r.n);
+    var ws = (Math.log10(1 + slow) / maxLog * 100).toFixed(1);
+    var wf = (Math.log10(1 + fast) / maxLog * 100).toFixed(1);
+    return '<div class="cmp-row"><div class="cmp-n">' + r.label + '<small>' + r.unit + '</small></div><div class="bars">' +
+      '<div class="bar-line"><span class="bar-name">冒泡</span><div class="track"><div class="fill slow" style="width:' + ws + '%"></div></div><span class="num">' + fmt(slow) + ' 次</span></div>' +
+      '<div class="bar-line"><span class="bar-name">n·log n</span><div class="track"><div class="fill fast" style="width:' + wf + '%"></div></div><span class="num">≈ ' + fmt(fast) + ' 次</span></div>' +
+      '</div></div>';
+  }).join('');
+})();
+</script>
+
+</body>
+</html>

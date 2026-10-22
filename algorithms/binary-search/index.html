@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style>
+<title>二分查找 - 算法小故事</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one 780px column. Masthead with a level switch, then the active level's workbench.
+   Kid level = a 10x10 street of mailboxes that shrinks by half. Pro level = pointers, code, cost table. */
+:root {
+  --bg: #EDF2EF;
+  --surface: #F9FBFA;
+  --fg: #13231F;
+  --muted: #566A63;
+  --line: #C5D3CC;
+  --accent: #0B7A62;
+  --accent-ink: #FFFFFF;
+  --mid: #F0A52E;
+  --mid-ink: #2A1B00;
+  --out: #DCE5E0;
+  --out-ink: #8A9C95;
+  --warn: #B3341F;
+  --code-bg: #12201C;
+  --code-fg: #D7E8E1;
+  --code-dim: #6F8B80;
+  --code-hl: rgba(240, 165, 46, 0.24);
+  --display: "ZCOOL KuaiLe", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --body: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1815;
+    --surface: #15231F;
+    --fg: #E4EFEA;
+    --muted: #93A89F;
+    --line: #2B433C;
+    --accent: #3CCBA4;
+    --accent-ink: #06231B;
+    --mid: #F2B24B;
+    --mid-ink: #2A1B00;
+    --out: #1B2C27;
+    --out-ink: #5C7369;
+    --warn: #FF8A73;
+    --code-bg: #0A1311;
+    --code-fg: #D7E8E1;
+    --code-dim: #6F8B80;
+    --code-hl: rgba(242, 178, 75, 0.22);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1815;
+  --surface: #15231F;
+  --fg: #E4EFEA;
+  --muted: #93A89F;
+  --line: #2B433C;
+  --accent: #3CCBA4;
+  --accent-ink: #06231B;
+  --mid: #F2B24B;
+  --mid-ink: #2A1B00;
+  --out: #1B2C27;
+  --out-ink: #5C7369;
+  --warn: #FF8A73;
+  --code-bg: #0A1311;
+  --code-fg: #D7E8E1;
+  --code-dim: #6F8B80;
+  --code-hl: rgba(242, 178, 75, 0.22);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.65;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; font-weight: 700; line-height: 1.25; }
+p { margin: 0; }
+
+/* masthead */
+.mast { display: flex; flex-direction: column; gap: 10px; }
+.brand { font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; color: var(--muted); }
+h1 { font-family: var(--display); font-size: clamp(2.4rem, 8vw, 3.4rem); font-weight: 400; letter-spacing: 0.02em; }
+.lede { color: var(--muted); max-width: 34em; }
+.levels { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.levels button {
+  font: inherit; font-weight: 700; cursor: pointer;
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 10px 18px; border-radius: 10px;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--fg);
+}
+.levels button span { font-weight: 400; font-size: 13px; color: var(--muted); }
+.levels button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.levels button[aria-selected="true"] span { color: inherit; opacity: 0.85; }
+
+/* shared */
+.panel { display: flex; flex-direction: column; gap: 22px; }
+h2 { font-family: var(--display); font-weight: 400; font-size: 1.7rem; }
+h3 { font-size: 1.05rem; }
+.story { max-width: 36em; }
+.btn {
+  font: inherit; font-weight: 500; cursor: pointer; line-height: 1.3;
+  padding: 11px 16px; border-radius: 8px;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--fg);
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.small { padding: 7px 12px; font-size: 14px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn:focus-visible, .levels button:focus-visible, .link:focus-visible, select:focus-visible, input:focus-visible, .seg button:focus-visible {
+  outline: 2px solid var(--fg); outline-offset: 2px;
+}
+.link { font: inherit; font-size: 14px; background: none; border: 0; padding: 4px 0; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.link:disabled { color: var(--muted); cursor: not-allowed; text-decoration: none; opacity: 0.6; }
+
+/* kid level */
+.houses { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; max-width: 460px; }
+.house {
+  aspect-ratio: 1; display: grid; place-items: center;
+  font: 500 12px var(--mono); border-radius: 6px;
+  background: var(--surface); border: 1.5px solid var(--line); color: var(--fg);
+  transition: background 0.25s, color 0.25s, border-color 0.25s;
+}
+.house.out { background: var(--out); border-color: transparent; color: var(--out-ink); }
+.house.guess { background: var(--mid); border-color: var(--mid); color: var(--mid-ink); font-weight: 600; }
+.house.found { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.ask { display: flex; flex-direction: column; gap: 14px; max-width: 520px; }
+.say { font-family: var(--display); font-size: 1.9rem; line-height: 1.3; }
+.say b { font-weight: 400; color: var(--accent); }
+.answers { display: flex; flex-wrap: wrap; gap: 10px; }
+.answers .btn { flex: 1 1 140px; }
+.status { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.row { display: flex; gap: 18px; flex-wrap: wrap; }
+.result {
+  background: var(--surface); border: 1.5px solid var(--accent); border-radius: 12px;
+  padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; max-width: 560px;
+}
+.result .tip { color: var(--muted); }
+.result .btn { align-self: flex-start; }
+
+/* pro level */
+.controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end; }
+.field { display: flex; flex-direction: column; gap: 6px; border: 0; padding: 0; margin: 0; min-width: 0; }
+.field legend, .field > label, .field > .lab { font-size: 13px; color: var(--muted); padding: 0; }
+.field .inline { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg { display: flex; border: 1.5px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { font: 500 14px var(--mono); border: 0; background: transparent; color: var(--fg); padding: 8px 14px; cursor: pointer; }
+.seg button + button { border-left: 1.5px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+input[type="number"], select {
+  font: 500 15px var(--mono); color: var(--fg); background: var(--surface);
+  border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 7em;
+}
+select { width: auto; font-family: var(--body); }
+
+.stage { display: flex; flex-direction: column; gap: 16px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 18px; }
+.arr { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 10px 6px; }
+.cell { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.tag { height: 12px; font: 600 10px/12px var(--mono); color: var(--fg); white-space: nowrap; }
+.val {
+  width: 100%; height: 40px; display: grid; place-items: center;
+  font: 600 14px var(--mono); font-variant-numeric: tabular-nums;
+  border: 1.5px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg);
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.idx { font: 400 10px var(--mono); color: var(--muted); }
+.cell.out .val { background: var(--out); color: var(--out-ink); border-color: transparent; }
+.cell.mid .val { background: var(--mid); color: var(--mid-ink); border-color: var(--mid); }
+.cell.found .val { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.vars { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: flex; gap: 8px; align-items: baseline; padding: 4px 10px; border-radius: 6px; background: var(--bg); border: 1.5px solid var(--line); font: 600 14px var(--mono); font-variant-numeric: tabular-nums; }
+.chip small { font: 400 12px var(--mono); color: var(--muted); }
+.note { min-height: 3.3em; }
+.transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.transport .speed { margin-left: auto; display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--muted); }
+.summary { border-top: 1.5px solid var(--line); padding-top: 14px; }
+
+.code { background: var(--code-bg); color: var(--code-fg); border-radius: 12px; overflow: hidden; }
+.codehead { font: 400 12px var(--mono); color: var(--code-dim); padding: 10px 16px 0; letter-spacing: 0.08em; }
+.code pre { margin: 0; padding: 8px 0 14px; overflow-x: auto; font: 400 14px/1.7 var(--mono); }
+.line { display: grid; grid-template-columns: 3em 1fr; white-space: pre; padding-right: 16px; }
+.line i { font-style: normal; text-align: right; padding-right: 1em; color: var(--code-dim); }
+.line.on { background: var(--code-hl); }
+.line.on i { color: var(--mid); }
+
+.cmp { display: flex; flex-direction: column; gap: 16px; }
+.cmp-row { display: grid; grid-template-columns: 8.5em 1fr; gap: 6px 14px; align-items: center; }
+.cmp-n { font: 600 14px var(--mono); font-variant-numeric: tabular-nums; }
+.cmp-n small { display: block; font: 400 12px var(--body); color: var(--muted); }
+.bars { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bar-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bar-name { width: 3.2em; font-size: 12px; color: var(--muted); flex: none; }
+.track { flex: 1; min-width: 0; height: 12px; border-radius: 6px; background: var(--out); overflow: hidden; }
+.fill { height: 100%; border-radius: 6px; }
+.fill.lin { background: var(--muted); }
+.fill.bin { background: var(--accent); }
+.num { flex: none; min-width: 8.6em; text-align: right; font: 600 13px var(--mono); font-variant-numeric: tabular-nums; }
+.small-note { color: var(--muted); font-size: 14px; }
+.pits { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 8px; max-width: 44em; }
+.pits code { font: 500 0.9em var(--mono); background: var(--out); padding: 1px 6px; border-radius: 4px; }
+.foot { color: var(--muted); font-size: 13px; border-top: 1.5px solid var(--line); padding-top: 14px; }
+
+@media (max-width: 520px) {
+  .cmp-row { grid-template-columns: 1fr; }
+  .transport .speed { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .house, .val { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="mast">
+    <p class="brand">算法小故事</p>
+    <h1>二分查找</h1>
+    <p class="lede">同一个算法，两种讲法。小朋友玩一局猜号码，工程师逐步看指针、代码和耗时。</p>
+    <div class="levels" role="tablist" aria-label="选择等级">
+      <button type="button" role="tab" id="tab-kid" aria-selected="true" aria-controls="kid">初级<span>小朋友</span></button>
+      <button type="button" role="tab" id="tab-pro" aria-selected="false" aria-controls="pro">高级<span>IT 从业者</span></button>
+    </div>
+  </header>
+
+  <main>
+    <!-- 初级 -->
+    <section id="kid" class="panel" role="tabpanel" aria-labelledby="tab-kid">
+      <h2>小邮差找信箱</h2>
+      <p class="story">信箱街有 100 个信箱，编号 1 到 100。你在心里想一个编号，别说出来。小邮差来猜，你只要告诉他：你的号码是更小、更大，还是刚好。</p>
+      <div id="houses" class="houses" aria-label="1 到 100 号信箱"></div>
+      <div class="ask">
+        <p class="say" id="say" aria-live="polite"></p>
+        <div class="answers">
+          <button type="button" class="btn" id="btnSmaller"></button>
+          <button type="button" class="btn primary" id="btnHit"></button>
+          <button type="button" class="btn" id="btnBigger"></button>
+        </div>
+        <p class="status" id="kidStatus"></p>
+        <div class="row">
+          <button type="button" class="link" id="btnUndo">撤销上一步</button>
+          <button type="button" class="link" id="btnRestart">重新开始</button>
+        </div>
+      </div>
+      <div id="kidResult" class="result" hidden>
+        <h3 id="resultTitle"></h3>
+        <p>一个一个挨着找，最坏要找 100 次。小邮差每次都猜剩下范围的正中间，一次就能排除一半的信箱。</p>
+        <p class="tip">再玩几局试试：不管你想的是几号，小邮差最多猜 7 次。</p>
+        <button type="button" class="btn primary" id="btnAgain">再玩一局</button>
+      </div>
+    </section>
+
+    <!-- 高级 -->
+    <section id="pro" class="panel" role="tabpanel" aria-labelledby="tab-pro" hidden>
+      <h2>逐步执行</h2>
+      <p class="story">在有序数组里找目标值。每一步都对应下面代码的一行，高亮行就是当前正在执行的那一行。</p>
+
+      <div class="controls">
+        <fieldset class="field">
+          <legend>数组大小</legend>
+          <div class="seg" id="sizeSeg">
+            <button type="button" data-size="8" aria-pressed="false">8</button>
+            <button type="button" data-size="16" aria-pressed="true">16</button>
+            <button type="button" data-size="32" aria-pressed="false">32</button>
+          </div>
+        </fieldset>
+        <div class="field">
+          <label for="target">目标值 target</label>
+          <input id="target" type="number" inputmode="numeric" step="1">
+        </div>
+        <div class="field">
+          <span class="lab">快速设置</span>
+          <div class="inline">
+            <button type="button" class="btn small" id="btnPick">取数组里的值</button>
+            <button type="button" class="btn small" id="btnMiss">取不存在的值</button>
+            <button type="button" class="btn small" id="btnNew">新数组</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div id="arr" class="arr" aria-hidden="true"></div>
+        <div class="vars" id="vars"></div>
+        <p class="note" id="note" aria-live="polite"></p>
+        <div class="transport">
+          <button type="button" class="btn small" id="btnReset">重置</button>
+          <button type="button" class="btn small" id="btnPrev">上一步</button>
+          <button type="button" class="btn small primary" id="btnPlay">播放</button>
+          <button type="button" class="btn small" id="btnNext">下一步</button>
+          <label class="speed" for="speed">速度
+            <select id="speed">
+              <option value="1100">慢</option>
+              <option value="650" selected>中</option>
+              <option value="280">快</option>
+            </select>
+          </label>
+        </div>
+        <p class="summary" id="summary" hidden></p>
+      </div>
+
+      <div class="code" role="group" aria-label="Python 代码">
+        <div class="codehead">PYTHON</div>
+        <pre id="code"></pre>
+      </div>
+
+      <h2>为什么快</h2>
+      <p class="story">每比较一次，候选范围就缩小一半，所以最坏情况只需要大约 log₂n 次。数据量涨到十亿，也只多比较二十几次。</p>
+      <div class="cmp" id="cmp"></div>
+      <p class="small-note">条形长度用对数刻度绘制，否则二分查找的条会窄到看不见。数字是最坏情况下的比较次数。</p>
+
+      <h2>写对它的三个坑</h2>
+      <ul class="pits">
+        <li>数组必须有序。无序数组上二分不会报错，只会返回错的结果。</li>
+        <li>循环条件是 <code>lo &lt;= hi</code>。写成 <code>&lt;</code> 会漏掉只剩一个元素的情况。</li>
+        <li>中点写成 <code>lo + (hi - lo) // 2</code>。在 C、Java 里 <code>(lo + hi) / 2</code> 可能整数溢出，这是真实出现过的线上 bug。</li>
+      </ul>
+    </section>
+  </main>
+
+  <p class="foot">原型版本：目前只有二分查找的初级和高级两档，用来验证分级讲同一个算法的做法。</p>
+</div>
+
+<script id="logic">
+/* 纯逻辑：不碰 DOM，便于单独测试 */
+function kidGuess(lo, hi) { return Math.floor((lo + hi) / 2); }
+function kidNarrow(lo, hi, answer) {
+  var g = kidGuess(lo, hi);
+  if (answer === 'bigger') lo = g + 1;
+  else if (answer === 'smaller') hi = g - 1;
+  return { lo: lo, hi: hi, empty: lo > hi };
+}
+function genArray(n) {
+  var v = Math.floor(Math.random() * 8) + 2, a = [];
+  for (var i = 0; i < n; i++) { a.push(v); v += Math.floor(Math.random() * 9) + 1; }
+  return a;
+}
+function missingValue(arr) {
+  for (var i = 0; i < arr.length - 1; i++) { if (arr[i + 1] - arr[i] > 1) return arr[i] + 1; }
+  return arr[arr.length - 1] + 1;
+}
+function buildTrace(arr, target) {
+  var steps = [], lo = 0, hi = arr.length - 1, count = 0;
+  function push(line, note, extra) {
+    steps.push(Object.assign({ line: line, lo: lo, hi: hi, mid: null, count: count, note: note, found: -1, done: false }, extra || {}));
+  }
+  push(2, '初始化：lo = 0，hi = ' + hi + '，整个数组都是候选范围。');
+  while (true) {
+    push(3, lo <= hi ? 'lo ≤ hi（' + lo + ' ≤ ' + hi + '），候选范围不为空，继续循环。' : 'lo > hi（' + lo + ' > ' + hi + '），候选范围已空，退出循环。');
+    if (lo > hi) break;
+    var mid = lo + Math.floor((hi - lo) / 2);
+    count++;
+    push(4, '取中点：mid = lo + (hi - lo) // 2 = ' + mid + '。', { mid: mid });
+    push(5, 'arr[' + mid + '] = ' + arr[mid] + '，等于目标 ' + target + ' 吗？', { mid: mid });
+    if (arr[mid] === target) {
+      push(6, '相等，返回下标 ' + mid + '。', { mid: mid, found: mid, done: true });
+      return steps;
+    }
+    var less = arr[mid] < target;
+    push(7, arr[mid] + (less ? ' < ' : ' > ') + target + '，目标在' + (less ? '右' : '左') + '半边。', { mid: mid });
+    if (less) { lo = mid + 1; push(8, '丢掉左半边：lo = mid + 1 = ' + lo + '。', { mid: mid }); }
+    else { hi = mid - 1; push(10, '丢掉右半边：hi = mid - 1 = ' + hi + '。', { mid: mid }); }
+  }
+  push(11, '返回 -1，数组里没有 ' + target + '。', { done: true });
+  return steps;
+}
+</script>
+
+<script>
+(function () {
+  var $ = function (s) { return document.querySelector(s); };
+
+  /* ---------- 等级切换 ---------- */
+  var tabs = { kid: $('#tab-kid'), pro: $('#tab-pro') };
+  var panels = { kid: $('#kid'), pro: $('#pro') };
+  function showLevel(k) {
+    Object.keys(tabs).forEach(function (key) {
+      tabs[key].setAttribute('aria-selected', String(key === k));
+      panels[key].hidden = key !== k;
+    });
+    if (k !== 'pro') stopPlay();
+  }
+  tabs.kid.addEventListener('click', function () { showLevel('kid'); });
+  tabs.pro.addEventListener('click', function () { showLevel('pro'); });
+
+  /* ---------- 初级：小邮差找信箱 ---------- */
+  var N = 100;
+  var housesEl = $('#houses'), cells = [];
+  for (var i = 1; i <= N; i++) {
+    var d = document.createElement('div');
+    d.className = 'house';
+    d.textContent = i;
+    housesEl.appendChild(d);
+    cells[i] = d;
+  }
+  var kid;
+  function kidReset() {
+    kid = { lo: 1, hi: N, count: 1, guess: kidGuess(1, N), hist: [], mode: 'play', found: null };
+    kidRender();
+  }
+  function kidRender() {
+    var playing = kid.mode === 'play';
+    for (var i = 1; i <= N; i++) {
+      var out = kid.mode === 'broken' ? true : kid.mode === 'done' ? i !== kid.found : (i < kid.lo || i > kid.hi);
+      var c = 'house';
+      if (out) c += ' out';
+      if (playing && i === kid.guess) c += ' guess';
+      if (kid.mode === 'done' && i === kid.found) c += ' found';
+      cells[i].className = c;
+    }
+    var say = $('#say'), status = $('#kidStatus');
+    if (playing) {
+      say.innerHTML = '我猜，是 <b>' + kid.guess + '</b> 号？';
+      status.textContent = '第 ' + kid.count + ' 次猜 · 还剩 ' + (kid.hi - kid.lo + 1) + ' 个可能';
+      $('#btnSmaller').textContent = '我的号码比 ' + kid.guess + ' 小';
+      $('#btnHit').textContent = '就是 ' + kid.guess;
+      $('#btnBigger').textContent = '我的号码比 ' + kid.guess + ' 大';
+    } else if (kid.mode === 'done') {
+      say.innerHTML = '找到啦，是 <b>' + kid.found + '</b> 号！';
+      status.textContent = '一共猜了 ' + kid.count + ' 次';
+    } else {
+      say.textContent = '咦，信箱街里没有这个号码了。';
+      status.textContent = '提示前后矛盾，点「撤销上一步」回到上一次猜测。';
+    }
+    ['#btnSmaller', '#btnHit', '#btnBigger'].forEach(function (s) { $(s).disabled = !playing; });
+    $('#btnUndo').disabled = kid.hist.length === 0;
+    var res = $('#kidResult');
+    res.hidden = kid.mode !== 'done';
+    if (kid.mode === 'done') $('#resultTitle').textContent = '小邮差只猜了 ' + kid.count + ' 次就找到了 ' + kid.found + ' 号。';
+  }
+  function kidAnswer(a) {
+    if (kid.mode !== 'play') return;
+    kid.hist.push({ lo: kid.lo, hi: kid.hi, count: kid.count, guess: kid.guess });
+    if (a === 'hit') { kid.mode = 'done'; kid.found = kid.guess; kidRender(); return; }
+    var r = kidNarrow(kid.lo, kid.hi, a);
+    kid.lo = r.lo; kid.hi = r.hi;
+    if (r.empty) { kid.mode = 'broken'; kid.guess = null; }
+    else { kid.count++; kid.guess = kidGuess(kid.lo, kid.hi); }
+    kidRender();
+  }
+  function kidUndo() {
+    var h = kid.hist.pop();
+    if (!h) return;
+    kid.lo = h.lo; kid.hi = h.hi; kid.count = h.count; kid.guess = h.guess; kid.mode = 'play'; kid.found = null;
+    kidRender();
+  }
+  $('#btnSmaller').addEventListener('click', function () { kidAnswer('smaller'); });
+  $('#btnBigger').addEventListener('click', function () { kidAnswer('bigger'); });
+  $('#btnHit').addEventListener('click', function () { kidAnswer('hit'); });
+  $('#btnUndo').addEventListener('click', kidUndo);
+  $('#btnRestart').addEventListener('click', kidReset);
+  $('#btnAgain').addEventListener('click', kidReset);
+  kidReset();
+
+  /* ---------- 高级：逐步执行 ---------- */
+  var CODE = [
+    'def binary_search(arr, target):',
+    '    lo, hi = 0, len(arr) - 1',
+    '    while lo <= hi:',
+    '        mid = lo + (hi - lo) // 2',
+    '        if arr[mid] == target:',
+    '            return mid',
+    '        elif arr[mid] < target:',
+    '            lo = mid + 1',
+    '        else:',
+    '            hi = mid - 1',
+    '    return -1'
+  ];
+  var codeEl = $('#code'), lineEls = [];
+  CODE.forEach(function (t, k) {
+    var row = document.createElement('div');
+    row.className = 'line';
+    var num = document.createElement('i'); num.textContent = k + 1;
+    var txt = document.createElement('span'); txt.textContent = t;
+    row.appendChild(num); row.appendChild(txt);
+    codeEl.appendChild(row);
+    lineEls[k + 1] = row;
+  });
+
+  var size = 16, arr, target, steps, idx = 0, timer = null;
+  var arrEl = $('#arr'), targetEl = $('#target');
+
+  function randIndexValue() { return arr[Math.floor(Math.random() * arr.length)]; }
+  function rebuild() { steps = buildTrace(arr, target); idx = 0; stopPlay(); renderPro(); }
+  function freshArray() { arr = genArray(size); target = randIndexValue(); targetEl.value = target; rebuild(); }
+
+  function renderPro() {
+    var s = steps[idx], n = arr.length;
+    var tags = {};
+    function addTag(pos, name) { if (pos >= 0 && pos < n) (tags[pos] = tags[pos] || []).push(name); }
+    addTag(s.lo, 'lo'); if (s.mid !== null) addTag(s.mid, 'mid'); addTag(s.hi, 'hi');
+
+    var frag = document.createDocumentFragment();
+    arr.forEach(function (v, k) {
+      var c = document.createElement('div');
+      var cls = 'cell';
+      if (k < s.lo || k > s.hi) cls += ' out';
+      if (k === s.mid) cls += ' mid';
+      if (k === s.found) cls += ' found';
+      c.className = cls;
+      var t = document.createElement('div'); t.className = 'tag'; t.textContent = (tags[k] || []).join('·');
+      var val = document.createElement('div'); val.className = 'val'; val.textContent = v;
+      var ix = document.createElement('div'); ix.className = 'idx'; ix.textContent = k;
+      c.appendChild(t); c.appendChild(val); c.appendChild(ix);
+      frag.appendChild(c);
+    });
+    arrEl.replaceChildren(frag);
+
+    var vars = [['lo', s.lo], ['mid', s.mid === null ? '—' : s.mid], ['hi', s.hi], ['target', target], ['已检查', s.count + ' 个']];
+    $('#vars').innerHTML = vars.map(function (p) { return '<span class="chip"><small>' + p[0] + '</small>' + p[1] + '</span>'; }).join('');
+    $('#note').textContent = '第 ' + (idx + 1) + '/' + steps.length + ' 步：' + s.note;
+    lineEls.forEach(function (el, k) { if (el) el.classList.toggle('on', k === s.line); });
+
+    var sum = $('#summary');
+    sum.hidden = !s.done;
+    if (s.done) {
+      sum.textContent = s.found >= 0
+        ? '在下标 ' + s.found + ' 找到 ' + target + '。二分查找检查了 ' + s.count + ' 个元素，从头顺序查找要检查 ' + (s.found + 1) + ' 个。'
+        : '数组里没有 ' + target + '。二分查找检查了 ' + s.count + ' 个元素，顺序查找要把 ' + n + ' 个元素全部看一遍。';
+    }
+    $('#btnPrev').disabled = idx === 0;
+    $('#btnReset').disabled = idx === 0;
+    $('#btnNext').disabled = idx >= steps.length - 1;
+    $('#btnPlay').textContent = timer ? '暂停' : '播放';
+  }
+  function stopPlay() { if (timer) { clearInterval(timer); timer = null; } if (steps) $('#btnPlay').textContent = '播放'; }
+  function startTimer() {
+    timer = setInterval(function () {
+      if (idx >= steps.length - 1) { stopPlay(); renderPro(); return; }
+      idx++; renderPro();
+    }, parseInt($('#speed').value, 10));
+  }
+  function togglePlay() {
+    if (timer) { stopPlay(); renderPro(); return; }
+    if (idx >= steps.length - 1) idx = 0;
+    startTimer(); renderPro();
+  }
+
+  $('#btnPlay').addEventListener('click', togglePlay);
+  $('#btnNext').addEventListener('click', function () { stopPlay(); if (idx < steps.length - 1) idx++; renderPro(); });
+  $('#btnPrev').addEventListener('click', function () { stopPlay(); if (idx > 0) idx--; renderPro(); });
+  $('#btnReset').addEventListener('click', function () { stopPlay(); idx = 0; renderPro(); });
+  $('#speed').addEventListener('change', function () { if (timer) { clearInterval(timer); startTimer(); } });
+  $('#btnNew').addEventListener('click', freshArray);
+  $('#btnPick').addEventListener('click', function () { target = randIndexValue(); targetEl.value = target; rebuild(); });
+  $('#btnMiss').addEventListener('click', function () { target = missingValue(arr); targetEl.value = target; rebuild(); });
+  targetEl.addEventListener('input', function () {
+    var v = parseInt(targetEl.value, 10);
+    if (isNaN(v)) return;
+    target = v; rebuild();
+  });
+  $('#sizeSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-size]');
+    if (!b) return;
+    size = parseInt(b.getAttribute('data-size'), 10);
+    $('#sizeSeg').querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+    freshArray();
+  });
+  freshArray();
+
+  /* ---------- 耗时对比（对数刻度） ---------- */
+  var rows = [
+    { label: '10', unit: '个元素', n: 10 },
+    { label: '1,000', unit: '一千', n: 1000 },
+    { label: '1,000,000', unit: '一百万', n: 1000000 },
+    { label: '1,000,000,000', unit: '十亿', n: 1000000000 }
+  ];
+  var maxLog = Math.log10(1 + 1e9);
+  function fmt(v) { return v.toLocaleString('en-US'); }
+  $('#cmp').innerHTML = rows.map(function (r) {
+    var bin = Math.floor(Math.log2(r.n)) + 1;
+    var wl = (Math.log10(1 + r.n) / maxLog * 100).toFixed(1);
+    var wb = (Math.log10(1 + bin) / maxLog * 100).toFixed(1);
+    return '<div class="cmp-row"><div class="cmp-n">' + r.label + '<small>' + r.unit + '</small></div><div class="bars">' +
+      '<div class="bar-line"><span class="bar-name">顺序</span><div class="track"><div class="fill lin" style="width:' + wl + '%"></div></div><span class="num">' + fmt(r.n) + ' 次</span></div>' +
+      '<div class="bar-line"><span class="bar-name">二分</span><div class="track"><div class="fill bin" style="width:' + wb + '%"></div></div><span class="num">' + fmt(bin) + ' 次</span></div>' +
+      '</div></div>';
+  }).join('');
+})();
+</script>
+
+</body>
+</html>
