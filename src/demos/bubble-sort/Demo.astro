@@ -1,0 +1,49 @@
+---
+import AlgoLayout from '../../layouts/AlgoLayout.astro';
+import LogCompare from '../../components/shared/LogCompare.astro';
+import KidLineup from './KidLineup.vue';
+import ProTrace from './ProTrace.vue';
+
+interface Props { slug: string; title: string; lede: string }
+
+const rows = [
+  { label: '10', unit: '个元素', n: 10 },
+  { label: '1,000', unit: '一千', n: 1000 },
+  { label: '100,000', unit: '十万', n: 100000 },
+  { label: '1,000,000', unit: '一百万', n: 1000000 },
+].map((r) => ({
+  label: r.label,
+  unit: r.unit,
+  bars: [
+    { name: '冒泡', value: (r.n * (r.n - 1)) / 2, tone: 'warn' as const },
+    { name: 'n·log n', value: r.n * Math.log2(r.n), tone: 'accent' as const, approx: true },
+  ],
+}));
+---
+
+<AlgoLayout {...Astro.props}>
+  <Fragment slot="kid">
+    <h2>排队拍合照</h2>
+    <p class="story">摄影师叔叔要给 5 个小朋友拍合照：矮的站左边，高的站右边。他每次只看挨着的两个人，左边的比右边高就让他们换位置。现在请你来帮他！</p>
+    <KidLineup client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="pro">
+    <h2>逐步执行</h2>
+    <p class="story">带「提前退出」优化的冒泡排序。黄色是正在比较的一对，红色是刚交换的一对，绿色是已经排到最终位置的元素。高亮行是当前执行的代码。</p>
+    <ProTrace client:only="vue" />
+
+    <h2>为什么慢</h2>
+    <p class="story">每一轮只能把一个元素送到最终位置，最坏要走 n−1 轮，总共比较 n(n−1)/2 次，也就是 O(n²)。归并排序、快速排序这类算法大约只要 n·log₂n 次。</p>
+    <LogCompare rows={rows} />
+    <p class="small-note">条形长度用对数刻度绘制。数字是比较次数：冒泡取最坏情况 n(n−1)/2，n·log₂n 是归并、快排这一档算法的量级。</p>
+
+    <h2>写对它的四个点</h2>
+    <ul class="pits">
+      <li>内层循环只到 <code>n - 1 - i</code>。后面 i 个已经排好了；写成 <code>n - 1</code> 结果没错但多做一倍的无用比较，写成 <code>n</code> 会越界。</li>
+      <li>比较用 <code>&gt;</code> 而不是 <code>&gt;=</code>。相等时不换，排序才是稳定的：同分的两条记录保持原来的先后顺序，按多个字段依次排序时这一点很重要。</li>
+      <li>加上 <code>swapped</code> 标志提前退出。已经有序的数据只需一轮 n−1 次比较，最好情况从 O(n²) 变成 O(n)。试试上面的「几乎有序」。</li>
+      <li>工程里别用它排大数据。10 万条数据最坏要比较约 50 亿次；直接用语言自带的 <code>sorted()</code>（Timsort），它对几乎有序的数据同样很快。</li>
+    </ul>
+  </Fragment>
+</AlgoLayout>

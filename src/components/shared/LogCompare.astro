@@ -1,0 +1,46 @@
+---
+/**
+ * 次数对比条形图，对数刻度。静态内容，不需要在浏览器里运行。
+ * 每行一个数据规模，每个规模下若干条（比如「顺序」和「二分」）。
+ */
+export interface Bar {
+  name: string;
+  value: number;
+  /** 条的颜色：muted、accent 或 warn */
+  tone: 'muted' | 'accent' | 'warn';
+  /** 数字前加「≈」 */
+  approx?: boolean;
+}
+export interface Row {
+  label: string;
+  unit: string;
+  bars: Bar[];
+}
+interface Props {
+  rows: Row[];
+  /** 刻度上限，默认取所有条里的最大值 */
+  max?: number;
+}
+
+const { rows, max = Math.max(...rows.flatMap((r) => r.bars.map((b) => b.value))) } = Astro.props;
+const maxLog = Math.log10(1 + max);
+const width = (v: number) => ((Math.log10(1 + v) / maxLog) * 100).toFixed(1) + '%';
+const fmt = (v: number) => Math.round(v).toLocaleString('en-US');
+---
+
+<div class="cmp">
+  {rows.map((r) => (
+    <div class="cmp-row">
+      <div class="cmp-n">{r.label}<small>{r.unit}</small></div>
+      <div class="bars">
+        {r.bars.map((b) => (
+          <div class="bar-line">
+            <span class="bar-name">{b.name}</span>
+            <div class="track"><div class={'fill ' + b.tone} style={{ width: width(b.value) }} /></div>
+            <span class="num">{(b.approx ? '≈ ' : '') + fmt(b.value)} 次</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  ))}
+</div>

@@ -1,0 +1,35 @@
+---
+import '../styles/theme.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  /** 顶部导航高亮哪一项 */
+  nav?: 'home' | 'stories';
+}
+const { title, description = '用小故事和可交互演示学算法，从小朋友到工程师分级学习。', nav } = Astro.props;
+const base = import.meta.env.BASE_URL;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title === '算法小故事' ? title : title + ' - 算法小故事'}</title>
+    <meta name="description" content={description} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" />
+  </head>
+  <body>
+    <div class="wrap">
+      <nav class="topnav" aria-label="网站导航">
+        <a class="home" href={base} aria-current={nav === 'home' ? 'page' : undefined}>算法小故事</a>
+        <a href={base + 'stories/'} aria-current={nav === 'stories' ? 'page' : undefined}>故事集</a>
+        <a href="https://github.com/YuY-QK/algorithm-stories">GitHub</a>
+      </nav>
+      <slot />
+    </div>
+  </body>
+</html>
