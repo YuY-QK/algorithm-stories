@@ -25,7 +25,7 @@ cd exercises && ./gradlew test -Psolutions
 |---|---|---|
 | 内容 | `content/algorithms/<slug>/` | `meta.json`（标题、分类、已做的步骤等，字段见 `src/content.config.ts`）、`notes.md` 资料、`story.md` 故事稿、`<name>.py` 参考实现加自测（内部和引擎对拍用） |
 | 引擎 | `src/engine/<slug>.ts` | 纯函数，不碰 DOM、不依赖 Vue。看和玩的规则、逐步执行的 `buildTrace`、找 bug 的 bug 版本都在这里。步骤轨迹每一步继承 `src/engine/types.ts` 的 `Step`（`line` 代码行号、`note` 说明、`done`），`CODE` 是 Kotlin 代码 |
-| 界面 | `src/demos/<slug>/` | `Demo.astro` 组织四步的面板，交互部分写成 Vue 组件，用 `client:only="vue"` 挂载。通用部分用 `src/components/shared/`：`usePlayer`、`Transport`、`CodePanel`（可点行，用于找 bug）、`VarChips`、`Segmented`、`LogCompare` |
+| 界面 | `src/demos/<slug>/` | `Demo.astro` 组织四步的面板（`src/demos/index.ts` 自动收集，不用登记），交互部分写成 Vue 组件，用 `client:only="vue"` 挂载。通用部分用 `src/components/shared/`：`usePlayer`、`Transport`、`CodePanel`（可点行，用于找 bug）、`VarChips`、`Segmented`、`LogCompare` |
 | 练习 | `exercises/` | 每个算法一个 Kotlin 包：框架、测试、参考答案 |
 
 `<slug>` 是算法英文名，短横线分隔。
@@ -36,11 +36,10 @@ cd exercises && ./gradlew test -Psolutions
 
 1. `content/algorithms/<slug>/`：写 `meta.json`、`notes.md`、`story.md`、`<name>.py`
 2. `src/engine/<slug>.ts`：引擎，参考代码的行号要和 `CODE` 数组一致
-3. `tests/<slug>.test.ts`：大量随机输入检查每一步和最终结果；在 `tests/python-crosscheck.test.ts` 里加一段和 Python 对拍
+3. `tests/<slug>.test.ts`：大量随机输入检查每一步和最终结果；`tests/<slug>.crosscheck.test.ts` 用 `tests/helpers/python.ts` 和 Python 对拍
 4. `src/demos/<slug>/`：`Demo.astro` 加四步的 Vue 组件，用 `<Fragment slot="look|play|do|more">` 传给 `AlgoLayout`
 5. `exercises/`：加一个包，放函数框架、测试和参考答案
-6. 在 `src/demos/index.ts` 登记一行
-7. 更新 `docs/algorithm-catalog.md` 和根目录 `README.md`
+6. 更新 `docs/algorithm-catalog.md` 和根目录 `README.md`
 
 ## 关卡结构
 
