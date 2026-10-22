@@ -5,6 +5,8 @@ import { STAGES } from '../content.config';
 import { STAGE_INFO } from '../stages';
 
 const algos = (await getCollection('algorithms')).sort((a, b) => a.data.order - b.data.order);
+// 按分类分组，分类的先后由组里最小的 order 决定
+const groups = [...new Set(algos.map((a) => a.data.category))].map((c) => ({ name: c, items: algos.filter((a) => a.data.category === c) }));
 const base = import.meta.env.BASE_URL;
 ---
 
@@ -23,12 +25,12 @@ const base = import.meta.env.BASE_URL;
     </div>
   </section>
 
+  {groups.map((g) => (
   <section class="panel">
-    <h2>关卡</h2>
+    <h2>{g.name}</h2>
     <div class="cards">
-      {algos.map((a) => (
+      {g.items.map((a) => (
         <a class="card" href={base + 'algo/' + a.id + '/'}>
-          <span class="s">{a.data.category}</span>
           <span class="t">{a.data.title}</span>
           <span class="s">{a.data.storyTitle}：{a.data.summary}</span>
           <span class="badges">
@@ -37,6 +39,8 @@ const base = import.meta.env.BASE_URL;
         </a>
       ))}
     </div>
-    <p class="small-note">更多候选算法见 <a href="https://github.com/YuY-QK/algorithm-stories/blob/main/docs/algorithm-catalog.md">算法清单</a>。</p>
   </section>
+  ))}
+
+  <p class="small-note">更多候选算法见 <a href="https://github.com/YuY-QK/algorithm-stories/blob/main/docs/algorithm-catalog.md">算法清单</a>。大人的「亲手写」练习在 <a href="https://github.com/YuY-QK/algorithm-stories/tree/main/exercises">exercises/</a>。</p>
 </Base>
