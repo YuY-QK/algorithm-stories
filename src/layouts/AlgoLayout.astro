@@ -1,11 +1,11 @@
 ---
 /**
- * 算法演示页：标题、等级切换、各等级的面板。
- * 每个等级的内容通过同名插槽传入（<Fragment slot="kid">…），没传的等级不显示。
+ * 算法关卡页：标题、步骤切换（看、玩、做、延伸）、各步骤的面板。
+ * 每一步的内容通过同名插槽传入（<Fragment slot="play">…），没传的步骤不显示。
  */
 import Base from './Base.astro';
-import { LEVELS } from '../content.config';
-import { LEVEL_INFO } from '../levels';
+import { STAGES } from '../content.config';
+import { STAGE_INFO } from '../stages';
 
 interface Props {
   slug: string;
@@ -15,18 +15,18 @@ interface Props {
 const { slug, title, lede } = Astro.props;
 const base = import.meta.env.BASE_URL;
 
-const levels = LEVELS.filter((l) => Astro.slots.has(l));
-const first = levels[0];
+const stages = STAGES.filter((l) => Astro.slots.has(l));
+const first = stages[0];
 ---
 
 <Base title={title} description={lede}>
   <header class="mast">
     <h1>{title}</h1>
     <p class="lede">{lede}</p>
-    <div class="levels" role="tablist" aria-label="选择等级">
-      {levels.map((l, k) => (
-        <button type="button" role="tab" id={'tab-' + l} data-level={l} aria-selected={k === 0 ? 'true' : 'false'} aria-controls={'panel-' + l}>
-          {LEVEL_INFO[l].name}<span>{LEVEL_INFO[l].who}</span>
+    <div class="stages" role="tablist" aria-label="选择步骤">
+      {stages.map((l, k) => (
+        <button type="button" role="tab" id={'tab-' + l} data-stage={l} aria-selected={k === 0 ? 'true' : 'false'} aria-controls={'panel-' + l}>
+          <i aria-hidden="true">{STAGE_INFO[l].icon}</i>{STAGE_INFO[l].name}<span>{STAGE_INFO[l].who}</span>
         </button>
       ))}
     </div>
@@ -34,40 +34,46 @@ const first = levels[0];
 
   <main>
     {/* 插槽名必须写死，Astro 才能保留里面的交互组件 */}
-    {Astro.slots.has('kid') && <section id="panel-kid" class="panel" role="tabpanel" aria-labelledby="tab-kid" hidden={first !== 'kid'}><slot name="kid" /></section>}
-    {Astro.slots.has('beginner') && <section id="panel-beginner" class="panel" role="tabpanel" aria-labelledby="tab-beginner" hidden={first !== 'beginner'}><slot name="beginner" /></section>}
-    {Astro.slots.has('mid') && <section id="panel-mid" class="panel" role="tabpanel" aria-labelledby="tab-mid" hidden={first !== 'mid'}><slot name="mid" /></section>}
-    {Astro.slots.has('pro') && <section id="panel-pro" class="panel" role="tabpanel" aria-labelledby="tab-pro" hidden={first !== 'pro'}><slot name="pro" /></section>}
+    {Astro.slots.has('look') && <section id="panel-look" class="panel" role="tabpanel" aria-labelledby="tab-look" hidden={first !== 'look'}><slot name="look" /></section>}
+    {Astro.slots.has('play') && <section id="panel-play" class="panel" role="tabpanel" aria-labelledby="tab-play" hidden={first !== 'play'}><slot name="play" /></section>}
+    {Astro.slots.has('do') && <section id="panel-do" class="panel" role="tabpanel" aria-labelledby="tab-do" hidden={first !== 'do'}><slot name="do" /></section>}
+    {Astro.slots.has('more') && <section id="panel-more" class="panel" role="tabpanel" aria-labelledby="tab-more" hidden={first !== 'more'}><slot name="more" /></section>}
   </main>
 
   <p class="foot">
     想听完整的故事？读 <a href={base + 'stories/' + slug + '/'}>故事稿</a>。
-    目前有{levels.map((l) => LEVEL_INFO[l].name).join('、')}，其他等级正在制作中。
+    {stages.length < STAGES.length && <>目前有{stages.map((l) => STAGE_INFO[l].name).join('、')}，其他步骤正在制作中。</>}
   </p>
 </Base>
 
 <script>
-  import { LEVEL_CHANGE_EVENT } from '../components/shared/usePlayer';
+  import { STAGE_CHANGE_EVENT } from '../components/shared/usePlayer';
 
-  // 等级切换：支持 ?level=kid|pro 直接打开某一档
-  const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"][data-level]')];
-  function show(level: string) {
-    if (!tabs.some((t) => t.dataset.level === level)) return;
+  // 步骤切换：支持 ?stage=look|play|do|more 直接打开某一步
+  const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"][data-stage]')];
+  function show(stage: string) {
+    if (!tabs.some((t) => t.dataset.stage === stage)) return;
     for (const t of tabs) {
-      const on = t.dataset.level === level;
+      const on = t.dataset.stage === stage;
       t.setAttribute('aria-selected', String(on));
-      document.getElementById('panel-' + t.dataset.level)!.hidden = !on;
+      document.getElementById('panel-' + t.dataset.stage)!.hidden = !on;
     }
-    window.dispatchEvent(new Event(LEVEL_CHANGE_EVENT));
+    window.dispatchEvent(new Event(STAGE_CHANGE_EVENT));
   }
-  for (const t of tabs) {
-    t.addEventListener('click', () => {
-      show(t.dataset.level!);
-      const url = new URL(location.href);
-      url.searchParams.set('level', t.dataset.level!);
-      history.replaceState(null, '', url);
-    });
+  function go(stage: string) {
+    show(stage);
+    const url = new URL(location.href);
+    url.searchParams.set('stage', stage);
+    history.replaceState(null, '', url);
   }
-  const initial = new URLSearchParams(location.search).get('level');
+  for (const t of tabs) t.addEventListener('click', () => go(t.dataset.stage!));
+  // 面板里「下一步」之类的按钮：<button data-goto="play">
+  document.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLElement>('[data-goto]');
+    if (!b) return;
+    go(b.dataset.goto!);
+    document.querySelector('.mast')?.scrollIntoView({ behavior: 'smooth' });
+  });
+  const initial = new URLSearchParams(location.search).get('stage');
   if (initial) show(initial);
 </script>

@@ -1,13 +1,20 @@
 ---
 import AlgoLayout from '../../layouts/AlgoLayout.astro';
 import LogCompare from '../../components/shared/LogCompare.astro';
-import KidMailbox from './KidMailbox.vue';
-import ProTrace from './ProTrace.vue';
+import LookStory from './LookStory.vue';
+import PlayHide from './PlayHide.vue';
+import PlayFind from './PlayFind.vue';
+import DoTrace from './DoTrace.vue';
+import DoPredict from './DoPredict.vue';
+import DoBug from './DoBug.vue';
+import DoChallenge from './DoChallenge.vue';
 
 interface Props { slug: string; title: string; lede: string }
 
+const repo = 'https://github.com/YuY-QK/algorithm-stories/tree/main/exercises';
+
 const rows = [
-  { label: '10', unit: '个元素', n: 10 },
+  { label: '15', unit: '个信箱', n: 15 },
   { label: '1,000', unit: '一千', n: 1000 },
   { label: '1,000,000', unit: '一百万', n: 1000000 },
   { label: '1,000,000,000', unit: '十亿', n: 1000000000 },
@@ -22,27 +29,63 @@ const rows = [
 ---
 
 <AlgoLayout {...Astro.props}>
-  <Fragment slot="kid">
-    <h2>小邮差找信箱</h2>
-    <p class="story">信箱街有 100 个信箱，编号 1 到 100。你在心里想一个编号，别说出来。小邮差来猜，你只要告诉他：你的号码是更小、更大，还是刚好。</p>
-    <KidMailbox client:only="vue" />
+  <Fragment slot="look">
+    <LookStory client:only="vue" />
   </Fragment>
 
-  <Fragment slot="pro">
-    <h2>逐步执行</h2>
-    <p class="story">在有序数组里找目标值。每一步都对应下面代码的一行，高亮行就是当前正在执行的那一行。</p>
-    <ProTrace client:only="vue" />
+  <Fragment slot="play">
+    <h2>🍃 藏信</h2>
+    <PlayHide client:only="vue" />
 
-    <h2>为什么快</h2>
-    <p class="story">每比较一次，候选范围就缩小一半，所以最坏情况只需要大约 log₂n 次。数据量涨到十亿，也只多比较二十几次。</p>
-    <LogCompare rows={rows} />
-    <p class="small-note">条形长度用对数刻度绘制，否则二分查找的条会窄到看不见。数字是最坏情况下的比较次数。</p>
+    <h2>🐰 当小邮差</h2>
+    <PlayFind client:only="vue" />
+  </Fragment>
 
-    <h2>写对它的三个坑</h2>
+  <Fragment slot="do">
+    <h2>① 先看一遍</h2>
+    <p class="story">在升序数组里找 target。每一步对应右边 Kotlin 代码的一行，高亮行是正在执行的那一行。</p>
+    <DoTrace client:only="vue" />
+
+    <h2>② 猜下一步</h2>
+    <p class="story">每一轮先点出 mid 在哪一格，再选接下来 lo、hi 怎么变。连对 5 次过关。</p>
+    <DoPredict client:only="vue" />
+
+    <h2>③ 找 bug</h2>
+    <p class="story">写二分最常见的三个坑。每段代码只错了一行：先播放，看它怎么跑错，再点出错的那一行。</p>
+    <DoBug client:only="vue" />
+
+    <h2>④ 亲手写</h2>
+    <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">BinarySearch.kt</code> 里的两个 <code class="path">TODO()</code> 换成你的代码：</p>
     <ul class="pits">
-      <li>数组必须有序。无序数组上二分不会报错，只会返回错的结果。</li>
-      <li>循环条件是 <code>lo &lt;= hi</code>。写成 <code>&lt;</code> 会漏掉只剩一个元素的情况。</li>
-      <li>中点写成 <code>lo + (hi - lo) // 2</code>。在 C、Java 里 <code>(lo + hi) / 2</code> 可能整数溢出，这是真实出现过的线上 bug。</li>
+      <li><code>binarySearch(arr, target)</code>：找到返回下标，找不到返回 -1。</li>
+      <li><code>lowerBound(arr, target)</code>：第一个大于等于 target 的位置。数组可能有重复，这是刷题和工程里最常用的变种。</li>
+    </ul>
+    <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
+    <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'binarysearch.*'</span></div></pre></div>
+
+    <h2>⑤ 挑战</h2>
+    <DoChallenge client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="more">
+    <h2>为什么快</h2>
+    <p class="story">每看一次，范围就缩小一半，所以最坏只要大约 log₂n 次。15 个信箱最多 4 次，数据涨到十亿，也只要 30 次。</p>
+    <LogCompare rows={rows} />
+    <p class="small-note">条形长度用对数刻度绘制，否则二分查找的条会窄到看不见。数字是最坏情况下要看的次数。</p>
+
+    <h2>前提：必须有序</h2>
+    <p class="story">信箱按编号排好，门上的箭头才有意义。数组没排序时二分不会报错，只会悄悄返回错的结果。</p>
+
+    <h2>真实世界里的二分</h2>
+    <ul class="pits">
+      <li><code>git bisect</code>：告诉它一个好的提交和一个坏的提交，它每次让你测中间那个，几千个提交十几次就能定位引入 bug 的那一次。</li>
+      <li>数据库索引：B+ 树的每个节点里存着一排有序的键，查找时在节点内部用二分决定往哪个子节点走。</li>
+      <li>Kotlin 的 <code>List.binarySearch()</code> 和 Java 的 <code>Arrays.binarySearch()</code>：标准库现成的二分。Java 这个函数就踩过「找 bug」里的溢出坑，2006 年才被发现并修复。</li>
+      <li>不只是查数组：「二分答案」在一个单调的范围里找临界点，比如最小能满足条件的容量、最大能承受的并发数。</li>
     </ul>
   </Fragment>
 </AlgoLayout>
+
+<style>
+  .path { font: 500 0.9em var(--mono); background: var(--out); padding: 1px 6px; border-radius: 4px; }
+</style>

@@ -7,7 +7,7 @@ import Transport from '../../components/shared/Transport.vue';
 import VarChips from '../../components/shared/VarChips.vue';
 import { usePlayer } from '../../components/shared/usePlayer';
 
-// 高级：逐步执行。指针、代码行和比较次数同步。
+// 做：逐步执行。指针、代码行和比较次数同步。
 const size = ref(16);
 const arr = ref<number[]>(genArray(size.value));
 const target = ref(pick());
@@ -89,7 +89,7 @@ const summary = computed(() => {
     <p v-if="s.done" class="summary">{{ summary }}</p>
   </div>
 
-  <CodePanel :lines="CODE" :active="s.line" />
+  <CodePanel :lines="CODE" :active="s.line" lang="KOTLIN" />
 </template>
 
 <style scoped>

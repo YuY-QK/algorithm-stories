@@ -22,17 +22,19 @@ const rows = [
 ---
 
 <AlgoLayout {...Astro.props}>
-  <Fragment slot="kid">
+  <Fragment slot="play">
     <h2>排队拍合照</h2>
     <p class="story">摄影师叔叔要给 5 个小朋友拍合照：矮的站左边，高的站右边。他每次只看挨着的两个人，左边的比右边高就让他们换位置。现在请你来帮他！</p>
     <KidLineup client:only="vue" />
   </Fragment>
 
-  <Fragment slot="pro">
+  <Fragment slot="do">
     <h2>逐步执行</h2>
     <p class="story">带「提前退出」优化的冒泡排序。黄色是正在比较的一对，红色是刚交换的一对，绿色是已经排到最终位置的元素。高亮行是当前执行的代码。</p>
     <ProTrace client:only="vue" />
+  </Fragment>
 
+  <Fragment slot="more">
     <h2>为什么慢</h2>
     <p class="story">每一轮只能把一个元素送到最终位置，最坏要走 n−1 轮，总共比较 n(n−1)/2 次，也就是 O(n²)。归并排序、快速排序这类算法大约只要 n·log₂n 次。</p>
     <LogCompare rows={rows} />

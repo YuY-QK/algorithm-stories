@@ -1,8 +1,8 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
-import { LEVELS } from '../content.config';
-import { LEVEL_INFO } from '../levels';
+import { STAGES } from '../content.config';
+import { STAGE_INFO } from '../stages';
 
 const algos = (await getCollection('algorithms')).sort((a, b) => a.data.order - b.data.order);
 const base = import.meta.env.BASE_URL;
@@ -11,20 +11,20 @@ const base = import.meta.env.BASE_URL;
 <Base title="算法小故事" nav="home">
   <header class="mast">
     <h1>算法小故事</h1>
-    <p class="lede">每个算法一个小故事，配一个能亲手玩的演示。小朋友从故事和游戏开始，工程师一路看到代码、复杂度和工程里的用法。</p>
+    <p class="lede">每个算法是一个小关卡：先看懂，再在玩的过程中练会。孩子玩到懂规则就停，大人继续练到能亲手写出来。</p>
   </header>
 
   <section class="panel">
-    <h2>四个等级</h2>
+    <h2>每关四步</h2>
     <div class="tiers">
-      {LEVELS.map((l) => (
-        <div class="tier"><b>{LEVEL_INFO[l].name} · {LEVEL_INFO[l].who}</b><span>{LEVEL_INFO[l].how}</span></div>
+      {STAGES.map((l) => (
+        <div class="tier"><b>{STAGE_INFO[l].icon} {STAGE_INFO[l].name} · {STAGE_INFO[l].who}</b><span>{STAGE_INFO[l].how}</span></div>
       ))}
     </div>
   </section>
 
   <section class="panel">
-    <h2>已上线的算法</h2>
+    <h2>关卡</h2>
     <div class="cards">
       {algos.map((a) => (
         <a class="card" href={base + 'algo/' + a.id + '/'}>
@@ -32,11 +32,11 @@ const base = import.meta.env.BASE_URL;
           <span class="t">{a.data.title}</span>
           <span class="s">{a.data.storyTitle}：{a.data.summary}</span>
           <span class="badges">
-            {LEVELS.map((l) => <span class={'badge' + (a.data.levels.includes(l) ? ' on' : '')}>{LEVEL_INFO[l].name}</span>)}
+            {STAGES.map((l) => <span class={'badge' + (a.data.stages.includes(l) ? ' on' : '')}>{STAGE_INFO[l].name}</span>)}
           </span>
         </a>
       ))}
     </div>
-    <p class="small-note">还有约 30 个算法在路上，完整清单见 <a href="https://github.com/YuY-QK/algorithm-stories/blob/main/docs/algorithm-catalog.md">算法清单</a>。</p>
+    <p class="small-note">更多候选算法见 <a href="https://github.com/YuY-QK/algorithm-stories/blob/main/docs/algorithm-catalog.md">算法清单</a>。</p>
   </section>
 </Base>
