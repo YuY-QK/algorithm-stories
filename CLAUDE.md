@@ -4,6 +4,8 @@
 
 ## 背景
 
+**先读 `docs/overview.md`**：项目的基调（为什么做、给谁、是什么），是所有决定的最高依据，其他文档和它冲突时以它为准。
+
 项目起步时的讨论、决定和待办见 `docs/conversation-2026-10-20.md`，之后的规划、技术选型、建仓和部署讨论见 `docs/discussion-log.md`（开头是决策摘要和待办），开始新工作前先读这两份。整体规划、技术架构和分阶段路线图见 `docs/project-plan.md`。候选算法、故事点子和完成状态见 `docs/algorithm-catalog.md`，做完一个算法要同步更新它和根目录 `README.md`。
 
 ## 技术栈
