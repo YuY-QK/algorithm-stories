@@ -1,0 +1,42 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import { LEVELS } from '../content.config';
+import { LEVEL_INFO } from '../levels';
+
+const algos = (await getCollection('algorithms')).sort((a, b) => a.data.order - b.data.order);
+const base = import.meta.env.BASE_URL;
+---
+
+<Base title="算法小故事" nav="home">
+  <header class="mast">
+    <h1>算法小故事</h1>
+    <p class="lede">每个算法一个小故事，配一个能亲手玩的演示。小朋友从故事和游戏开始，工程师一路看到代码、复杂度和工程里的用法。</p>
+  </header>
+
+  <section class="panel">
+    <h2>四个等级</h2>
+    <div class="tiers">
+      {LEVELS.map((l) => (
+        <div class="tier"><b>{LEVEL_INFO[l].name} · {LEVEL_INFO[l].who}</b><span>{LEVEL_INFO[l].how}</span></div>
+      ))}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>已上线的算法</h2>
+    <div class="cards">
+      {algos.map((a) => (
+        <a class="card" href={base + 'algo/' + a.id + '/'}>
+          <span class="s">{a.data.category}</span>
+          <span class="t">{a.data.title}</span>
+          <span class="s">{a.data.storyTitle}：{a.data.summary}</span>
+          <span class="badges">
+            {LEVELS.map((l) => <span class={'badge' + (a.data.levels.includes(l) ? ' on' : '')}>{LEVEL_INFO[l].name}</span>)}
+          </span>
+        </a>
+      ))}
+    </div>
+    <p class="small-note">还有约 30 个算法在路上，完整清单见 <a href="https://github.com/YuY-QK/algorithm-stories/blob/main/docs/algorithm-catalog.md">算法清单</a>。</p>
+  </section>
+</Base>

@@ -1,0 +1,73 @@
+---
+/**
+ * 算法演示页：标题、等级切换、各等级的面板。
+ * 每个等级的内容通过同名插槽传入（<Fragment slot="kid">…），没传的等级不显示。
+ */
+import Base from './Base.astro';
+import { LEVELS } from '../content.config';
+import { LEVEL_INFO } from '../levels';
+
+interface Props {
+  slug: string;
+  title: string;
+  lede: string;
+}
+const { slug, title, lede } = Astro.props;
+const base = import.meta.env.BASE_URL;
+
+const levels = LEVELS.filter((l) => Astro.slots.has(l));
+const first = levels[0];
+---
+
+<Base title={title} description={lede}>
+  <header class="mast">
+    <h1>{title}</h1>
+    <p class="lede">{lede}</p>
+    <div class="levels" role="tablist" aria-label="选择等级">
+      {levels.map((l, k) => (
+        <button type="button" role="tab" id={'tab-' + l} data-level={l} aria-selected={k === 0 ? 'true' : 'false'} aria-controls={'panel-' + l}>
+          {LEVEL_INFO[l].name}<span>{LEVEL_INFO[l].who}</span>
+        </button>
+      ))}
+    </div>
+  </header>
+
+  <main>
+    {/* 插槽名必须写死，Astro 才能保留里面的交互组件 */}
+    {Astro.slots.has('kid') && <section id="panel-kid" class="panel" role="tabpanel" aria-labelledby="tab-kid" hidden={first !== 'kid'}><slot name="kid" /></section>}
+    {Astro.slots.has('beginner') && <section id="panel-beginner" class="panel" role="tabpanel" aria-labelledby="tab-beginner" hidden={first !== 'beginner'}><slot name="beginner" /></section>}
+    {Astro.slots.has('mid') && <section id="panel-mid" class="panel" role="tabpanel" aria-labelledby="tab-mid" hidden={first !== 'mid'}><slot name="mid" /></section>}
+    {Astro.slots.has('pro') && <section id="panel-pro" class="panel" role="tabpanel" aria-labelledby="tab-pro" hidden={first !== 'pro'}><slot name="pro" /></section>}
+  </main>
+
+  <p class="foot">
+    想听完整的故事？读 <a href={base + 'stories/' + slug + '/'}>故事稿</a>。
+    目前有{levels.map((l) => LEVEL_INFO[l].name).join('、')}，其他等级正在制作中。
+  </p>
+</Base>
+
+<script>
+  import { LEVEL_CHANGE_EVENT } from '../components/shared/usePlayer';
+
+  // 等级切换：支持 ?level=kid|pro 直接打开某一档
+  const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"][data-level]')];
+  function show(level: string) {
+    if (!tabs.some((t) => t.dataset.level === level)) return;
+    for (const t of tabs) {
+      const on = t.dataset.level === level;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById('panel-' + t.dataset.level)!.hidden = !on;
+    }
+    window.dispatchEvent(new Event(LEVEL_CHANGE_EVENT));
+  }
+  for (const t of tabs) {
+    t.addEventListener('click', () => {
+      show(t.dataset.level!);
+      const url = new URL(location.href);
+      url.searchParams.set('level', t.dataset.level!);
+      history.replaceState(null, '', url);
+    });
+  }
+  const initial = new URLSearchParams(location.search).get('level');
+  if (initial) show(initial);
+</script>

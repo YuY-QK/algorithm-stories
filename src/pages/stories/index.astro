@@ -1,0 +1,23 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+const algos = (await getCollection('algorithms')).sort((a, b) => a.data.order - b.data.order);
+const base = import.meta.env.BASE_URL;
+---
+
+<Base title="故事集" nav="stories">
+  <header class="mast">
+    <h1>故事集</h1>
+    <p class="lede">每个算法一个小故事。读完故事，再去演示里亲手试一试。</p>
+  </header>
+  <div class="cards">
+    {algos.map((a) => (
+      <a class="card" href={base + 'stories/' + a.id + '/'}>
+        <span class="s">{a.data.title}</span>
+        <span class="t">{a.data.storyTitle}</span>
+        <span class="s">{a.data.summary}</span>
+      </a>
+    ))}
+  </div>
+</Base>

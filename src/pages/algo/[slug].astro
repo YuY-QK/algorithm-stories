@@ -1,0 +1,15 @@
+---
+import { getCollection } from 'astro:content';
+import { DEMOS } from '../../demos';
+
+export async function getStaticPaths() {
+  const all = await getCollection('algorithms');
+  return all.map((a) => ({ params: { slug: a.id }, props: { algo: a } }));
+}
+
+const { algo } = Astro.props;
+const Demo = DEMOS[algo.id];
+if (!Demo) throw new Error('content/algorithms/' + algo.id + ' 还没有在 src/demos/index.ts 登记演示页');
+---
+
+<Demo slug={algo.id} title={algo.data.title} lede={algo.data.lede} />

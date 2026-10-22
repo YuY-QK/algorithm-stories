@@ -6,7 +6,7 @@ tools: Read, Grep, Glob, WebSearch, WebFetch, Write
 
 你负责「算法小故事」项目的资料整理。先读项目根目录的 `CLAUDE.md` 和 `docs/algorithm-catalog.md`。
 
-给定一个算法，产出 `algorithms/<slug>/notes.md`（简体中文），包含：
+给定一个算法，产出 `content/algorithms/<slug>/notes.md`（简体中文），包含：
 
 1. 一句话说清它解决什么问题
 2. 核心思路，用不超过 5 步描述

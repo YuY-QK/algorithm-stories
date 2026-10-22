@@ -1,0 +1,48 @@
+---
+import AlgoLayout from '../../layouts/AlgoLayout.astro';
+import LogCompare from '../../components/shared/LogCompare.astro';
+import KidMailbox from './KidMailbox.vue';
+import ProTrace from './ProTrace.vue';
+
+interface Props { slug: string; title: string; lede: string }
+
+const rows = [
+  { label: '10', unit: '个元素', n: 10 },
+  { label: '1,000', unit: '一千', n: 1000 },
+  { label: '1,000,000', unit: '一百万', n: 1000000 },
+  { label: '1,000,000,000', unit: '十亿', n: 1000000000 },
+].map((r) => ({
+  label: r.label,
+  unit: r.unit,
+  bars: [
+    { name: '顺序', value: r.n, tone: 'muted' as const },
+    { name: '二分', value: Math.floor(Math.log2(r.n)) + 1, tone: 'accent' as const },
+  ],
+}));
+---
+
+<AlgoLayout {...Astro.props}>
+  <Fragment slot="kid">
+    <h2>小邮差找信箱</h2>
+    <p class="story">信箱街有 100 个信箱，编号 1 到 100。你在心里想一个编号，别说出来。小邮差来猜，你只要告诉他：你的号码是更小、更大，还是刚好。</p>
+    <KidMailbox client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="pro">
+    <h2>逐步执行</h2>
+    <p class="story">在有序数组里找目标值。每一步都对应下面代码的一行，高亮行就是当前正在执行的那一行。</p>
+    <ProTrace client:only="vue" />
+
+    <h2>为什么快</h2>
+    <p class="story">每比较一次，候选范围就缩小一半，所以最坏情况只需要大约 log₂n 次。数据量涨到十亿，也只多比较二十几次。</p>
+    <LogCompare rows={rows} />
+    <p class="small-note">条形长度用对数刻度绘制，否则二分查找的条会窄到看不见。数字是最坏情况下的比较次数。</p>
+
+    <h2>写对它的三个坑</h2>
+    <ul class="pits">
+      <li>数组必须有序。无序数组上二分不会报错，只会返回错的结果。</li>
+      <li>循环条件是 <code>lo &lt;= hi</code>。写成 <code>&lt;</code> 会漏掉只剩一个元素的情况。</li>
+      <li>中点写成 <code>lo + (hi - lo) // 2</code>。在 C、Java 里 <code>(lo + hi) / 2</code> 可能整数溢出，这是真实出现过的线上 bug。</li>
+    </ul>
+  </Fragment>
+</AlgoLayout>
