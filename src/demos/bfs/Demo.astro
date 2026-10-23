@@ -1,0 +1,83 @@
+---
+import AlgoLayout from '../../layouts/AlgoLayout.astro';
+import LookStory from './LookStory.vue';
+import PlayRings from './PlayRings.vue';
+import PlayDraw from './PlayDraw.vue';
+import DoTrace from './DoTrace.vue';
+import DoPredict from './DoPredict.vue';
+import DoBug from './DoBug.vue';
+import DoChallenge from './DoChallenge.vue';
+
+interface Props { slug: string; title: string; lede: string }
+
+const repo = 'https://github.com/YuY-QK/algorithm-stories/tree/main/exercises';
+---
+
+<AlgoLayout {...Astro.props}>
+  <Fragment slot="look">
+    <LookStory client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="play">
+    <h2>🌊 下一圈</h2>
+    <PlayRings client:only="vue" />
+
+    <h2>🐭 抄近路</h2>
+    <PlayDraw client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="do">
+    <h2>① 先看一遍</h2>
+    <p class="story">在迷宫里找 S 到 E 的最短路。每一步对应右边 Kotlin 代码的一行，高亮行是正在执行的那一行。</p>
+    <DoTrace client:only="vue" />
+
+    <h2>② 猜下一步</h2>
+    <p class="story">动画会停在某一步。先猜接下来谁出队、四个方向各会怎样，连对几次过关。</p>
+    <DoPredict client:only="vue" />
+
+    <h2>③ 找 bug</h2>
+    <p class="story">写 BFS 最常见的坑。每段代码只错了一行：先播放，看它怎么跑错，再点出错的那一行。</p>
+    <DoBug client:only="vue" />
+
+    <h2>④ 亲手写</h2>
+    <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">Bfs.kt</code> 里的两个 <code class="path">TODO()</code> 换成你的代码：</p>
+    <ul class="pits">
+      <li><code>shortestPath(grid)</code>：从 S 走到 E 最少几步，走不到返回 -1。</li>
+      <li><code>shortestRoute(grid)</code>：返回一条最短路线上的所有格子，走不到返回空列表。入队时记下每个格子从哪来，到终点后倒着走回去。</li>
+    </ul>
+    <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
+    <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'bfs.*'</span></div></pre></div>
+
+    <h2>⑤ 挑战</h2>
+    <DoChallenge client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="more">
+    <h2>复杂度</h2>
+    <p class="story">每个格子最多入队、出队一次，每个格子看四个方向，所以时间是 O(h·w)，也就是和格子数成正比。空间也是 O(h·w)：来过的记录加上队列，队列最长时能装下一整圈。一般的图是 O(V + E)。</p>
+
+    <h2>前提：每一步代价一样</h2>
+    <p class="story">BFS 数的是「步数」，所以只有每条边一样长（无权图）时，第一次到达才是最短。如果有的路更贵（比如沼泽走一步算 3），要换 Dijkstra；再加上「估计还有多远」就是 A*。</p>
+
+    <h2>和 DFS 比一比</h2>
+    <ul class="pits">
+      <li>BFS 用队列（先进先出），由近到远一圈圈扩；DFS 用栈或递归（后进先出），一条路走到底再回头。</li>
+      <li>要「最少步数」用 BFS；只问「能不能走到」「有没有环」「排顺序」时 DFS 更省事。</li>
+      <li>把 BFS 里的队列换成栈，就变成了 DFS，但第一次到达就不再保证最短了。</li>
+    </ul>
+
+    <h2>真实世界里的 BFS</h2>
+    <ul class="pits">
+      <li>游戏地图寻路：格子地图上最少步数的基础做法。</li>
+      <li>电路布线：Lee 算法（1961）在电路板格子上一圈圈扩展，找两个引脚之间最短的连线。</li>
+      <li>垃圾回收：Cheney 的复制式回收器（1970）按广度优先复制存活对象，目标区域本身就当队列用。</li>
+      <li>社交网络「几度好友」：从你出发，每一层就是一度。</li>
+      <li>网页爬虫：从种子网页出发，按链接的层数一层层抓取；现代爬虫还会加优先级等策略。</li>
+      <li>其他：二叉树层序遍历、判断二分图（BFS 染色）、求连通分量。</li>
+    </ul>
+  </Fragment>
+</AlgoLayout>
+
+<style>
+  .path { font: 500 0.9em var(--mono); background: var(--out); padding: 1px 6px; border-radius: 4px; }
+</style>
