@@ -1,0 +1,105 @@
+---
+import AlgoLayout from '../../layouts/AlgoLayout.astro';
+import LogCompare from '../../components/shared/LogCompare.astro';
+import LookStory from './LookStory.vue';
+import PlayPlace from './PlayPlace.vue';
+import PlayShift from './PlayShift.vue';
+import DoTrace from './DoTrace.vue';
+import DoPredict from './DoPredict.vue';
+import DoBug from './DoBug.vue';
+import DoChallenge from './DoChallenge.vue';
+
+interface Props { slug: string; title: string; lede: string }
+
+const repo = 'https://github.com/YuY-QK/algorithm-stories/tree/main/exercises';
+
+// 比较次数：已经有序 n − 1，随机打乱约 n²/4，完全倒序 n(n − 1)/2
+const rows = [
+  { label: '10', unit: '一手牌', n: 10 },
+  { label: '100', unit: '一百', n: 100 },
+  { label: '1,000', unit: '一千', n: 1000 },
+  { label: '100,000', unit: '十万', n: 100000 },
+].map((r) => ({
+  label: r.label,
+  unit: r.unit,
+  bars: [
+    { name: '有序', value: r.n - 1, tone: 'accent' as const },
+    { name: '随机', value: (r.n * r.n) / 4, tone: 'muted' as const, approx: true },
+    { name: '倒序', value: (r.n * (r.n - 1)) / 2, tone: 'warn' as const },
+  ],
+}));
+---
+
+<AlgoLayout {...Astro.props}>
+  <Fragment slot="look">
+    <LookStory client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="play">
+    <h2>🃏 找位置</h2>
+    <PlayPlace client:only="vue" />
+
+    <h2>🪙 挪一挪</h2>
+    <PlayShift client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="do">
+    <h2>① 先看一遍</h2>
+    <p class="story">左边是排好的部分。每一轮取出 key，从右往左比，比它大的往右挪一格，最后把 key 放进空位。每一步对应下面 Kotlin 代码的一行。</p>
+    <DoTrace client:only="vue" />
+
+    <h2>② 猜下一步</h2>
+    <p class="story">每一轮先点出 key 最后落在哪一格，再猜这一轮 <code class="path">arr[j] &gt; key</code> 比较了几次。连对 6 次过关。</p>
+    <DoPredict client:only="vue" />
+
+    <h2>③ 找 bug</h2>
+    <p class="story">写插入排序最常见的三个坑。每段代码只错了一行：先播放，看它怎么跑错，再点出错的那一行。</p>
+    <DoBug client:only="vue" />
+
+    <h2>④ 亲手写</h2>
+    <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">insertionsort/InsertionSort.kt</code> 里的两个 <code class="path">TODO()</code> 换成你的代码：</p>
+    <ul class="pits">
+      <li><code>insertionSort(arr)</code>：原地排成升序，返回一共挪了几次。测试会核对挪动次数是不是等于逆序对数。</li>
+      <li><code>binaryInsertionSort(list, comparator)</code>：用二分查找找插入位置，而且必须稳定。测试用扑克牌检查两张同点数的牌有没有换位置。</li>
+    </ul>
+    <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
+    <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'insertionsort.*'</span></div></pre></div>
+
+    <h2>⑤ 挑战</h2>
+    <DoChallenge client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="more">
+    <h2>快还是慢，看数据</h2>
+    <p class="story">插入排序挪动的次数正好等于逆序对数：每挪一次，就把一对「前大后小」摆正。已经有序时只比较 n − 1 次、一次不挪，是 O(n)；完全倒序时比较和挪动都是 n(n − 1)/2 次，是 O(n²)；随机打乱时平均挪 n(n − 1)/4 次左右，还是 O(n²)。</p>
+    <LogCompare rows={rows} />
+    <p class="small-note">数字是比较次数，条形长度用对数刻度绘制。同样是十万个数，「几乎有序」和「随机」差了两万多倍。</p>
+
+    <h2>稳定，原地，来一个排一个</h2>
+    <ul class="pits">
+      <li><b>稳定</b>：只挪严格大于 key 的元素，相等的不挪，所以两个相等的元素排完后先后顺序不变。按成绩排序时，同分的人还保持原来按学号的顺序。「找 bug」里的第二个坑就是把 <code>&gt;</code> 写成 <code>&gt;=</code> 弄丢了稳定性。</li>
+      <li><b>原地</b>：只多用一个 key 变量，O(1) 额外空间。</li>
+      <li><b>在线</b>：不用等数据到齐，像摸牌一样来一个插一个，手里的部分随时是排好的。</li>
+    </ul>
+
+    <h2>真实世界里的插入排序</h2>
+    <p class="story">n 很小时，n² 的劣势体现不出来，插入排序没有递归、不占额外内存、对缓存友好，反而比快排、归并更快。所以主流标准库都在小区间里改用它：</p>
+    <ul class="pits">
+      <li>Java 8 的 <code>Arrays.sort(int[])</code>（双轴快排 <code>DualPivotQuicksort</code>）：长度小于 <code>INSERTION_SORT_THRESHOLD = 47</code> 时用插入排序；较新的 JDK 重写了这个类，阈值改成了 44。Kotlin 的 <code>IntArray.sort()</code> 在 JVM 上就是调它。</li>
+      <li>Java 的 <code>TimSort</code>（对象数组、<code>List.sort</code>）：少于 32 个元素时直接用二分插入排序。</li>
+      <li>Python 的 <code>list.sort</code>（Timsort）：少于 64 个元素时整个列表用二分插入排序；更长时，也用它把短的有序段补长。</li>
+      <li>C++ libstdc++ 的 <code>std::sort</code>：快排把区间切到 16 个以内就停手，最后整体做一遍插入排序。Go 的 <code>sort.Sort</code>（pdqsort）在 12 个以内用插入排序。</li>
+    </ul>
+
+    <h2>常见变种</h2>
+    <ul class="pits">
+      <li><b>二分插入排序</b>：用二分查找找插入位置，比较次数降到 O(n log n)，挪动次数不变。要保持稳定，得找「第一个比 key 大的位置」。「亲手写」的第二题就是它。</li>
+      <li><b>希尔排序</b>：先按大间隔做插入排序，让元素先跳着大致归位，再逐步缩小间隔到 1。</li>
+      <li><b>链表插入排序</b>：链表不用挪元素，只改指针，但找位置只能从头走（LeetCode 147）。</li>
+    </ul>
+  </Fragment>
+</AlgoLayout>
+
+<style>
+  .path { font: 500 0.9em var(--mono); background: var(--out); padding: 1px 6px; border-radius: 4px; }
+</style>
