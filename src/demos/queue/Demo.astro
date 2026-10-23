@@ -1,0 +1,107 @@
+---
+import AlgoLayout from '../../layouts/AlgoLayout.astro';
+import LogCompare from '../../components/shared/LogCompare.astro';
+import { shiftCost } from '../../engine/queue';
+import LookStory from './LookStory.vue';
+import PlayNext from './PlayNext.vue';
+import PlayClerk from './PlayClerk.vue';
+import DoTrace from './DoTrace.vue';
+import DoPredict from './DoPredict.vue';
+import DoBug from './DoBug.vue';
+import DoChallenge from './DoChallenge.vue';
+
+interface Props { slug: string; title: string; lede: string }
+
+const repo = 'https://github.com/YuY-QK/algorithm-stories/tree/main/exercises';
+
+const rows = [
+  { label: '6', unit: '把椅子', n: 6 },
+  { label: '1,000', unit: '一千', n: 1000 },
+  { label: '1,000,000', unit: '一百万', n: 1000000 },
+].map((r) => ({
+  label: r.label,
+  unit: r.unit,
+  bars: [
+    { name: '挪数组', value: shiftCost(r.n), tone: 'muted' as const },
+    { name: '循环队列', value: 0, tone: 'accent' as const },
+  ],
+}));
+---
+
+<AlgoLayout {...Astro.props}>
+  <Fragment slot="look">
+    <LookStory client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="play">
+    <h2>🧋 谁先买到？</h2>
+    <PlayNext client:only="vue" />
+
+    <h2>🧑‍🍳 我是店员</h2>
+    <PlayClerk client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="do">
+    <h2>① 先看一遍</h2>
+    <p class="story">循环队列：固定容量的数组，head 指向下一个出队的格子，tail 指向下一个入队的格子，走到末尾绕回 0。上面是真实的数组，右边把它弯成一圈。每一步对应下面 Kotlin 代码的一行。</p>
+    <DoTrace client:only="vue" />
+
+    <h2>② 猜下一步</h2>
+    <p class="story">每个操作先点出它写进或读出哪一格（满了、空了就点按钮），再点出 tail 或 head 接下来指向哪一格。连对 6 次过关。</p>
+    <DoPredict client:only="vue" />
+
+    <h2>③ 找 bug</h2>
+    <p class="story">写循环队列最常见的三个坑。每段代码只错了一行：先播放，看它怎么跑错，再点出错的那一行。</p>
+    <DoBug client:only="vue" />
+
+    <h2>④ 亲手写</h2>
+    <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">queue</code> 包里的 <code class="path">TODO()</code> 换成你的代码：</p>
+    <ul class="pits">
+      <li><code>RingQueue.kt</code>：固定容量的循环队列，写 <code>offer</code>、<code>poll</code>、<code>peek</code>、<code>size</code>、<code>isEmpty</code>、<code>isFull</code>。只许用一个 <code>IntArray</code>，每个操作 O(1)。</li>
+      <li><code>TwoStackQueue.kt</code>：变种，只用两个栈拼出一个先进先出的队列。经典面试题，想想为什么平均每个操作是 O(1)。</li>
+    </ul>
+    <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
+    <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'queue.*'</span></div></pre></div>
+
+    <h2>⑤ 挑战</h2>
+    <p class="story">不看动画，在脑子里把一串操作跑完，预测数组最后的样子，再和真正的循环队列比一比。</p>
+    <DoChallenge client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="more">
+    <h2>为什么快</h2>
+    <p class="story">入队、出队都只动一个下标，是 O(1)。如果用普通数组、每次从头部删除，后面的元素要整体往前挪一格，队里有 n 个就要挪 n − 1 次。</p>
+    <LogCompare rows={rows} />
+    <p class="small-note">出队一次要挪动几个元素。条形长度用对数刻度绘制。循环队列一个都不用挪，只把 head 往前走一格。</p>
+
+    <h2>空和满怎么分</h2>
+    <p class="story">空的时候 head == tail，满的时候 tail 绕一圈追上 head，也是 head == tail。常见的三种办法：</p>
+    <ul class="pits">
+      <li>另记一个 <code>size</code>：本关的写法。Java 的 <code>ArrayBlockingQueue</code> 也是这样，字段叫 <code>items</code>、<code>takeIndex</code>、<code>putIndex</code>、<code>count</code>。</li>
+      <li>故意空出一格不用：满的条件是 <code>(tail + 1) % 容量 == head</code>。Java 的 <code>ArrayDeque</code> 就这样做，源码注释写着数组在 tail 处至少留一个空格。</li>
+      <li>下标一直往上加、不取模，用 <code>tail - head</code> 算个数，读写时再取模。容量取 2 的幂时，取模可以换成更快的位与。</li>
+    </ul>
+
+    <h2>真实世界里的队列</h2>
+    <ul class="pits">
+      <li><code>ArrayDeque</code>：Java 和 Kotlin 标准库里最常用的队列，内部就是一个会扩容的循环数组。写 BFS、滑动窗口时用它代替 <code>LinkedList</code>。</li>
+      <li>键盘缓冲区：按键先存进环形缓冲区，程序按顺序取。老式 PC 的 BIOS 缓冲区只有 16 格，头尾两个指针绕着圈走。</li>
+      <li>网卡和声卡：网卡收发数据包、声卡播放声音，都用环形缓冲区，写的一方在前面跑，读的一方在后面追。</li>
+      <li>打印队列、任务队列：先提交的先处理。</li>
+      <li>消息队列：Kafka 每个分区是一条只往后追加的日志，同一分区里按写入顺序读。读完不删，按保留时间清理，是「先进先出」思想的大规模版本。</li>
+      <li>Android 的 <code>Looper</code> 和 <code>MessageQueue</code>：主线程一直从队列里取消息处理。它按消息该被处理的时间排序，时间相同的先放进来的先处理，所以不是严格的先进先出。</li>
+      <li>广度优先搜索（BFS）：用队列一层一层往外找，保证先处理离起点近的。</li>
+    </ul>
+
+    <h2>常见变种</h2>
+    <ul class="pits">
+      <li>双端队列（deque）：两头都能进出，<code>ArrayDeque</code> 就是。</li>
+      <li>阻塞队列：空了取的人等，满了放的人等，生产者和消费者靠它配合。</li>
+      <li>优先队列：按优先级出队（用堆实现），名字里有「队列」，但不是先进先出。</li>
+    </ul>
+  </Fragment>
+</AlgoLayout>
+
+<style>
+  .path { font: 500 0.9em var(--mono); background: var(--out); padding: 1px 6px; border-radius: 4px; }
+</style>
