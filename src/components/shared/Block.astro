@@ -1,0 +1,21 @@
+---
+/**
+ * 页面里的一个“块”：卡片，顶上是图标加标题，可选一行说明，下面放内容。
+ * 看、玩、做、延伸里每一件事（一个游戏、一个练习）各用一个块，页面才分得清。
+ */
+interface Props {
+  title: string;
+  icon?: string;
+  intro?: string;
+}
+const { title, icon, intro } = Astro.props;
+---
+
+<section class="block">
+  <div class="block-head">
+    {icon && <span class="block-icon" aria-hidden="true">{icon}</span>}
+    <h2>{title}</h2>
+  </div>
+  {intro && <p class="block-intro">{intro}</p>}
+  <slot />
+</section>
