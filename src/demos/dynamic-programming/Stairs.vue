@@ -29,7 +29,7 @@ function label(i: number, v: number | null): string {
         <span v-if="goal === i && bunny !== i" class="flag">🚩</span>
         <span v-if="bunny === i" :key="'b' + i" class="bunny">🐰</span>
       </div>
-      <div class="block" :style="{ '--h': i }" :aria-label="label(i, notes[i] ?? null)">
+      <div class="step-block" :style="{ '--h': i }" :aria-label="label(i, notes[i] ?? null)">
         <span class="sticky" :class="{ empty: notes[i] === null, ask: ask === i }">{{ notes[i] ?? (ask === i ? '❓' : '') }}</span>
         <span class="lv">{{ i === 0 ? '地' : i }}</span>
       </div>
@@ -43,7 +43,7 @@ function label(i: number, v: number | null): string {
 .top { height: clamp(30px, 8vw, 40px); display: flex; align-items: flex-end; justify-content: center; font-size: clamp(20px, 6vw, 30px); line-height: 1; }
 .flag { font-size: 0.8em; }
 .bunny { display: inline-block; animation: hop 0.5s ease-out; }
-.block {
+.step-block {
   height: calc(46px + var(--h) * clamp(12px, 3.4vw, 20px));
   display: flex; flex-direction: column; align-items: center; justify-content: space-between;
   padding: 6px 2px 4px;
@@ -54,13 +54,13 @@ function label(i: number, v: number | null): string {
   min-width: 0; width: 88%; height: clamp(24px, 6.5vw, 32px); display: grid; place-items: center;
   font: 700 clamp(12px, 3.6vw, 17px) var(--mono); font-variant-numeric: tabular-nums;
   background: var(--mid); color: var(--mid-ink); border-radius: 3px; transform: rotate(-3deg);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--fg) 18%, transparent);
 }
 .sticky.empty { background: transparent; border: 1.5px dashed var(--line); box-shadow: none; transform: none; color: var(--muted); }
 .sticky.ask { border-color: var(--accent); }
 .lv { font: 500 clamp(9px, 2.6vw, 12px) var(--mono); color: var(--muted); }
-.col.from .block { border-color: var(--accent); background: var(--out); }
-.col.glow .block { animation: glow 0.9s ease-in-out 3; }
+.col.from .step-block { border-color: var(--accent); background: var(--out); }
+.col.glow .step-block { animation: glow 0.9s ease-in-out 3; }
 
 @keyframes hop {
   0% { transform: translateY(0); }
@@ -72,6 +72,6 @@ function label(i: number, v: number | null): string {
 }
 @media (prefers-reduced-motion: reduce) {
   .bunny { animation: none; }
-  .col.glow .block { animation: none; box-shadow: 0 0 0 3px var(--mid); }
+  .col.glow .step-block { animation: none; box-shadow: 0 0 0 3px var(--mid); }
 }
 </style>
