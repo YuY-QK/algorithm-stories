@@ -29,9 +29,9 @@ function again() {
       <span v-for="(_, i) in frames" :key="i" :class="{ on: i === p.idx.value }" />
     </div>
     <div class="nav">
-      <button type="button" class="big" :disabled="p.atStart.value" aria-label="上一页" @click="p.prev()">◀</button>
-      <button type="button" class="big main" :aria-label="p.playing.value ? '暂停' : '自动播放'" @click="p.toggle()">{{ p.playing.value ? '⏸' : '▶️' }}</button>
-      <button type="button" class="big" :disabled="p.atEnd.value" aria-label="下一页" @click="p.next()">▶</button>
+      <button type="button" class="pager-btn" :disabled="p.atStart.value" aria-label="上一页" @click="p.prev()">◀</button>
+      <button type="button" class="pager-btn main" :aria-label="p.playing.value ? '暂停' : '自动播放'" @click="p.toggle()">{{ p.playing.value ? '⏸' : '▶️' }}</button>
+      <button type="button" class="pager-btn" :disabled="p.atEnd.value" aria-label="下一页" @click="p.next()">▶</button>
     </div>
     <div v-if="p.atEnd.value" class="row">
       <button type="button" class="btn" @click="again">{{ againLabel }}</button>

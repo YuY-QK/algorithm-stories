@@ -139,13 +139,13 @@ h3 { font-size: 1.05rem; }
 .dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
 .dots span.on { background: var(--accent); }
 .nav { display: flex; gap: 12px; }
-.big {
+.pager-btn {
   font: inherit; font-size: 1.4rem; width: 3.2em; height: 2.4em; cursor: pointer;
   border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface); color: var(--fg);
 }
-.big.main { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.big:disabled { opacity: 0.35; cursor: not-allowed; }
-.big:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.pager-btn.main { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.pager-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.pager-btn:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 
 /* 做 shared */
 .controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end; }
