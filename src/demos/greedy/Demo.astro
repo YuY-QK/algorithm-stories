@@ -1,5 +1,6 @@
 ---
 import AlgoLayout from '../../layouts/AlgoLayout.astro';
+import Block from '../../components/shared/Block.astro';
 import LogCompare from '../../components/shared/LogCompare.astro';
 import CodePanel from '../../components/shared/CodePanel.vue';
 import { DP_CODE } from '../../engine/greedy';
@@ -33,71 +34,80 @@ const rows = [
 
 <AlgoLayout {...Astro.props}>
   <Fragment slot="look">
-    <LookStory client:only="vue" />
+    <Block icon="📖" title="小熊的小卖部" intro="一页一页翻，看小熊怎么找零钱。">
+      <LookStory client:only="vue" />
+    </Block>
   </Fragment>
 
   <Fragment slot="play">
-    <h2>🐻 当收银员</h2>
-    <PlayCashier client:only="vue" />
+    <Block icon="🐻" title="当收银员">
+      <PlayCashier client:only="vue" />
+    </Block>
 
-    <h2>🤖 打败贪心机器人</h2>
-    <PlayRobot client:only="vue" />
+    <Block icon="🤖" title="打败贪心机器人">
+      <PlayRobot client:only="vue" />
+    </Block>
   </Fragment>
 
   <Fragment slot="do">
-    <h2>① 先看一遍</h2>
-    <p class="story">贪心找零：面值从大到小，每种面值拿到拿不下为止。每一步对应下面 Kotlin 代码的一行，高亮行是正在执行的那一行。换成 1·3·4 看看贪心怎么失灵。</p>
-    <DoTrace client:only="vue" />
+    <Block icon="①" title="先看一遍" intro="贪心找零：面值从大到小，每种面值拿到拿不下为止。每一步对应下面 Kotlin 代码的一行，高亮行是正在执行的那一行。换成 1·3·4 看看贪心怎么失灵。">
+      <DoTrace client:only="vue" />
+    </Block>
 
-    <h2>② 猜下一步</h2>
-    <p class="story">每一轮先点出下一枚拿哪种面值，再选这种面值拿几枚。连对 5 次过关。</p>
-    <DoPredict client:only="vue" />
+    <Block icon="②" title="猜下一步" intro="每一轮先点出下一枚拿哪种面值，再选这种面值拿几枚。连对 5 次过关。">
+      <DoPredict client:only="vue" />
+    </Block>
 
-    <h2>③ 找 bug</h2>
-    <p class="story">写贪心找零最常见的三个坑。每段代码只错了一行：先播放，看它怎么跑错，再点出错的那一行。</p>
-    <DoBug client:only="vue" />
+    <Block icon="③" title="找 bug" intro="写贪心找零最常见的三个坑。每段代码只错了一行：先播放，看它怎么跑错，再点出错的那一行。">
+      <DoBug client:only="vue" />
+    </Block>
 
-    <h2>④ 亲手写</h2>
-    <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">greedy/Greedy.kt</code> 里的两个 <code class="path">TODO()</code> 换成你的代码：</p>
-    <ul class="pits">
-      <li><code>greedyChange(coins, amount)</code>：贪心找零，返回拿到的硬币（从大到小）。面值顺序是乱的，一定有 1。</li>
-      <li><code>minCoins(coins, amount)</code>：动态规划，凑出 amount 最少要几枚；凑不出来返回 -1。面值里不一定有 1。测试会拿它和贪心比一比。</li>
-    </ul>
-    <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
-    <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'greedy.*'</span></div></pre></div>
+    <Block icon="④" title="亲手写">
+      <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">greedy/Greedy.kt</code> 里的两个 <code class="path">TODO()</code> 换成你的代码：</p>
+      <ul class="pits">
+        <li><code>greedyChange(coins, amount)</code>：贪心找零，返回拿到的硬币（从大到小）。面值顺序是乱的，一定有 1。</li>
+        <li><code>minCoins(coins, amount)</code>：动态规划，凑出 amount 最少要几枚；凑不出来返回 -1。面值里不一定有 1。测试会拿它和贪心比一比。</li>
+      </ul>
+      <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
+      <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'greedy.*'</span></div></pre></div>
+    </Block>
 
-    <h2>⑤ 挑战：贪心靠得住吗</h2>
-    <DoChallenge client:only="vue" />
+    <Block icon="⑤" title="挑战：贪心靠得住吗">
+      <DoChallenge client:only="vue" />
+    </Block>
   </Fragment>
 
   <Fragment slot="more">
-    <h2>贪心是什么</h2>
-    <p class="story">每一步都做眼前看起来最好的选择，选了就不改，也不回头。它通常很快、很好写，难的是证明它对：要说明「第一步按贪心选不会错过最优解」，而且「选完以后剩下的还是同一类问题」。</p>
+    <Block icon="🍬" title="贪心是什么" intro="每一步都做眼前看起来最好的选择，选了就不改，也不回头。它通常很快、很好写，难的是证明它对：要说明「第一步按贪心选不会错过最优解」，而且「选完以后剩下的还是同一类问题」。">
+    </Block>
 
-    <h2>快，但不一定对</h2>
-    <p class="story">6 种面值时，贪心只要把面值看一遍（同一种拿几枚用除法算）；动态规划要把 1 到 amount 的每个金额都算一遍，金额越大越慢。</p>
-    <LogCompare rows={rows} />
-    <p class="small-note">条形长度用对数刻度绘制。数字是大约要做的运算次数：贪心 6 次，动态规划 6 × 金额次。</p>
+    <Block icon="⚡" title="快，但不一定对" intro="6 种面值时，贪心只要把面值看一遍（同一种拿几枚用除法算）；动态规划要把 1 到 amount 的每个金额都算一遍，金额越大越慢。">
+      <LogCompare rows={rows} />
+      <p class="small-note">条形长度用对数刻度绘制。数字是大约要做的运算次数：贪心 6 次，动态规划 6 × 金额次。</p>
+    </Block>
 
-    <h2>什么时候贪心对</h2>
-    <ul class="pits">
-      <li>对所有金额贪心都拿到最少的面值组合，叫<b>规范</b>（canonical）的币制。美元硬币 1、5、10、25 美分，欧元和小熊的 1、2、5 一组往上翻十倍，都是规范的；人民币现行的 1 角、5 角、1 元、5 元、10 元、20 元、50 元、100 元也是（本关用动态规划逐个金额核对过）。</li>
-      <li>不规范的例子：1、3、4 凑 6；美元里加一枚 20 美分，凑 40 时贪心拿 25 + 10 + 5，其实 20 + 20 就够；英国 1971 年以前的硬币（3、6、12、24、30 便士等）凑 48，贪心 30 + 12 + 6，两枚 24 的弗罗林就够。</li>
-      <li>怎么判断：Kozen 和 Zaks（1994）证明，反例如果存在，最小的那个一定比最大两种面值之和小，查到那里就够了（挑战里就是这么查的）。Pearson（2005）还给出了不用逐个金额查的多项式时间算法。</li>
-      <li>面值里没有 1 时，贪心甚至可能凑不齐：3、5 凑 9，拿了 5 剩 4，再拿 3 剩 1，卡住了，其实 3 + 3 + 3 可以。</li>
-    </ul>
+    <Block icon="✅" title="什么时候贪心对">
+      <ul class="pits">
+        <li>对所有金额贪心都拿到最少的面值组合，叫<b>规范</b>（canonical）的币制。美元硬币 1、5、10、25 美分，欧元和小熊的 1、2、5 一组往上翻十倍，都是规范的；人民币现行的 1 角、5 角、1 元、5 元、10 元、20 元、50 元、100 元也是（本关用动态规划逐个金额核对过）。</li>
+        <li>不规范的例子：1、3、4 凑 6；美元里加一枚 20 美分，凑 40 时贪心拿 25 + 10 + 5，其实 20 + 20 就够；英国 1971 年以前的硬币（3、6、12、24、30 便士等）凑 48，贪心 30 + 12 + 6，两枚 24 的弗罗林就够。</li>
+        <li>怎么判断：Kozen 和 Zaks（1994）证明，反例如果存在，最小的那个一定比最大两种面值之和小，查到那里就够了（挑战里就是这么查的）。Pearson（2005）还给出了不用逐个金额查的多项式时间算法。</li>
+        <li>面值里没有 1 时，贪心甚至可能凑不齐：3、5 凑 9，拿了 5 剩 4，再拿 3 剩 1，卡住了，其实 3 + 3 + 3 可以。</li>
+      </ul>
+    </Block>
 
-    <h2>动态规划兜底</h2>
-    <p class="story">凑出 x 最少几枚，看最后一枚是哪种面值：最后一枚是 c，前面就要凑出 x − c。把每个 c 都试一遍取最少，从小到大填表。这就是「亲手写」里的 <code class="path">minCoins</code>：</p>
-    <CodePanel lines={DP_CODE} active={0} lang="KOTLIN" />
+    <Block icon="🧮" title="动态规划兜底">
+      <p class="story">凑出 x 最少几枚，看最后一枚是哪种面值：最后一枚是 c，前面就要凑出 x − c。把每个 c 都试一遍取最少，从小到大填表。这就是「亲手写」里的 <code class="path">minCoins</code>：</p>
+      <CodePanel lines={DP_CODE} active={0} lang="KOTLIN" />
+    </Block>
 
-    <h2>其他贪心算法</h2>
-    <ul class="pits">
-      <li>活动安排：一个会议室，排尽量多互不冲突的会议。每次挑结束最早的那个，可以证明一定最多。</li>
-      <li>哈夫曼编码：每次把出现次数最少的两个字符合并，得到最短的编码。ZIP 文件用的压缩方法 DEFLATE 里就有它。</li>
-      <li>Dijkstra 最短路：每次确定离起点最近的那个点。地图导航、网络路由都用它的思路。</li>
-      <li>最小生成树（Kruskal、Prim）：每次接上最短的、不成圈的边，用最少的线把所有村子连起来。</li>
-    </ul>
+    <Block icon="🌍" title="其他贪心算法">
+      <ul class="pits">
+        <li>活动安排：一个会议室，排尽量多互不冲突的会议。每次挑结束最早的那个，可以证明一定最多。</li>
+        <li>哈夫曼编码：每次把出现次数最少的两个字符合并，得到最短的编码。ZIP 文件用的压缩方法 DEFLATE 里就有它。</li>
+        <li>Dijkstra 最短路：每次确定离起点最近的那个点。地图导航、网络路由都用它的思路。</li>
+        <li>最小生成树（Kruskal、Prim）：每次接上最短的、不成圈的边，用最少的线把所有村子连起来。</li>
+      </ul>
+    </Block>
   </Fragment>
 </AlgoLayout>
 
