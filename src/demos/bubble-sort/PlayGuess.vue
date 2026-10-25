@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { rounds, randomKids, stars, type Kid } from '../../engine/bubble-sort';
 import Lineup from './Lineup.vue';
+import { useStageStop } from '../../components/shared/usePlayer';
 import { PAUSE_BEAT, PAUSE_HOLD, PAUSE_SHORT } from '../../components/shared/timing';
 
 // 玩法二「谁会冒到最右边」：每一轮开始前，孩子先猜这一轮谁会站到最右边（还没站好的部分），
@@ -96,6 +97,13 @@ function again() {
   ask();
 }
 
+function stopAll() {
+  if (timer) clearTimeout(timer);
+  timer = null;
+  if (phase.value === 'run') again();
+}
+// 切换标签或卸载时，定时器清掉，正在进行的状态复位到可再次操作
+useStageStop(stopAll);
 onBeforeUnmount(() => { if (timer) clearTimeout(timer); });
 </script>
 

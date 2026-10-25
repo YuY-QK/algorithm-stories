@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { KID_N, middle, narrow, pointTo, type Dir } from '../../engine/binary-search';
 import Street from './Street.vue';
 import { PAUSE_LONG, PAUSE_MID, PAUSE_SHORT } from '../../components/shared/timing';
+import { useStageStop } from '../../components/shared/usePlayer';
 
 // 玩法一「藏信」：孩子先把信藏好盖上叶子，再给小邮差指路。
 // 答案一开始就固定了，指错方向时藏信的信箱会透光，提示孩子自己再看一眼。
@@ -21,16 +22,30 @@ const say = ref('👆 点一个信箱，把信 ✉️ 藏进去');
 const letter = computed(() => (phase.value === 'hiding' || phase.value === 'done' ? secret.value : null));
 const covered = computed(() => (phase.value === 'guide' || phase.value === 'walking' ? secret.value : null));
 
+// 所有定时器都登记在这里，切换标签或卸载时一起清掉
+const timers = new Set<ReturnType<typeof setTimeout>>();
+function later(fn: () => void, ms: number) {
+  const t = setTimeout(() => {
+    timers.delete(t);
+    fn();
+  }, ms);
+  timers.add(t);
+}
+function clearTimers() {
+  timers.forEach(clearTimeout);
+  timers.clear();
+}
+
 function hide(i: number) {
   if (phase.value !== 'hide') return;
   secret.value = i;
   phase.value = 'hiding';
   say.value = '✉️ 藏好啦，盖上叶子 🍃';
-  setTimeout(() => {
+  later(() => {
     phase.value = 'walking';
     at.value = middle(lo.value, hi.value);
     say.value = '🐰 小邮差来啦……';
-    setTimeout(ask, PAUSE_SHORT);
+    later(ask, PAUSE_SHORT);
   }, PAUSE_LONG);
 }
 
@@ -60,9 +75,9 @@ function answer(d: Dir) {
   ({ lo: lo.value, hi: hi.value } = narrow(lo.value, hi.value, at.value, d));
   phase.value = 'walking';
   say.value = (d === 'left' ? '👋 右' : '👋 左') + '边都不用看啦';
-  setTimeout(() => {
+  later(() => {
     at.value = middle(lo.value, hi.value);
-    setTimeout(ask, PAUSE_SHORT);
+    later(ask, PAUSE_SHORT);
   }, PAUSE_MID);
 }
 
@@ -77,6 +92,13 @@ function again() {
   glow.value = null;
   say.value = '👆 点一个信箱，把信 ✉️ 藏进去';
 }
+function stopAll() {
+  clearTimers();
+  if (phase.value === 'hiding' || phase.value === 'walking') again();
+}
+// 切换标签或卸载时，定时器清掉，正在进行的状态复位到可再次操作
+useStageStop(stopAll);
+onBeforeUnmount(clearTimers);
 </script>
 
 <template>

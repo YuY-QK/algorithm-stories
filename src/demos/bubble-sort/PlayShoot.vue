@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import {
   STORY_KIDS, randomKids, shootAnswer, shootInit, shootNextRound, shootQuiet, stars,
   type Choice, type Kid, type ShootState,
 } from '../../engine/bubble-sort';
 import Lineup from './Lineup.vue';
 import { PAUSE_ROUND } from '../../components/shared/timing';
+import { useStageStop } from '../../components/shared/usePlayer';
 
 // 玩法一「当摄影师」：孩子看挨着的两个，决定换不换。
 // 答案由身高决定，孩子改不了；判断不对时高的那个透光、左边的摇一摇，让孩子自己再比一比。
@@ -22,6 +23,20 @@ const say = ref('📷 你是摄影师！看 👀 这两个，要换吗？');
 
 const pairIdx = computed(() => (s.value.phase === 'pair' ? s.value.j : null));
 const earned = computed(() => stars(mistakes.value));
+
+// 所有定时器都登记在这里，切换标签或卸载时一起清掉
+const timers = new Set<ReturnType<typeof setTimeout>>();
+function later(fn: () => void, ms: number) {
+  const t = setTimeout(() => {
+    timers.delete(t);
+    fn();
+  }, ms);
+  timers.add(t);
+}
+function clearTimers() {
+  timers.forEach(clearTimeout);
+  timers.clear();
+}
 
 function blink(id: string) {
   glow.value = null;
@@ -47,7 +62,7 @@ function answer(c: Choice) {
     const top = n.line[n.end];
     say.value = (n.round === 0 ? '🫧 最高的 ' : '🫧 ') + top.face + ' 冒到右边啦，站好不动 ⭐';
     busy.value = true;
-    setTimeout(() => {
+    later(() => {
       s.value = shootNextRound(s.value);
       say.value = '👀 再从最左边开始看';
       busy.value = false;
@@ -84,6 +99,17 @@ function again() {
   busy.value = false;
   say.value = '📷 新的小伙伴来啦！看 👀 这两个，要换吗？';
 }
+function stopAll() {
+  clearTimers();
+  if (busy.value) {
+    s.value = shootNextRound(s.value);
+    say.value = '👀 再从最左边开始看';
+    busy.value = false;
+  }
+}
+// 切换标签或卸载时，定时器清掉，正在进行的状态复位到可再次操作
+useStageStop(stopAll);
+onBeforeUnmount(clearTimers);
 </script>
 
 <template>
