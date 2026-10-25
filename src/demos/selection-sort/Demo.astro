@@ -1,6 +1,7 @@
 ---
 import AlgoLayout from '../../layouts/AlgoLayout.astro';
 import LogCompare from '../../components/shared/LogCompare.astro';
+import Block from '../../components/shared/Block.astro';
 import LookStory from './LookStory.vue';
 import PlayPick from './PlayPick.vue';
 import PlayHand from './PlayHand.vue';
@@ -31,68 +32,77 @@ const rows = [
 
 <AlgoLayout {...Astro.props}>
   <Fragment slot="look">
-    <LookStory client:only="vue" />
+    <Block icon="📖" title="小熊挑糖果" intro="一页一页翻，看小熊怎么每次挑出最小的那颗。">
+      <LookStory client:only="vue" />
+    </Block>
   </Fragment>
 
   <Fragment slot="play">
-    <h2>🍬 挑最小的</h2>
-    <PlayPick client:only="vue" />
+    <Block icon="🍬" title="挑最小的">
+      <PlayPick client:only="vue" />
+    </Block>
 
-    <h2>🐻 小熊的手</h2>
-    <PlayHand client:only="vue" />
+    <Block icon="🐻" title="小熊的手">
+      <PlayHand client:only="vue" />
+    </Block>
   </Fragment>
 
   <Fragment slot="do">
-    <h2>① 先看一遍</h2>
-    <p class="story">每一轮用 minIdx 记住「目前最小的」在哪，j 从 i + 1 扫到最后，扫完再把最小的换到下标 i。高亮行是正在执行的那一行。</p>
-    <DoTrace client:only="vue" />
+    <Block icon="①" title="先看一遍" intro="每一轮用 minIdx 记住「目前最小的」在哪，j 从 i + 1 扫到最后，扫完再把最小的换到下标 i。高亮行是正在执行的那一行。">
+      <DoTrace client:only="vue" />
+    </Block>
 
-    <h2>② 猜下一步</h2>
-    <p class="story">每一轮先点出 minIdx 最后停在哪一格，再说出这一轮 minIdx 被改了几次。数组里可能有重复的数。连对 6 次过关。</p>
-    <DoPredict client:only="vue" />
+    <Block icon="②" title="猜下一步" intro="每一轮先点出 minIdx 最后停在哪一格，再说出这一轮 minIdx 被改了几次。数组里可能有重复的数。连对 6 次过关。">
+      <DoPredict client:only="vue" />
+    </Block>
 
-    <h2>③ 找 bug</h2>
-    <p class="story">写选择排序最常见的三个坑。每段代码只错了一行：先播放，看它怎么排错，再点出错的那一行。</p>
-    <DoBug client:only="vue" />
+    <Block icon="③" title="找 bug" intro="写选择排序最常见的三个坑。每段代码只错了一行：先播放，看它怎么排错，再点出错的那一行。">
+      <DoBug client:only="vue" />
+    </Block>
 
-    <h2>④ 亲手写</h2>
-    <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">selectionsort/SelectionSort.kt</code> 里的两个 <code class="path">TODO()</code> 换成你的代码：</p>
-    <ul class="pits">
-      <li><code>selectionSort(arr)</code>：原地把 IntArray 从小到大排好。</li>
-      <li><code>kthSmallest(arr, k)</code>：第 k 小的数。不用全部排完，选择排序做 k 轮就够了。</li>
-    </ul>
-    <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
-    <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'selectionsort.*'</span></div></pre></div>
+    <Block icon="④" title="亲手写">
+      <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">selectionsort/SelectionSort.kt</code> 里的两个 <code class="path">TODO()</code> 换成你的代码：</p>
+      <ul class="pits">
+        <li><code>selectionSort(arr)</code>：原地把 IntArray 从小到大排好。</li>
+        <li><code>kthSmallest(arr, k)</code>：第 k 小的数。不用全部排完，选择排序做 k 轮就够了。</li>
+      </ul>
+      <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
+      <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'selectionsort.*'</span></div></pre></div>
+    </Block>
 
-    <h2>⑤ 挑战</h2>
-    <DoChallenge client:only="vue" />
+    <Block icon="⑤" title="挑战">
+      <DoChallenge client:only="vue" />
+    </Block>
   </Fragment>
 
   <Fragment slot="more">
-    <h2>比较多，交换少</h2>
-    <p class="story">不管数组长什么样，选择排序都要比较 n(n−1)/2 次：第 1 轮比 n − 1 次，第 2 轮 n − 2 次……加起来就是这么多，所以时间总是 O(n²)，已经排好的数组也省不了。交换却最多只有 n − 1 次，每轮至多一次。冒泡排序一次只换相邻两个，平均要换 n(n−1)/4 次。</p>
-    <LogCompare rows={rows} />
-    <p class="small-note">条形长度用对数刻度绘制。「比较」两种排序都是这么多（冒泡提前结束时会少一些）；「冒泡交换」是随机数组的平均值。</p>
+    <Block icon="🔍" title="比较多，交换少" intro="不管数组长什么样，选择排序都要比较 n(n−1)/2 次：第 1 轮比 n − 1 次，第 2 轮 n − 2 次……加起来就是这么多，所以时间总是 O(n²)，已经排好的数组也省不了。交换却最多只有 n − 1 次，每轮至多一次。冒泡排序一次只换相邻两个，平均要换 n(n−1)/4 次。">
+      <LogCompare rows={rows} />
+      <p class="small-note">条形长度用对数刻度绘制。「比较」两种排序都是这么多（冒泡提前结束时会少一些）；「冒泡交换」是随机数组的平均值。</p>
+    </Block>
 
-    <h2>什么时候它有用</h2>
-    <ul class="pits">
-      <li><b>写一次很贵的时候</b>：比如往闪存（Flash、EEPROM）里写，写入又慢又会磨损。选择排序比较多但写得少，最多 n − 1 次交换。元素各不相同时，这已经是用交换排序能做到的最少次数（挑战里你已经比过了）。</li>
-      <li><b>数据很少的时候</b>：代码短、不用额外内存（原地，O(1) 空间），几个、十几个元素时足够用。</li>
-      <li><b>只要前几名的时候</b>：只做 k 轮，就得到最小的 k 个，这就是「亲手写」里的 <code>kthSmallest</code>。</li>
-    </ul>
+    <Block icon="💡" title="什么时候它有用">
+      <ul class="pits">
+        <li><b>写一次很贵的时候</b>：比如往闪存（Flash、EEPROM）里写，写入又慢又会磨损。选择排序比较多但写得少，最多 n − 1 次交换。元素各不相同时，这已经是用交换排序能做到的最少次数（挑战里你已经比过了）。</li>
+        <li><b>数据很少的时候</b>：代码短、不用额外内存（原地，O(1) 空间），几个、十几个元素时足够用。</li>
+        <li><b>只要前几名的时候</b>：只做 k 轮，就得到最小的 k 个，这就是「亲手写」里的 <code>kthSmallest</code>。</li>
+      </ul>
+    </Block>
 
-    <h2>它不稳定</h2>
-    <p class="story">「稳定」是说一样大的元素排完后保持原来的先后。选择排序做不到：比如 [2<sub>红</sub>, 2<sub>蓝</sub>, 1]，第一轮把 1 和最前面的 2<sub>红</sub> 交换，变成 [1, 2<sub>蓝</sub>, 2<sub>红</sub>]，红的跑到蓝的后面去了。长距离的交换会跳过中间的元素，这就是它不稳定的原因。冒泡和插入只换相邻的，是稳定的。</p>
+    <Block icon="⚖️" title="它不稳定">
+      <p class="story">「稳定」是说一样大的元素排完后保持原来的先后。选择排序做不到：比如 [2<sub>红</sub>, 2<sub>蓝</sub>, 1]，第一轮把 1 和最前面的 2<sub>红</sub> 交换，变成 [1, 2<sub>蓝</sub>, 2<sub>红</sub>]，红的跑到蓝的后面去了。长距离的交换会跳过中间的元素，这就是它不稳定的原因。冒泡和插入只换相邻的，是稳定的。</p>
+    </Block>
 
-    <h2>和冒泡、插入比一比</h2>
-    <ul class="pits">
-      <li>冒泡排序：相邻比较、相邻交换，大的一轮轮「冒」到后面。已经有序时可以一轮就提前结束。</li>
-      <li>插入排序：像整理手里的扑克牌，把新牌插到前面排好的里面。差不多有序时很快，是三者里实际用得最多的（很多标准库对小数组就用它）。</li>
-      <li>选择排序：比较次数固定，交换最少，但不稳定，也不会因为数据接近有序而变快。</li>
-    </ul>
+    <Block icon="🆚" title="和冒泡、插入比一比">
+      <ul class="pits">
+        <li>冒泡排序：相邻比较、相邻交换，大的一轮轮「冒」到后面。已经有序时可以一轮就提前结束。</li>
+        <li>插入排序：像整理手里的扑克牌，把新牌插到前面排好的里面。差不多有序时很快，是三者里实际用得最多的（很多标准库对小数组就用它）。</li>
+        <li>选择排序：比较次数固定，交换最少，但不稳定，也不会因为数据接近有序而变快。</li>
+      </ul>
+    </Block>
 
-    <h2>升级版：堆排序</h2>
-    <p class="story">选择排序慢在「每轮都要从头扫一遍才找到最小的」。如果把剩下的元素放进一个堆里，找最小（或最大）只要 O(log n)，整个排序就变成 O(n log n)，这就是堆排序。它的思路和选择排序一模一样：每次选出一个最值放到该去的位置。</p>
+    <Block icon="🏔️" title="升级版：堆排序" intro="选择排序慢在「每轮都要从头扫一遍才找到最小的」。如果把剩下的元素放进一个堆里，找最小（或最大）只要 O(log n)，整个排序就变成 O(n log n)，这就是堆排序。它的思路和选择排序一模一样：每次选出一个最值放到该去的位置。">
+    </Block>
   </Fragment>
 </AlgoLayout>
 
