@@ -1,0 +1,114 @@
+---
+import AlgoLayout from '../../layouts/AlgoLayout.astro';
+import LogCompare from '../../components/shared/LogCompare.astro';
+import Block from '../../components/shared/Block.astro';
+import LookStory from './LookStory.vue';
+import PlayFind from './PlayFind.vue';
+import PlayHide from './PlayHide.vue';
+import DoTrace from './DoTrace.vue';
+import DoPredict from './DoPredict.vue';
+import DoBug from './DoBug.vue';
+import DoChallenge from './DoChallenge.vue';
+
+interface Props { slug: string; title: string; lede: string }
+
+const repo = 'https://github.com/YuY-QK/algorithm-stories/tree/main/exercises';
+
+// 数据已经排好序时，最坏情况下要看的个数：顺序查找是 n，二分查找是 ⌊log₂n⌋+1
+const rows = [
+  { label: '8', unit: '个箱子', n: 8 },
+  { label: '1,000', unit: '一千', n: 1000 },
+  { label: '1,000,000', unit: '一百万', n: 1000000 },
+].map((r) => ({
+  label: r.label,
+  unit: r.unit,
+  bars: [
+    { name: '顺序', value: r.n, tone: 'muted' as const },
+    { name: '二分', value: Math.floor(Math.log2(r.n)) + 1, tone: 'accent' as const },
+  ],
+}));
+---
+
+<AlgoLayout {...Astro.props}>
+  <Fragment slot="look">
+    <Block icon="📖" title="一个个开箱子找小熊" intro="一页一页翻，看小朋友怎么找到小熊。">
+      <LookStory client:only="vue" />
+    </Block>
+  </Fragment>
+
+  <Fragment slot="play">
+    <Block icon="🐻" title="开箱子找小熊">
+      <PlayFind client:only="vue" />
+    </Block>
+
+    <Block icon="🤖" title="藏小熊，看机器人找">
+      <PlayHide client:only="vue" />
+    </Block>
+  </Fragment>
+
+  <Fragment slot="do">
+    <Block icon="①" title="先看一遍" intro="在数组里找 target，返回第一个相等的下标。每一步对应下面 Kotlin 代码的一行，高亮行是正在执行的那一行。换一种「目标在哪里」，看看比较几次。">
+      <DoTrace client:only="vue" />
+    </Block>
+
+    <Block icon="②" title="猜下一步" intro="每个位置先猜：相等就 return，不相等就继续；第一次不相等后猜 i 变成几；全看完猜返回什么。连对 5 次过关。">
+      <DoPredict client:only="vue" />
+    </Block>
+
+    <Block icon="③" title="找 bug" intro="顺序查找最常见的三个坑。每段代码只错了一行：先播放，看它怎么跑错，再点出错的那一行。">
+      <DoBug client:only="vue" />
+    </Block>
+
+    <Block icon="④" title="亲手写">
+      <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">linearsearch/LinearSearch.kt</code> 里的 <code class="path">TODO()</code> 换成你的代码：</p>
+      <ul class="pits">
+        <li><code>linearSearch(arr, target)</code>：就是上面演示的那段代码，找不到返回 <code>-1</code>，有重复返回第一个。试着不看它写出来。</li>
+        <li><code>linearSearchSentinel(arr, target)</code>：哨兵版。先把目标放到数组末尾当「哨兵」，循环里就不用每次检查有没有走出末尾；扫完要把末尾还原，再分清是真找到还是撞上了哨兵。</li>
+      </ul>
+      <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
+      <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'linearsearch.*'</span></div></pre></div>
+    </Block>
+
+    <Block icon="⑤" title="挑战">
+      <DoChallenge client:only="vue" />
+    </Block>
+  </Fragment>
+
+  <Fragment slot="more">
+    <Block icon="⚡" title="快还是慢">
+      <p class="story">最好的情况，目标就在第一个，比较 1 次。最坏的情况，目标在最后一个或者根本不存在，比较 n 次。目标一定存在、每个位置可能一样大时，平均比较 (n+1)/2 次。所以顺序查找是 O(n)，不占额外空间，也不要求数据有序。</p>
+      <p class="story">如果数据已经排好序，二分查找每次排除一半，差距随着数据变多越拉越大：</p>
+      <LogCompare rows={rows} />
+      <p class="small-note">条形长度用对数刻度绘制。数字是最坏情况下要看的个数。</p>
+    </Block>
+
+    <Block icon="🤝" title="什么时候顺序查找反而合适">
+      <ul class="pits">
+        <li>只查一次、数据没排序：先排序再二分，比直接扫一遍还慢。</li>
+        <li>数据很少：代码最简单，不容易写错。多少个以内顺序更快，要看语言和机器，要自己实测。</li>
+        <li>链表：只能一个个往后走，不能按下标跳到中间，二分用不上。</li>
+        <li>数据经常变：数组要保持有序，每次插入删除都要挪元素。</li>
+        <li>找的不是「等于某个值」，而是「第一个满足某个条件的」：数据本身没有可二分的顺序。</li>
+      </ul>
+    </Block>
+
+    <Block icon="🛡️" title="哨兵：只省常数倍">
+      <p class="story">普通版每轮做两件事：检查有没有走出末尾，再比较是不是目标。哨兵版把目标放到末尾，保证一定能撞上，就只剩比较这一件事。每轮少一次判断，但还是要从头扫到尾，复杂度仍是 O(n)，只是常数小了一点。代价是要改数组、要还原、多线程下不安全。</p>
+    </Block>
+
+    <Block icon="🌍" title="真实世界里的顺序查找">
+      <ul class="pits">
+        <li>翻玩具箱、抽屉，在没排序的名单或购物小票上从头往下找：一个个看，找到就停。</li>
+        <li>各语言标准库里的 <code>indexOf</code>、<code>contains</code>、<code>find</code>：Kotlin 的 <code>indexOf</code> / <code>first {'{ }'}</code>、Java 的 <code>ArrayList.indexOf</code>、JavaScript 的 <code>Array.prototype.indexOf</code>，对无序列表都是从头到尾扫。找不到的约定不一样：JavaScript 返回 <code>-1</code>，Python 的 <code>list.index</code> 抛 <code>ValueError</code>。</li>
+        <li>数据库没有可用的索引时只能全表扫描，PostgreSQL 的 <code>EXPLAIN</code> 里显示为 <code>Seq Scan</code>，一行一行检查条件。表很小时选它也是合理的。</li>
+        <li>C 标准库的 <code>strchr</code>、<code>memchr</code>：在字符串、内存块里找一个字节，也是顺序扫描。</li>
+      </ul>
+    </Block>
+
+    <Block icon="➡️" title="下一站" intro="想更快：先排序再二分，或者用哈希（以后的「哈希查找」关卡）。二分查找关卡里，信箱是排好序的，所以一次能排除一半。" />
+  </Fragment>
+</AlgoLayout>
+
+<style>
+  .path { font: 500 0.9em var(--mono); background: var(--out); padding: 1px 6px; border-radius: 4px; }
+</style>
