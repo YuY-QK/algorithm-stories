@@ -1,4 +1,5 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue';
+import { play } from './sound';
 import { SPEEDS } from './timing';
 
 export interface Speed {
@@ -69,6 +70,10 @@ export function usePlayer<S>(steps: Ref<S[]>, speeds: Speed[] = SPEEDS, defaultS
     }
   }
 
+  // 步骤往前走一格，轻轻“嗒”一声（翻页、重置、往回退不出声）
+  watch(idx, (now, before) => {
+    if (now === before + 1) play('tick');
+  });
   watch(steps, reset);
   watch(speed, () => {
     if (playing.value) {

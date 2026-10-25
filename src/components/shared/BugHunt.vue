@@ -5,6 +5,7 @@ import CodePanel from './CodePanel.vue';
 import Segmented from './Segmented.vue';
 import Transport from './Transport.vue';
 import VarChips from './VarChips.vue';
+import { play } from './sound';
 import { usePlayer, type Speed } from './usePlayer';
 
 // 找 bug 整个面板：选坑、播放有 bug 的代码怎么跑错、点出错的那一行、答对后的解释与修正。
@@ -42,7 +43,9 @@ function pick(line: number) {
   if (line === b.wrongLine) {
     solved.value = { ...solved.value, [b.id]: true };
     msg.value = '';
+    play('right');
   } else {
+    play('wrong');
     tried.value = { ...tried.value, [b.id]: [...(tried.value[b.id] ?? []), line] };
     msg.value = '不是第 ' + line + ' 行。回到动画里，看看是哪一步开始不对的。';
   }
