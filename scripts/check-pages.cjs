@@ -133,7 +133,9 @@ function inspect(minTarget) {
     }
     const clips = cs.overflowX !== "visible" || cs.overflowY !== "visible" || cs.textOverflow === "ellipsis" || cs.webkitLineClamp !== "none";
     const scrollable = ["auto", "scroll"].includes(cs.overflowX) || ["auto", "scroll"].includes(cs.overflowY);
-    if (clips && !scrollable && (el.innerText || "").trim() && el.children.length === 0) {
+    // 只给读屏软件的「视觉隐藏」文字（如 .sr：1px 大小加 clip）本来就看不见，不算截断
+    const srOnly = (r.width <= 1 && r.height <= 1) || (cs.clip && cs.clip !== "auto") || (cs.clipPath && cs.clipPath.startsWith("inset(50%"));
+    if (clips && !scrollable && !srOnly && (el.innerText || "").trim() && el.children.length === 0) {
       if (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) out.truncated.push(describe(el));
     }
   }
@@ -183,7 +185,9 @@ function report(found, opts) {
 (async () => {
   const opts = parseArgs(process.argv.slice(2));
   const { chromium } = loadPlaywright();
-  const browser = await chromium.launch();
+  // 云端环境的 Chromium 预装在 /opt/pw-browsers/chromium，和 npm 装的 playwright 版本可能对不上
+  const exe = process.env.CHROMIUM_PATH || (fs.existsSync("/opt/pw-browsers/chromium") ? "/opt/pw-browsers/chromium" : undefined);
+  const browser = await chromium.launch(exe ? { executablePath: exe } : {});
   let total = 0;
   try {
     for (const target of opts.targets) {
