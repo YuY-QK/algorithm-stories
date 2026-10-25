@@ -24,7 +24,7 @@
 | 阶段 | 内容 | 检查点 |
 |---|---|---|
 | 0 收尾 | 合并协作规则和全部关卡，修页面检查发现的问题，更新 README、清单、本文件，开 PR | ✅ 完成，等 Yumor 合并 PR |
-| B 做架构 | ① 盘点：1 个 haiku 子线程只读，把 13 关的看、做两步实现和引擎导出的数据格式整理成对照表 ② 设计：主线程写共享组件和引擎数据格式的规格，补进 `level-spec.md` ③ 实现：sonnet 照规格做共享组件，先只改二分查找，主线程审改动 ④ 迁移：sonnet 每个子线程迁两个相近的关卡，每关跑测试和 check-pages，「玩」的小游戏保持各关独有 | ② 之后 Yumor 看规格再动手；③ 之后 Yumor 试玩新版二分查找 |
+| B 做架构 ✅ | ① 盘点：1 个 haiku 子线程只读，把 13 关的看、做两步实现和引擎导出的数据格式整理成对照表 ② 设计：主线程写共享组件和引擎数据格式的规格，补进 `level-spec.md` ③ 实现：sonnet 照规格做共享组件，先只改二分查找，主线程审改动 ④ 迁移：sonnet 每个子线程迁两个相近的关卡，每关跑测试和 check-pages，「玩」的小游戏保持各关独有 | ② 之后 Yumor 看规格再动手；③ 之后 Yumor 试玩新版二分查找 |
 | A 试玩 | Yumor 和孩子试玩，按 `overview.md` 4c 记反馈，反馈只改共享组件 | 反馈记完 |
 | C 新关卡 | 用共享组件做新关卡，两个相近的一组；每批统一核对「待核实」、统一审校一次 | 每批：CI 通过、check-pages 通过、清单和 README 更新 |
 
@@ -40,9 +40,9 @@
 ## 待办
 
 - [ ] 合并 PR，网站上线 13 关（Yumor）
-- [ ] 阶段 B：做架构。①盘点完成 ②规格已写入 `level-spec.md` 末节，**等 Yumor 看规格**；③实现完成（二分查找已迁移）；`timing.ts` 集中速度已加；④迁移：二分查找、冒泡、选择、插入、归并、栈、队列、BFS、DFS、贪心、DP 已迁，剩 2 关（快速+LRU）。PredictFrame 已加可选 right/continueLabel/nextLabel。迁移时每关：引用 `timing.ts`、给「玩」加目标提示、`setTimeout` 接 `useStageStop`（Play* 还有 PlayShoot/PlayGuess/PlayHand/PlayPick 未接）。二分/冒泡/选择的 Python 对拍测试本机无 Python 没跑，交给 CI
+- [x] 阶段 B：做架构（2026-10-25 完成）。13 关全部迁到共享组件（BookPager、useStreak+PredictFrame、BugHunt、timing.ts、useStageStop），引擎命名对齐，台词和答错解释进引擎，组件不再直接 Math.random，计时器全部接 useStageStop。Python 对拍测试本机无 Python 没跑，交给 CI；Yumor 还没试玩迁移后的页面
 - [ ] 各关 `notes.md` 里的「待核实」条目统一核对一次（阶段 C 第一批之前）
-- [ ] 13 关统一审校一次（content-reviewer，阶段 B 迁移完之后，免得审两遍）
+- [ ] 13 关统一审校一次（content-reviewer；迁移已完成，可以开始）
 - [ ] `project-plan.md` 的路线图（第 7 节 P0～P4）还是按四个等级写的，阶段 A 之后按「看、玩、做」重排；`overview.md` 4c、4d 同步更新
 - [ ] 冒泡排序故事稿里「嵌入式或图形程序会用冒泡的思路」找不到出处，`notes.md` 已标「待核实」
 - [ ] `project-plan.md` 第 9 节的待定问题：网站域名、博客首发平台、初级年龄段、是否做英文版
