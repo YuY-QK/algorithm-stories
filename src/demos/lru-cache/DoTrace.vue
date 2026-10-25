@@ -16,11 +16,7 @@ const CLASSIC: Op[] = [
 const cap = ref(2);
 const ops = ref<Op[]>(CLASSIC);
 const steps = computed(() => buildTrace(cap.value, ops.value));
-const p = usePlayer(steps, [
-  { label: '慢', ms: 1300 },
-  { label: '中', ms: 800 },
-  { label: '快', ms: 350 },
-]);
+const p = usePlayer(steps);
 const s = computed(() => p.step.value);
 
 function randomOps() { ops.value = genOps(9, cap.value + 2); }

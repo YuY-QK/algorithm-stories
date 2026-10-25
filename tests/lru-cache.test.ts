@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   BUGS, CODE, EVICT_BOOKS, EVICT_SEQ, KID_CAP, L, LOOK_SEQ, TRIP_BIG_CAP, TRIP_BOOKS, TRIP_CAP, TRIP_SEQ,
-  buildTrace, countHits, genChallenge, genOps, judgeChallenge, judgeEvict, playStars, quizzes, refApply, refRun,
-  runBug, simulate, trips, CHALLENGE_BOOKS, CHALLENGE_LEN, type Op,
+  bugVerdict, buildTrace, countHits, genChallenge, genOps, genPredict, judgeChallenge, judgeEvict, lookFrames, playStars,
+  refApply, refRun, rounds, runBug, simulate, trips, CHALLENGE_BOOKS, CHALLENGE_LEN, type Op,
 } from '../src/engine/lru-cache';
 
 /* 带种子的随机数，测试可重复 */
@@ -162,7 +162,7 @@ describe('LRU 做：猜下一步', () => {
     for (let t = 0; t < 300; t++) {
       const cap = 1 + Math.floor(rand() * 4);
       const ops = genOps(15, 1 + Math.floor(rand() * 6), rand);
-      const qs = quizzes(cap, ops, rand);
+      const qs = rounds(cap, ops, rand);
       expect(qs.length).toBe(ops.length);
       let list: { k: number; v: number }[] = [];
       qs.forEach((q, i) => {
@@ -181,7 +181,33 @@ describe('LRU 做：猜下一步', () => {
   });
 });
 
-describe('LRU 做：找 bug', () => {
+describe('LRU 看：lookFrames', () => {
+  it('台词由引擎生成：第一页讲桌子容量，最后一页数书架趟数，桌子永远不超容量', () => {
+    const frames = lookFrames();
+    expect(frames[0].say).toContain('只放得下 ' + KID_CAP + ' 本');
+    expect(frames.at(-1)!.say).toContain('一共跑了 ' + trips(LOOK_SEQ, KID_CAP) + ' 趟书架');
+    expect(frames.at(-1)!.trips).toBe(trips(LOOK_SEQ, KID_CAP));
+    for (const f of frames) {
+      expect(f.say.length).toBeGreaterThan(0);
+      expect(f.desk.length).toBeLessThanOrEqual(KID_CAP);
+    }
+    // 趟数不会减少
+    frames.forEach((f, i) => { if (i) expect(f.trips).toBeGreaterThanOrEqual(frames[i - 1].trips); });
+    expect(frames.some((f) => f.glow !== null)).toBe(true);
+  });
+});
+
+describe('LRU 做：genPredict', () => {
+  it('固定种子可重复：容量 2 或 3，14 个操作', () => {
+    const a = genPredict(rng(8));
+    expect(a).toEqual(genPredict(rng(8)));
+    expect(a.ops).toHaveLength(14);
+    for (let t = 0; t < 50; t++) expect([2, 3]).toContain(genPredict(rng(t)).cap);
+    expect(rounds(a.cap, a.ops, rng(1)).every((q) => q.why.length > 0)).toBe(true);
+  });
+});
+
+describe('LRU 做：找 bug（运行）', () => {
   it('bug 代码和 CODE 只差一行，且出错的那一行就是 wrongLine', () => {
     for (const b of BUGS) {
       expect(b.code.length).toBe(CODE.length);
@@ -193,8 +219,8 @@ describe('LRU 做：找 bug', () => {
 
   it('bug 版本真的出错：返回值或内容和标准答案对不上', () => {
     for (const b of BUGS) {
-      const { steps, verdict } = runBug(b);
-      expect(verdict).not.toBe('');
+      const steps = runBug(b);
+      expect(bugVerdict(steps.at(-1)!, b)).not.toBe('');
       expect(steps.at(-1)!.done).toBe(true);
       expect(steps.some((s) => s.bad)).toBe(true);
       // 没有 bug 的版本是正常的
@@ -203,7 +229,7 @@ describe('LRU 做：找 bug', () => {
   });
 
   it('三个 bug 的具体症状', () => {
-    const [a, g, d] = BUGS.map((b) => runBug(b));
+    const [a, g, d] = BUGS.map((b) => ({ steps: runBug(b), verdict: bugVerdict(runBug(b).at(-1)!, b) }));
     expect(a.verdict).toBe('❌ get(1) 返回了 -1，应该是 1');
     expect(g.verdict).toBe('❌ get(1) 返回了 1，应该是 -1');
     // 幽灵：哈希表里有 3 个 key，容量只有 2
@@ -212,6 +238,14 @@ describe('LRU 做：找 bug', () => {
     const dup = d.steps.find((s) => s.op === 2 && s.opEnd)!;
     expect(dup.list.map((x) => x.k)).toEqual([1, 1]);
     expect(d.verdict).toBe('❌ get(2) 返回了 -1，应该是 2');
+  });
+
+  it('bugVerdict 没跑完是空串；每步的 note 不为空', () => {
+    for (const b of BUGS) {
+      const steps = runBug(b);
+      expect(bugVerdict(steps[0], b)).toBe('');
+      for (const s of steps.slice(0, -1)) expect(bugVerdict(s, b)).toBe('');
+    }
   });
 
   it('refRun 和 buildTrace 一致', () => {
