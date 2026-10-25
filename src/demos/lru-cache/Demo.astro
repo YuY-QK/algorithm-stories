@@ -1,0 +1,112 @@
+---
+import AlgoLayout from '../../layouts/AlgoLayout.astro';
+import LogCompare from '../../components/shared/LogCompare.astro';
+import LookStory from './LookStory.vue';
+import PlayEvict from './PlayEvict.vue';
+import PlayTrips from './PlayTrips.vue';
+import DoTrace from './DoTrace.vue';
+import DoPredict from './DoPredict.vue';
+import DoBug from './DoBug.vue';
+import DoChallenge from './DoChallenge.vue';
+
+interface Props { slug: string; title: string; lede: string }
+
+const repo = 'https://github.com/YuY-QK/algorithm-stories/tree/main/exercises';
+
+// 每次操作要「找一找」的次数：列表从头找，最坏看遍所有 n 个；哈希表一步
+const rows = [
+  { label: '100', unit: '本书', n: 100 },
+  { label: '10,000', unit: '一万', n: 10_000 },
+  { label: '1,000,000', unit: '一百万', n: 1_000_000 },
+].map((r) => ({
+  label: r.label,
+  unit: r.unit,
+  bars: [
+    { name: '只用链表', value: r.n, tone: 'muted' as const },
+    { name: '哈希表 + 链表', value: 1, tone: 'accent' as const },
+  ],
+}));
+---
+
+<AlgoLayout {...Astro.props}>
+  <Fragment slot="look">
+    <LookStory client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="play">
+    <h2>🧑‍🏫 当管理员</h2>
+    <p class="story">按顺序借书。要的书在桌上就点它，不在就去书架拿；桌子满了，选一本放回书架。</p>
+    <PlayEvict client:only="vue" />
+
+    <h2>🚶 猜猜去几趟书架</h2>
+    <PlayTrips client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="do">
+    <h2>① 先看一遍</h2>
+    <p class="story">用哈希表加双向链表实现 <code class="path">LRUCache</code>。链表左边是最久没用的，右边是最近用过的；每一步对应右边 Kotlin 代码的一行。</p>
+    <DoTrace client:only="vue" />
+
+    <h2>② 猜下一步</h2>
+    <p class="story">给出链表现在的样子和下一个操作：命中吗、谁被淘汰、顺序怎么变。连对 5 次过关。</p>
+    <DoPredict client:only="vue" />
+
+    <h2>③ 找 bug</h2>
+    <p class="story">写 LRU 最常见的三个坑。每段代码只错了一行：先播放，看链表和哈希表怎么跑歪，再点出错的那一行。</p>
+    <DoBug client:only="vue" />
+
+    <h2>④ 亲手写</h2>
+    <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">Lru.kt</code> 里的三个 <code class="path">TODO()</code> 换成你的代码：</p>
+    <ul class="pits">
+      <li><code>LRUCache(capacity)</code>：<code>get</code> 和 <code>put</code> 都要 O(1)，自己用 <code>HashMap</code> 加双向链表写。测试会放大数据量，用列表一个个找会超时。</li>
+      <li><code>LruMap</code>：同一件事，用 <code>LinkedHashMap(accessOrder = true)</code> 加 <code>removeEldestEntry</code>，几行就够。写完对照一下：标准库替你维护了什么。</li>
+      <li><code>lruHits(requests, capacity)</code>：数一串借书记录里 LRU 命中几次，和下面的挑战对上。</li>
+    </ul>
+    <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
+    <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'lru.*'</span></div></pre></div>
+
+    <h2>⑤ 挑战</h2>
+    <DoChallenge client:only="vue" />
+  </Fragment>
+
+  <Fragment slot="more">
+    <h2>为什么要两个数据结构</h2>
+    <p class="story">LRU 要同时做到两件事：按 key 一步找到书，还要随时知道谁最久没碰、能把一本书从中间挪到最右边。</p>
+    <ul class="pits">
+      <li>只用<b>哈希表</b>：找得快，但它不记得谁最久没碰。</li>
+      <li>只用<b>链表</b>：顺序有了，但按 key 找书要从头一个个翻，O(n)。</li>
+      <li><b>哈希表 + 双向链表</b>：哈希表直接给出节点，双向链表拿到节点就能 O(1) 摘下来（要改前后邻居的指针，所以必须是双向的），再接到最右边。头尾放两个哨兵节点，链表空不空都不用特判。</li>
+    </ul>
+    <LogCompare rows={rows} />
+    <p class="small-note">条形长度用对数刻度绘制。数字是每次 get 或 put 里「找到这个 key」最坏要看的次数。</p>
+
+    <h2>复杂度</h2>
+    <ul class="pits">
+      <li>时间：<code>get</code>、<code>put</code> 都是 O(1)（哈希表平均 O(1)）。</li>
+      <li>空间：O(capacity)，每个 key 一个节点加一个哈希表项。</li>
+      <li><code>LinkedHashMap(accessOrder = true)</code> 里装的就是同一套东西：哈希表加一条按访问顺序排的双向链表。</li>
+    </ul>
+
+    <h2>真实世界里的 LRU</h2>
+    <ul class="pits">
+      <li>Android 的 <code>android.util.LruCache</code>：内部用访问顺序的 <code>LinkedHashMap</code>，常拿来缓存图片 <code>Bitmap</code>，用 <code>sizeOf()</code> 按占用的内存而不是个数算「满了」。</li>
+      <li>Redis：内存满了按 <code>maxmemory-policy</code> 淘汰，其中 <code>allkeys-lru</code> 就是 LRU。但 Redis 用的是<b>近似 LRU</b>：随机抽几个 key（<code>maxmemory-samples</code>，默认 5），淘汰其中最久没用的，省掉维护链表的内存。</li>
+      <li>操作系统的页面置换：内存装不下所有页，就换出最近没用的页。真正的 LRU 每次访问内存都要挪链表，太贵，实际用的是近似做法（比如 Clock 算法）。</li>
+      <li>数据库的缓冲池（比如 MySQL InnoDB 的 buffer pool）：用 LRU 的变种，防止一次全表扫描把热门数据全挤走。</li>
+      <li>浏览器缓存、CDN：缓存满了要清理旧内容，常见做法也是淘汰最久没访问的，具体实现各家不同。</li>
+    </ul>
+
+    <h2>别的淘汰策略</h2>
+    <ul class="pits">
+      <li><b>FIFO</b>：放回最先上桌的，不管碰没碰过。实现最简单，但「最先来的」可能恰好是最热门的。</li>
+      <li><b>LFU</b>：放回被碰次数最少的。适合访问频率稳定的场景，但过去的热门书会赖着不走。</li>
+      <li><b>Clock</b>：给每页一个「最近被碰过」的标记，指针转圈，遇到标记就清掉并放过，遇到没标记的就换出。是 LRU 的便宜近似。</li>
+      <li><b>怪现象</b>：FIFO 有 Belady 异常，同一串请求，书桌变大了，缺失反而变多（1 2 3 4 1 2 5 1 2 3 4 5：放 3 本缺失 9 次，放 4 本缺失 10 次）。LRU 不会这样。</li>
+      <li><b>LRU 的弱点</b>：循环借 N+1 本书、桌子只放 N 本，每一次都缺失；一次性扫过大量冷数据，会把热数据挤走。</li>
+    </ul>
+  </Fragment>
+</AlgoLayout>
+
+<style>
+  .path { font: 500 0.9em var(--mono); background: var(--out); padding: 1px 6px; border-radius: 4px; }
+</style>
