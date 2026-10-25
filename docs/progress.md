@@ -40,7 +40,7 @@
 ## 待办
 
 - [ ] 合并 PR，网站上线 13 关（Yumor）
-- [ ] 阶段 B：做架构。①盘点完成 ②规格已写入 `level-spec.md` 末节，**等 Yumor 看规格**；③实现完成（二分查找已迁移）；`timing.ts` 集中速度已加；④迁移：二分查找、冒泡、选择、插入、归并已迁，剩 8 关（下一组：栈+队列；再 BFS+DFS、贪心+DP、快速+LRU）。PredictFrame 已加可选 right/continueLabel/nextLabel。迁移时每关：引用 `timing.ts`、给「玩」加目标提示、`setTimeout` 接 `useStageStop`（Play* 还有 PlayShoot/PlayGuess/PlayHand/PlayPick 未接）。二分/冒泡/选择的 Python 对拍测试本机无 Python 没跑，交给 CI
+- [ ] 阶段 B：做架构。①盘点完成 ②规格已写入 `level-spec.md` 末节，**等 Yumor 看规格**；③实现完成（二分查找已迁移）；`timing.ts` 集中速度已加；④迁移：二分查找、冒泡、选择、插入、归并、栈、队列已迁，剩 6 关（下一组：BFS+DFS、贪心+DP、快速+LRU）。PredictFrame 已加可选 right/continueLabel/nextLabel。迁移时每关：引用 `timing.ts`、给「玩」加目标提示、`setTimeout` 接 `useStageStop`（Play* 还有 PlayShoot/PlayGuess/PlayHand/PlayPick 未接）。二分/冒泡/选择的 Python 对拍测试本机无 Python 没跑，交给 CI
 - [ ] 各关 `notes.md` 里的「待核实」条目统一核对一次（阶段 C 第一批之前）
 - [ ] 13 关统一审校一次（content-reviewer，阶段 B 迁移完之后，免得审两遍）
 - [ ] `project-plan.md` 的路线图（第 7 节 P0～P4）还是按四个等级写的，阶段 A 之后按「看、玩、做」重排；`overview.md` 4c、4d 同步更新
