@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   BUGS, CODE, FIND_LEVELS, GRID_COLS, GRID_ROWS, GUESS_LEVELS, KID_N,
-  allPaths, buildTrace, callTree, canHop, cellHint, cellsToFill, flatten, gridStars, gridTable,
+  allPaths, bugVerdict, buildTrace, callTree, canHop, cellHint, cellsToFill, flatten, genChallenge, genPredict, gridStars, gridTable,
   lookFrames, memoCalls, naiveCalls, noteOptions, pathKey, playStars, randomRocks, rounds,
-  runBug, twinOf, valueOptions, ways, waysTable,
+  runBug, twinOf, valueOptions, ways, waysTable, whyFrom,
 } from '../src/engine/dynamic-programming';
+import { seeded } from './helpers/seeded';
 
 describe('动态规划 看、玩：小兔子爬楼梯', () => {
   it('跳法数：1, 1, 2, 3, 5, 8, 13', () => {
@@ -179,6 +180,28 @@ describe('动态规划 做：猜下一步', () => {
     }
   });
 
+  it('每题带 options 和 why：options 就是 valueOptions，why 写出两格相加的算式；whyFrom 区分「还空着」和「不是前两格」', () => {
+    for (let n = 2; n <= 12; n++) {
+      for (const r of rounds(n)) {
+        expect(r.options).toEqual(valueOptions(r));
+        expect(r.why).toBe('dp[' + r.i + '] = dp[' + (r.i - 1) + '] + dp[' + (r.i - 2) + '] = ' + r.dp[r.i - 1] + ' + ' + r.dp[r.i - 2] + ' = ' + r.value + '。两格都要加上，一格也不能少。');
+        expect(whyFrom(r, r.i)).toContain('还空着');
+        if (r.i >= 3) expect(whyFrom(r, 0)).toContain('紧挨着的前两格');
+      }
+    }
+  });
+
+  it('genPredict：固定种子结果固定，n 在 6～10', () => {
+    expect(genPredict(seeded(3))).toBe(genPredict(seeded(3)));
+    for (let k = 0; k < 300; k++) {
+      const n = genPredict(seeded(k));
+      expect(n).toBeGreaterThanOrEqual(6);
+      expect(n).toBeLessThanOrEqual(10);
+    }
+    expect(genPredict(() => 0)).toBe(6);
+    expect(genPredict(() => 0.999999)).toBe(10);
+  });
+
   it('rounds 和 buildTrace 填的是同一批数', () => {
     for (let n = 2; n <= 15; n++) {
       const filled = buildTrace(n).filter((s) => s.line === 6).map((s) => s.dp[s.i!]);
@@ -209,6 +232,17 @@ describe('动态规划 做：找 bug', () => {
   it('同一份输入，改对的版本结果正确（用 buildTrace / ways 对照）', () => {
     expect(ways(BUGS.find((b) => b.id === 'init')!.n)).toBe(8);
     expect(buildTrace(BUGS.find((b) => b.id === 'init')!.n).at(-1)!.result).toBe(8);
+  });
+
+  it('bugVerdict：没跑完是空，跑完按结果说话', () => {
+    for (const b of BUGS) {
+      const tr = runBug(b);
+      for (const st of tr.slice(0, -1)) expect(bugVerdict(st, b)).toBe('');
+    }
+    const v = Object.fromEntries(BUGS.map((b) => [b.id, bugVerdict(runBug(b).at(-1)!, b)]));
+    expect(v.init).toBe('❌ 返回了 5，不对');
+    expect(v.from1).toContain('下标越界');
+    expect(v.size).toContain('下标越界');
   });
 
   it('runBug 的行号都在 bug 版代码里', () => {
@@ -287,6 +321,16 @@ describe('动态规划 做：挑战（网格数路线）', () => {
           if (order.has(k2)) expect(before.has(k2)).toBe(true);
         }
       });
+    }
+  });
+
+  it('genChallenge：固定种子结果固定，和 randomRocks 同一批地图', () => {
+    expect(genChallenge(seeded(5))).toEqual(genChallenge(seeded(5)));
+    expect(genChallenge(seeded(5))).toEqual(randomRocks(seeded(5)));
+    for (let k = 0; k < 200; k++) {
+      const rocks = genChallenge(seeded(k));
+      expect(rocks.flat().filter(Boolean)).toHaveLength(2);
+      expect(gridTable(rocks)[GRID_ROWS - 1][GRID_COLS - 1]).toBeGreaterThan(0);
     }
   });
 

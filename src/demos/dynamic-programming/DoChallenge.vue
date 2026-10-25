@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 import {
-  GRID_COLS, GRID_ROWS, cellHint, cellsToFill, gridStars, gridTable, randomRocks, type Rocks,
+  GRID_COLS, GRID_ROWS, cellHint, cellsToFill, genChallenge, gridStars, gridTable, type Rocks,
 } from '../../engine/dynamic-programming';
 
 // 做：挑战。小兔子从左上走到右下，只能向右或向下，石头过不去。
 // 第一行、第一列直接给出来，其余的格子按顺序自己填：这一格的路数 = 上面那格 + 左边那格。
-const rocks = ref<Rocks>(randomRocks());
+const rocks = ref<Rocks>(genChallenge());
 const table = computed(() => gridTable(rocks.value));
 const cells = computed(() => cellsToFill(rocks.value));
 const idx = ref(0);
@@ -40,7 +40,7 @@ function show(r: number, c: number): string {
 }
 
 function fresh() {
-  rocks.value = randomRocks();
+  rocks.value = genChallenge();
   idx.value = 0;
   input.value = '';
   wrongs.value = 0;

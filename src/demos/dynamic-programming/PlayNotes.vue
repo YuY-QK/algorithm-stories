@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { callTree, flatten, memoCalls, naiveCalls, twinOf, ways, type CallNode } from '../../engine/dynamic-programming';
+import { SHAKE_MS } from '../../components/shared/timing';
+import { useStageStop } from '../../components/shared/usePlayer';
 import CallTree from './CallTree.vue';
 
 // 玩法二「便签有多省事」：不用便签，每个圆圈都要重新算一遍；孩子点出「前面已经算过」的圆圈，
@@ -16,8 +18,14 @@ const misses = ref(0);
 const glow = ref<number[]>([]);
 const shakeId = ref<number | null>(null);
 const say = ref('🐰 不用便签，每个圆圈都要重新算一遍。点点看：哪些圆圈的答案，前面已经算过了？');
-const timers: ReturnType<typeof setTimeout>[] = [];
-onBeforeUnmount(() => timers.forEach(clearTimeout));
+let timers: ReturnType<typeof setTimeout>[] = [];
+function clearTimers() {
+  timers.forEach(clearTimeout);
+  timers = [];
+  shakeId.value = null;
+}
+useStageStop(clearTimers);
+onBeforeUnmount(clearTimers);
 
 const root = computed(() => callTree(n.value));
 const lookups = computed(() => flatten(root.value).filter((x) => x.kind === 'lookup'));
@@ -44,7 +52,7 @@ function pick(node: CallNode) {
   misses.value++;
   shakeId.value = null;
   requestAnimationFrame(() => (shakeId.value = node.id));
-  timers.push(setTimeout(() => (shakeId.value = null), 600));
+  timers.push(setTimeout(() => (shakeId.value = null), SHAKE_MS));
   say.value = node.kind === 'skipped'
     ? '🤔 它的上面还有圆圈没贴便签，先看上面'
     : node.n <= 1
@@ -81,6 +89,7 @@ const bar = (v: number) => Math.max(2, (v / naive.value) * 100) + '%';
 
 <template>
   <div class="game">
+    <p class="small-note">目标：不用便签，每个圆圈都要重新算一遍。找出所有「答案前面已经算过」的圆圈，给它们贴上便签。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
 
     <div class="treewrap" :style="{ '--w': 'min(34px, calc((100vw - 56px) / ' + leaves + '))' }">

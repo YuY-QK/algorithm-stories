@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
-import { rounds, valueOptions, type Round } from '../../engine/dynamic-programming';
+import { genPredict, rounds, whyFrom, type Round } from '../../engine/dynamic-programming';
+import PredictFrame from '../../components/shared/PredictFrame.vue';
+import { PAUSE_BRIEF, PAUSE_LONG } from '../../components/shared/timing';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { useStreak } from '../../components/shared/useStreak';
 import DpRow from './DpRow.vue';
 
 // 做：猜下一步。每一格先点出「它从哪两格来」，再选它的值。连对 5 次过关。
@@ -12,14 +16,24 @@ const phase = ref<'from' | 'value' | 'wrong' | 'filled' | 'end'>('from');
 const picked = ref<number[]>([]);
 const miss = ref<number | null>(null);
 const why = ref('');
-const streak = ref(0);
-const passed = ref(false);
+const { streak, passed, hit, miss: missStreak } = useStreak(GOAL);
 let afterWrong: 'from' | 'value' = 'from';
 let timer: ReturnType<typeof setTimeout> | null = null;
-onBeforeUnmount(() => timer && clearTimeout(timer));
+function clearTimer() {
+  if (timer) clearTimeout(timer);
+  timer = null;
+}
+// 切走时不再等动画：这一格直接算填好，进入下一格
+useStageStop(() => {
+  const waiting = timer !== null && phase.value === 'filled';
+  clearTimer();
+  if (waiting) advance();
+});
+onBeforeUnmount(clearTimer);
 
 function fresh() {
-  list.value = rounds(6 + Math.floor(Math.random() * 5));
+  clearTimer();
+  list.value = rounds(genPredict());
   r.value = 0;
   phase.value = 'from';
   picked.value = [];
@@ -28,19 +42,14 @@ function fresh() {
 fresh();
 
 const cur = computed(() => list.value[r.value]);
-const options = computed(() => valueOptions(cur.value));
 const view = computed(() => {
   const c = cur.value;
   if (phase.value === 'filled' || phase.value === 'end') return c.dp.map((v, k) => (k === c.i ? c.value : v));
   return c.dp;
 });
 
-function hit() {
-  streak.value++;
-  if (streak.value >= GOAL) passed.value = true;
-}
 function bad(text: string, then: 'from' | 'value') {
-  streak.value = 0;
+  missStreak();
   why.value = text;
   afterWrong = then;
   phase.value = 'wrong';
@@ -58,12 +67,7 @@ function tapCell(k: number) {
     return;
   }
   miss.value = k;
-  bad(
-    c.dp[k] === null
-      ? 'dp[' + k + '] 还空着，只能用已经填好的格子。'
-      : 'dp[' + c.i + '] 的最后一步，要么从第 ' + (c.i - 1) + ' 级跳 1 级上来，要么从第 ' + (c.i - 2) + ' 级跳 2 级上来，所以只看紧挨着的前两格：dp[' + (c.i - 1) + '] 和 dp[' + (c.i - 2) + ']。',
-    'from',
-  );
+  bad(whyFrom(c, k), 'from');
 }
 
 function chooseValue(v: number) {
@@ -72,13 +76,13 @@ function chooseValue(v: number) {
   if (v === c.value) {
     hit();
     phase.value = 'filled';
-    timer = setTimeout(advance, 900);
-  } else {
-    bad('dp[' + c.i + '] = dp[' + (c.i - 1) + '] + dp[' + (c.i - 2) + '] = ' + c.dp[c.i - 1] + ' + ' + c.dp[c.i - 2] + ' = ' + c.value + '。两格都要加上，一格也不能少。', 'value');
-  }
+    clearTimer();
+    timer = setTimeout(advance, PAUSE_LONG);
+  } else bad(c.why, 'value');
 }
 
 function advance() {
+  clearTimer();
   picked.value = [];
   miss.value = null;
   if (r.value >= list.value.length - 1) phase.value = 'end';
@@ -95,7 +99,8 @@ function goOn() {
     phase.value = 'value';
   } else {
     phase.value = 'filled';
-    timer = setTimeout(advance, 400);
+    clearTimer();
+    timer = setTimeout(advance, PAUSE_BRIEF);
   }
 }
 
@@ -109,28 +114,27 @@ const prompt = computed(() => {
 </script>
 
 <template>
-  <div class="stage">
-    <div class="vars">
-      <span class="chip"><small>连对</small>{{ Math.min(streak, GOAL) }} / {{ GOAL }}</span>
-      <span v-if="passed" class="chip win">🏅 过关</span>
-    </div>
-    <DpRow :dp="view" :cur="cur.i" :picked="picked" :miss="phase === 'wrong' ? miss : null" :fresh="phase === 'filled' || phase === 'end' ? cur.i : null" :clickable="phase === 'from'" @pick="tapCell" />
-    <p class="note" aria-live="polite">{{ prompt }}</p>
-    <div v-if="phase === 'value'" class="answers">
-      <button v-for="o in options" :key="o" type="button" class="btn small mono" @click="chooseValue(o)">{{ o }}</button>
-    </div>
-    <div v-if="phase === 'wrong'" class="oops-box">
-      <p>❌ {{ why }}</p>
-      <button type="button" class="btn small" @click="goOn">知道了，继续</button>
-    </div>
-    <div v-if="phase === 'end'" class="row">
-      <button type="button" class="btn small primary" @click="fresh">下一题</button>
-    </div>
-  </div>
+  <PredictFrame
+    :streak="streak"
+    :goal="GOAL"
+    :passed="passed"
+    :prompt="prompt"
+    :wrong="phase === 'wrong' ? why : null"
+    :ended="phase === 'end'"
+    @continue="goOn"
+    @next="fresh"
+  >
+    <template #board>
+      <DpRow :dp="view" :cur="cur.i" :picked="picked" :miss="phase === 'wrong' ? miss : null" :fresh="phase === 'filled' || phase === 'end' ? cur.i : null" :clickable="phase === 'from'" @pick="tapCell" />
+    </template>
+    <template #answers>
+      <div v-if="phase === 'value'" class="answers">
+        <button v-for="o in cur.options" :key="o" type="button" class="btn small mono" @click="chooseValue(o)">{{ o }}</button>
+      </div>
+    </template>
+  </PredictFrame>
 </template>
 
 <style scoped>
 .mono { font-family: var(--mono); }
-.win { border-color: var(--accent); color: var(--accent); }
-.oops-box { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; border-left: 3px solid var(--warn); padding-left: 12px; }
 </style>

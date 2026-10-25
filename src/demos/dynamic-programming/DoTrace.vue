@@ -11,11 +11,7 @@ import DpRow from './DpRow.vue';
 // 做：逐步执行。dp 表、代码行和变量同步。
 const n = ref(8);
 const steps = computed(() => buildTrace(n.value));
-const p = usePlayer(steps, [
-  { label: '慢', ms: 1100 },
-  { label: '中', ms: 650 },
-  { label: '快', ms: 280 },
-]);
+const p = usePlayer(steps);
 const s = computed(() => p.step.value);
 
 // 刚刚写进去的那一格：这一步比上一步多出来的
