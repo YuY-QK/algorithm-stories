@@ -47,3 +47,5 @@ export const FILL_END = 350;
 export const PAUSE_RETRY = 1300;
 /** 「猜下一步」里一格填好后，稍停一下再进入下一格（答错后补填的那次更短） */
 export const PAUSE_BRIEF = 400;
+/** 「玩」里点错后提示线、晃动持续多久 */
+export const WIGGLE_MS = 1000;

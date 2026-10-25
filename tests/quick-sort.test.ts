@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BUGS, CODE, INPUT_NAME, PICK_N, STORY_ROW, averageCompares, buildTrace, countCompares, dealLine, dealStand,
-  genArray, isBalanced, isSorted, makeInput, makeQuiz, medianIdx, permutation, runBug, seeded, sideOf, simulate,
-  splitOf, stars, storyFrames, worstCompares, zoneOf,
+  BUGS, CHALLENGE_N, CHALLENGE_OPTIONS, CODE, INPUT_NAME, PICK_N, STORY_ROW, averageCompares, bugVerdict, buildTrace,
+  countCompares, dealLine, dealStand, genArray, genChallenge, isBalanced, isSorted, lookFrames, makeInput, medianIdx,
+  permutation, rounds, runBug, seeded, sideOf, simulate, splitOf, stars, worstCompares, zoneOf,
 } from '../src/engine/quick-sort';
 
 const sortNum = (a: number[]) => [...a].sort((x, y) => x - y);
@@ -11,7 +11,7 @@ describe('快速排序 看：体育课排队', () => {
   it('绘本最后一页全部站定，每页同学不多不少', () => {
     for (let k = 0; k < 300; k++) {
       const values = k === 0 ? STORY_ROW : permutation(2 + (k % 8));
-      const frames = storyFrames(values);
+      const frames = lookFrames(values);
       const last = frames.at(-1)!;
       expect(last.order.map((id) => values[id])).toEqual(sortNum(values));
       expect(last.kinds.every((x) => x === 'placed')).toBe(true);
@@ -30,7 +30,7 @@ describe('快速排序 看：体育课排队', () => {
 
   it('故事用的那排同学：16 页，和标杆比 14 次', () => {
     expect(STORY_ROW).toEqual([6, 2, 8, 4, 1, 7, 3, 5]);
-    const frames = storyFrames(STORY_ROW);
+    const frames = lookFrames(STORY_ROW);
     expect(frames).toHaveLength(16);
     expect(frames.at(-1)!.say).toContain('14 次');
     // 第一次分区后：标杆 5 站到下标 4，左边都比它矮，右边都比它高
@@ -179,7 +179,7 @@ describe('快速排序 做：猜下一步', () => {
     for (let k = 0; k < 400; k++) {
       const values = genArray(7, 12, rand);
       const steps = buildTrace(values);
-      const qs = makeQuiz(values, rand);
+      const qs = rounds(values, rand);
       expect(qs.length).toBeGreaterThanOrEqual(3);
       for (const q of qs) {
         const at = q.at;
@@ -218,7 +218,36 @@ describe('快速排序 做：猜下一步', () => {
   });
 });
 
+describe('快速排序 做：猜下一步的 why 和提示', () => {
+  it('每题带提示和解释，固定种子可重复', () => {
+    const a = rounds([5, 2, 8, 1, 9, 3, 7], seeded(11));
+    const b = rounds([5, 2, 8, 1, 9, 3, 7], seeded(11));
+    expect(a).toEqual(b);
+    for (const q of a) {
+      expect(q.prompt.length).toBeGreaterThan(5);
+      expect(q.why.length).toBeGreaterThan(5);
+      if (q.kind === 'swap') {
+        expect(q.targetPrompt).toContain('i++ 之后 i = ' + q.target);
+        expect(q.whyTarget).toContain('arr[' + q.target + ']');
+        const v = q.step.arr[q.step.j!];
+        expect(q.why).toContain(String(v));
+      }
+      if (q.kind === 'land') expect(q.why).toContain('落在下标 ' + q.target);
+      if (q.kind === 'ranges') expect(q.why).toContain('下标 ' + q.p);
+    }
+  });
+});
+
 describe('快速排序 做：找 bug', () => {
+  it('bugVerdict：没跑完是空串，三种错的结局各有文字', () => {
+    const bug = BUGS[0];
+    expect(bugVerdict(runBug(bug)[0], bug)).toBe('');
+    expect(bugVerdict(runBug(BUGS[0]).at(-1)!, BUGS[0])).toContain('StackOverflowError');
+    expect(bugVerdict(runBug(BUGS[1]).at(-1)!, BUGS[1])).toContain('[5, 4, 3, 2, 1]');
+    expect(bugVerdict(simulate([2, 3, 1], 'swap-i').at(-1)!)).toContain('下标越界');
+    expect(bugVerdict(buildTrace([3, 1, 2]).at(-1)!)).toBe('✅ 排好了');
+  });
+
   it('每个 bug 版本和 CODE 只差一行，并且在给定输入上出错', () => {
     for (const b of BUGS) {
       expect(b.code).toHaveLength(CODE.length);
@@ -277,6 +306,19 @@ describe('快速排序 做：找 bug', () => {
 });
 
 describe('快速排序 做：挑战', () => {
+  it('genChallenge：三个数组长度一致，答案都是 n(n − 1)/2，固定种子可重复', () => {
+    const qs = genChallenge(seeded(4));
+    expect(qs).toEqual(genChallenge(seeded(4)));
+    expect(qs).toHaveLength(3);
+    for (const q of qs) {
+      expect(q.arr).toHaveLength(CHALLENGE_N);
+      expect(countCompares(q.arr, 'last').compares).toBe(worstCompares(CHALLENGE_N));
+    }
+    expect(new Set(qs[2].arr).size).toBe(1);
+    expect(qs[2].name).toContain(String(qs[2].arr[0]));
+    expect(CHALLENGE_OPTIONS).toContain(worstCompares(CHALLENGE_N));
+  });
+
   it('已经排好或倒序、固定拿最后一个：n(n − 1)/2 次', () => {
     for (const n of [2, 10, 100, 1000]) {
       for (const kind of ['sorted', 'reversed'] as const) {

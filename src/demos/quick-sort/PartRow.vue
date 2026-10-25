@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { zoneOf, type QStep } from '../../engine/quick-sort';
+import { zoneOf, type QuickStep } from '../../engine/quick-sort';
 
 // 「做」里的数组：一排格子，标出 i、j、标杆，按矮队 / 高队 / 标杆 / 已站定上色，当前调用的区间 [lo, hi] 外的格子变淡。
 // 逐步执行、找 bug、猜下一步共用。pickable 时格子能点（猜下一步用）。
 const props = defineProps<{
-  step: QStep;
+  step: QuickStep;
   pickable?: boolean;
   /** 点错的格子 */
   miss?: number | null;
@@ -13,7 +13,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ pick: [k: number] }>();
 
-function tags(s: QStep, k: number) {
+function tags(s: QuickStep, k: number) {
   const t: string[] = [];
   if (k === s.i) t.push('i');
   if (k === s.j) t.push('j');

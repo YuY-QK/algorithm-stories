@@ -1,4 +1,4 @@
-import type { Step, Trace } from './types';
+import type { BugInfo, LookFrame, Step, Trace } from './types';
 
 /* 快速排序：Lomuto 分区，每次拿区间最后一个当标杆（pivot）。
  * 「看」用体育课排队讲：标杆矮的站左边、高的站右边，标杆就站到了最终的位置。 */
@@ -11,8 +11,7 @@ export const STORY_ROW = [6, 2, 8, 4, 1, 7, 3, 5];
 /** 一个位置上的同学现在是什么状态 */
 export type Kind = 'plain' | 'unseen' | 'low' | 'high' | 'pivot' | 'placed' | 'dim';
 
-export interface StoryFrame {
-  say: string;
+export interface StoryFrame extends LookFrame {
   /** 每个位置上站着的同学 id（id 是他一开始站在第几个位置，也决定他是哪个小动物） */
   order: number[];
   /** 每个位置的状态 */
@@ -25,7 +24,7 @@ export interface StoryFrame {
  * 「看」的绘本画面：真的跑一遍 Lomuto 快速排序。
  * 第一次分区一个同学一页，让人看清「矮的去左边、高的留右边」；之后每次分区只放一页结果。
  */
-export function storyFrames(values: number[]): StoryFrame[] {
+export function lookFrames(values: number[]): StoryFrame[] {
   const n = values.length;
   const order = values.map((_, id) => id);
   const placed = values.map(() => false);
@@ -192,7 +191,7 @@ export const CODE = [
   '}',
 ];
 
-export interface QStep extends Step {
+export interface QuickStep extends Step {
   arr: number[];
   /** 当前这次 quickSort 调用的区间 [lo, hi]；还没进入任何调用是 null */
   lo: number | null;
@@ -236,10 +235,10 @@ export function isSorted(a: number[]): boolean {
 class Abort extends Error {}
 
 /** 按某个版本的代码逐行执行。行号对应 CODE（bug 版本只改了一行，行号不变） */
-export function simulate(values: number[], variant: Variant = 'ok'): Trace<QStep> {
+export function simulate(values: number[], variant: Variant = 'ok'): Trace<QuickStep> {
   const arr = [...values];
   const n = arr.length;
-  const steps: QStep[] = [];
+  const steps: QuickStep[] = [];
   const placed = arr.map(() => false);
   const stack: [number, number][] = [];
   let compares = 0;
@@ -255,7 +254,7 @@ export function simulate(values: number[], variant: Variant = 'ok'): Trace<QStep
   let pdone = false;
   let swapped: [number, number] | null = null;
 
-  const push = (line: number, note: string, extra: Partial<QStep> = {}) => {
+  const push = (line: number, note: string, extra: Partial<QuickStep> = {}) => {
     steps.push({
       line, note, done: false, arr: [...arr], lo, hi, i, j, pivot, pivotAt, pdone, placed: [...placed],
       stack: stack.map((s) => [...s] as [number, number]), compares, swaps, calls, maxDepth, swapped,
@@ -267,7 +266,7 @@ export function simulate(values: number[], variant: Variant = 'ok'): Trace<QStep
       throw new Abort();
     }
   };
-  const fail = (line: number, note: string, outcome: QStep['outcome']): never => {
+  const fail = (line: number, note: string, outcome: QuickStep['outcome']): never => {
     push(line, note, { done: true, outcome });
     throw new Abort();
   };
@@ -354,12 +353,12 @@ export function simulate(values: number[], variant: Variant = 'ok'): Trace<QStep
 }
 
 /** 正确版本的逐步执行 */
-export function buildTrace(values: number[]): Trace<QStep> {
+export function buildTrace(values: number[]): Trace<QuickStep> {
   return simulate(values, 'ok');
 }
 
 /** 某一步里第 k 个位置是什么状态，界面据此上色 */
-export function zoneOf(s: QStep, k: number): Kind {
+export function zoneOf(s: QuickStep, k: number): Kind {
   if (s.placed[k] && !(s.pivotAt === k && !s.pdone)) return 'placed';
   if (s.lo === null || s.hi === null || k < s.lo || k > s.hi) return 'dim';
   if (s.pivot === null) return 'plain';
@@ -385,40 +384,77 @@ export function permutation(n: number, rand: () => number = Math.random): number
 
 /* ---------- 做：猜下一步 ---------- */
 
-export type Question =
-  /** j 指着的元素要不要换？要换的话，换到哪个下标 */
-  | { kind: 'swap'; at: number; step: QStep; will: boolean; target: number }
+export type Round =
+  /** j 指着的元素要不要换？要换的话，换到哪个下标。why：「要不要换」答错的解释；whyTarget：点错下标的解释 */
+  | { kind: 'swap'; at: number; step: QuickStep; will: boolean; target: number; prompt: string; targetPrompt: string; why: string; whyTarget: string }
   /** 循环结束，标杆要换到哪个下标 */
-  | { kind: 'land'; at: number; step: QStep; target: number }
+  | { kind: 'land'; at: number; step: QuickStep; target: number; prompt: string; why: string }
   /** 分区结束，接着递归哪两个区间 */
-  | { kind: 'ranges'; at: number; step: QStep; p: number; options: { text: string; ok: boolean }[] };
+  | { kind: 'ranges'; at: number; step: QuickStep; p: number; prompt: string; why: string; options: { text: string; ok: boolean }[] };
 
 const pick = <T>(a: T[], rand: () => number): T => a[Math.floor(rand() * a.length)];
 
+/** swap 题答错的解释：j 指着的元素和标杆比一比 */
+function whyWill(s: QuickStep): string {
+  const v = s.arr[s.j!];
+  const pv = s.pivot!;
+  return v < pv
+    ? v + ' < ' + pv + ' 成立：i++，然后 swap(arr, i, j)，把它换进矮队的末尾。'
+    : v + (v === pv ? ' 等于 ' : ' 大于 ') + pv + '，arr[j] < pivot 不成立，什么也不做，j 往右走一格。' + (v === pv ? '相等的不进矮队，会留在右边。' : '');
+}
+
+/** swap 题点错下标的解释 */
+function whySwapTarget(s: QuickStep, target: number): string {
+  return 'i 现在是 ' + s.i + '，i++ 之后是 ' + target + '，也就是矮队后面的第一个位置。arr[j] 要和 arr[' + target + '] 交换' +
+    (target === s.j ? '（正好是它自己，位置不变）。' : '，原来在那里的 ' + s.arr[target] + ' 不比标杆小，被换到 j 的位置。');
+}
+
+/** land 题答错的解释 */
+function whyLand(s: QuickStep, target: number): string {
+  return '循环结束时 i = ' + s.i + '，下标 ' + s.lo + ' 到 ' + s.i + ' 都是矮队。矮队后面的第一个位置 i + 1 = ' + target + '，标杆和它交换，就落在下标 ' + target + '。' +
+    (target === s.hi ? '这里正好是最右边：标杆是最大的，原地不动。' : '');
+}
+
+/** ranges 题答错的解释 */
+function whyRanges(p: number): string {
+  return '标杆已经站定在下标 ' + p + '，不用再排。左边是 [lo, p − 1]，右边是 [p + 1, hi]：区间里不能再带上标杆，否则可能永远缩不小。';
+}
+
 /** 用一个数组出四道题：两道「换不换」、一道「标杆落在哪」、一道「递归哪两个区间」 */
-export function makeQuiz(values: number[], rand: () => number = Math.random): Question[] {
+export function rounds(values: number[], rand: () => number = Math.random): Round[] {
   const steps = buildTrace(values);
-  const big = (s: QStep) => s.hi! - s.lo! + 1 >= 4;
-  const prefer = <T extends QStep>(list: T[]) => (list.some(big) ? list.filter(big) : list);
+  const big = (s: QuickStep) => s.hi! - s.lo! + 1 >= 4;
+  const prefer = <T extends QuickStep>(list: T[]) => (list.some(big) ? list.filter(big) : list);
 
   const loops = steps.filter((s) => s.line === 11 && s.j !== null && s.j < s.hi!);
   const yes = prefer(loops.filter((s) => s.arr[s.j!] < s.pivot!));
   const no = prefer(loops.filter((s) => !(s.arr[s.j!] < s.pivot!)));
-  const chosen: QStep[] = [];
+  const chosen: QuickStep[] = [];
   if (yes.length) chosen.push(pick(yes, rand));
   if (no.length) chosen.push(pick(no, rand));
   while (chosen.length < 2 && loops.length) chosen.push(pick(loops, rand));
-  const swapQs: Question[] = chosen.map((step) => ({
-    kind: 'swap', at: steps.indexOf(step), step, will: step.arr[step.j!] < step.pivot!, target: step.i! + 1,
-  }));
+  const swapQs: Round[] = chosen.map((step) => {
+    const target = step.i! + 1;
+    return {
+      kind: 'swap', at: steps.indexOf(step), step, will: step.arr[step.j!] < step.pivot!, target,
+      prompt: 'j = ' + step.j + '，arr[j] = ' + step.arr[step.j!] + '，pivot = ' + step.pivot + '。接下来会发生什么？',
+      targetPrompt: 'i++ 之后 i = ' + target + '。arr[j] 要和哪一格交换？点它。',
+      why: whyWill(step), whyTarget: whySwapTarget(step, target),
+    };
+  });
 
   const ends = prefer(steps.filter((s) => s.line === 11 && s.j !== null && s.j === s.hi));
   const returns = steps.filter((s) => s.line === 18);
   const inner = returns.filter((s) => s.pivotAt! > s.lo! && s.pivotAt! < s.hi!);
-  const out: Question[] = [...swapQs];
+  const out: Round[] = [...swapQs];
   if (ends.length) {
     const step = pick(ends, rand);
-    out.push({ kind: 'land', at: steps.indexOf(step), step, target: step.i! + 1 });
+    const target = step.i! + 1;
+    out.push({
+      kind: 'land', at: steps.indexOf(step), step, target,
+      prompt: '循环结束，j = hi，i = ' + step.i + '。最后一行 swap(arr, i + 1, hi)：标杆 ' + step.pivot + ' 会落在哪一格？点它。',
+      why: whyLand(step, target),
+    });
   }
   const rs = inner.length ? pick(prefer(inner), rand) : returns.length ? pick(returns, rand) : null;
   if (rs) {
@@ -426,6 +462,8 @@ export function makeQuiz(values: number[], rand: () => number = Math.random): Qu
     const text = (a: number, b: number, c: number, d: number) => '[' + a + ', ' + b + '] 和 [' + c + ', ' + d + ']';
     out.push({
       kind: 'ranges', at: steps.indexOf(rs), step: rs, p,
+      prompt: 'partition 返回了 p = ' + p + '，标杆 ' + rs.arr[p] + ' 已经站定。接下来两行递归，分别处理哪两个区间？',
+      why: whyRanges(p),
       options: shuffle([
         { text: text(l, p - 1, p + 1, h), ok: true },
         { text: text(l, p, p + 1, h), ok: false },
@@ -438,23 +476,17 @@ export function makeQuiz(values: number[], rand: () => number = Math.random): Qu
 
 /* ---------- 做：找 bug ---------- */
 
-export interface Bug {
+export interface Bug extends BugInfo {
   id: Exclude<Variant, 'ok'>;
-  title: string;
-  /** 有 bug 的 Kotlin 代码，和 CODE 只差一行 */
-  code: string[];
-  wrongLine: number;
-  fixed: string;
+  /** code 是有 bug 的 Kotlin 代码，和 CODE 只差一行 */
   values: number[];
-  expect: string;
-  explain: string;
 }
 
 function variant(line: number, text: string): string[] {
   return CODE.map((t, k) => (k + 1 === line ? text : t));
 }
 
-export const BUGS: Bug[] = [
+export const BUGS: readonly Bug[] = [
   {
     id: 'incl-pivot',
     title: '程序卡住，最后报栈溢出',
@@ -488,11 +520,41 @@ export const BUGS: Bug[] = [
 ];
 
 /** 按 bug 版本的代码执行 */
-export function runBug(bug: Bug): Trace<QStep> {
+export function runBug(bug: Bug): Trace<QuickStep> {
   return simulate(bug.values, bug.id);
 }
 
+/** 找 bug 面板底部的判定文字（跑到最后一步才有） */
+export function bugVerdict(s: QuickStep, _bug?: Bug): string {
+  if (!s.done) return '';
+  if (s.outcome === 'overflow') return '💥 StackOverflowError：调用栈叠到了 ' + s.stack.length + ' 层还停不下来';
+  if (s.outcome === 'crash') return '💥 下标越界，程序崩溃';
+  if (s.outcome === 'stuck') return '🔁 死循环，程序卡住了';
+  if (s.outcome === 'wrong') return '❌ 结果 [' + s.arr.join(', ') + ']，没排好';
+  return '✅ 排好了';
+}
+
 /* ---------- 做：挑战 ---------- */
+
+/** 挑战预测题里每个数组的长度，和可选的比较次数 */
+export const CHALLENGE_N = 10;
+export const CHALLENGE_OPTIONS = [9, 20, 45, 90];
+
+export interface ChallengeQ {
+  name: string;
+  arr: number[];
+}
+
+/** 预测题：已排好、完全倒序、全是同一个数（这个数每次随机，2 到 9）。这三种在「固定拿最后一个」下比较次数一样 */
+export function genChallenge(rand: () => number = Math.random): ChallengeQ[] {
+  const n = CHALLENGE_N;
+  const same = 2 + Math.floor(rand() * 8);
+  return [
+    { name: '已经从小到大排好：1 2 3 … ' + n, arr: Array.from({ length: n }, (_, k) => k + 1) },
+    { name: '完全倒过来：' + n + ' ' + (n - 1) + ' ' + (n - 2) + ' … 1', arr: Array.from({ length: n }, (_, k) => n - k) },
+    { name: '十个数全是 ' + same, arr: Array.from({ length: n }, () => same) },
+  ];
+}
 
 export type Strategy = 'last' | 'random' | 'median3';
 export const STRATEGY_NAME: Record<Strategy, string> = {
