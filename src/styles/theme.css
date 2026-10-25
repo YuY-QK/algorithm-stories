@@ -135,7 +135,7 @@ h3 { font-size: 1.05rem; }
 .oops-box { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; border-left: 3px solid var(--warn); padding-left: 12px; }
 
 /* 看：绘本翻页（BookPager） */
-.dots { display: flex; gap: 6px; }
+.dots { display: flex; flex-wrap: wrap; gap: 6px; }
 .dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
 .dots span.on { background: var(--accent); }
 .nav { display: flex; gap: 12px; }

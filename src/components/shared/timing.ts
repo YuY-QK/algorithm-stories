@@ -18,3 +18,9 @@ export const BOOK_INTERVAL = 2200;
 export const PAUSE_SHORT = 700;
 export const PAUSE_MID = 800;
 export const PAUSE_LONG = 900;
+/** 「玩」「猜下一步」里逐个比较的动画节拍 */
+export const PAUSE_START = 200;
+export const PAUSE_TICK = 320;
+export const PAUSE_BEAT = 500;
+export const PAUSE_HOLD = 1500;
+export const PAUSE_ROUND = 1800;

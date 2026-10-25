@@ -5,6 +5,7 @@ import {
   type Choice, type Kid, type ShootState,
 } from '../../engine/bubble-sort';
 import Lineup from './Lineup.vue';
+import { PAUSE_ROUND } from '../../components/shared/timing';
 
 // 玩法一「当摄影师」：孩子看挨着的两个，决定换不换。
 // 答案由身高决定，孩子改不了；判断不对时高的那个透光、左边的摇一摇，让孩子自己再比一比。
@@ -41,7 +42,7 @@ function answer(c: Choice) {
   }
   glow.value = null;
   s.value = n;
-  if (n.phase === 'pair') say.value = c === 'swap' ? '🔄 换好啦！下一对 👀' : '👍 不用换，下一对 👀';
+  if (n.phase === 'pair') say.value = c === 'swap' ? L.face + ' 比 ' + R.face + ' 高，换了位置 🔄 下一对 👀' : L.face + ' 没有 ' + R.face + ' 高，不用换 👍 下一对 👀';
   else if (n.phase === 'next') {
     const top = n.line[n.end];
     say.value = (n.round === 0 ? '🫧 最高的 ' : '🫧 ') + top.face + ' 冒到右边啦，站好不动 ⭐';
@@ -50,7 +51,7 @@ function answer(c: Choice) {
       s.value = shootNextRound(s.value);
       say.value = '👀 再从最左边开始看';
       busy.value = false;
-    }, 1800);
+    }, PAUSE_ROUND);
   } else if (n.phase === 'quiet') {
     say.value = '🤫 这一轮谁也没换……还要再看一轮吗？';
   } else finish();
@@ -87,6 +88,7 @@ function again() {
 
 <template>
   <div class="game">
+    <p class="small-note">目标：看高亮的挨着的两个小伙伴，左边比右边高就点 🔄 换，不高就点 👍 不换。一直点到全部排好。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Lineup :line="s.line" :pair="pairIdx" :fixed-from="s.end" :glow="glow" :shake="shake" :photo="s.phase === 'done'" />
     <p class="tally" :class="{ hinted: hintQuiet }" :aria-label="'这一轮换了 ' + s.roundSwaps + ' 次'">

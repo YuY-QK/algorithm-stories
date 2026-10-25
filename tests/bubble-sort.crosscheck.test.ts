@@ -12,7 +12,7 @@ describe.skipIf(!hasPython())('冒泡排序：和 Python 参考实现对拍', ()
     );
     expect(cases.map((a) => {
       const last = bubble.buildTrace(a).at(-1)!;
-      const rounds = bubble.bubbleRounds(a, (v) => v).length;
+      const rounds = bubble.rounds(a, (v) => v).length;
       return [last.a.map((x) => x.v), last.compares, last.swaps, rounds, bubble.inversions(a)];
     })).toEqual(py);
   });
@@ -25,7 +25,7 @@ describe.skipIf(!hasPython())('冒泡排序：和 Python 参考实现对拍', ()
       cases,
     );
     expect(cases.map((c) => {
-      const rs = bubble.bubbleRounds(c, (p) => p[0]);
+      const rs = bubble.rounds(c, (p) => p[0]);
       const out = rs.length ? rs.at(-1)!.after : c;
       return [out, rs.reduce((t, r) => t + r.swaps, 0)];
     })).toEqual(py);

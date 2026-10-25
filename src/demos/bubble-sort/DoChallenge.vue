@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { buildTrace, challengeArray, inversions, isSorted } from '../../engine/bubble-sort';
+import { buildTrace, genChallenge, inversions, isSorted } from '../../engine/bubble-sort';
 
 // 做：挑战。只能交换相邻的两个数，用最少的次数排好。和冒泡排序的交换次数比一比。
 const start = ref<number[]>([]);
@@ -10,7 +10,7 @@ const hist = ref<number[][]>([]);
 const msg = ref('');
 
 function fresh() {
-  start.value = challengeArray();
+  start.value = genChallenge();
   a.value = start.value.slice();
   moves.value = 0;
   hist.value = [];
