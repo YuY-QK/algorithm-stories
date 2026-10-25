@@ -1,4 +1,4 @@
-import type { Step, Trace } from './types';
+import type { BugInfo, LookFrame, Step, Trace } from './types';
 
 /*
  * 队列：先进先出。这里讲的是最常用的实现「循环队列」：
@@ -60,8 +60,7 @@ export function ringItems<T>(r: Ring<T>): T[] {
 /** 椅子数（看、玩法二） */
 export const SEATS = 6;
 
-export interface Frame {
-  say: string;
+export interface LookPage extends LookFrame {
   /** false：椅子排成一排；true：围成一圈 */
   ring: boolean;
   seats: (string | null)[];
@@ -95,11 +94,11 @@ const LOOK_SCRIPT: { ops: LookOp[]; say: (s: { last: string[]; ring: Ring<string
 ];
 
 /** 看：生成绘本的每一页。椅子上的状态由真实的循环队列操作得到 */
-export function lookFrames(): Frame[] {
+export function lookFrames(): LookPage[] {
   let ring = emptyRing<string>(SEATS);
   let bent = false;
   const served: string[] = [];
-  const out: Frame[] = [];
+  const out: LookPage[] = [];
   for (const page of LOOK_SCRIPT) {
     const last: string[] = [];
     let glow: number[] = [];
@@ -352,18 +351,22 @@ export interface QueueStep extends Step {
   out: number[];
   /** 这一步返回的值（return 那一行才有） */
   ret: string | null;
+  /** 到这一步为止，已经返回过的操作：操作序号 → 返回值 */
+  rets: Record<number, string>;
 }
 
 export function buildTrace(cap: number, ops: Op[]): Trace<QueueStep> {
   const steps: QueueStep[] = [];
   let ring = emptyRing<number>(cap);
   const out: number[] = [];
+  const rets: Record<number, string> = {};
   let op = -1;
   const push = (line: number, note: string, extra: Partial<QueueStep> = {}) => {
+    if (extra.ret) rets[op] = extra.ret;
     steps.push({
       line, note, done: false,
       cells: ring.cells.slice(), head: ring.head, tail: ring.tail, size: ring.size,
-      op, touched: null, out: out.slice(), ret: null, ...extra,
+      op, touched: null, out: out.slice(), ret: null, rets: { ...rets }, ...extra,
     });
   };
 
@@ -436,6 +439,15 @@ export const PRESETS: { id: string; label: string; cap: number; ops: Op[] }[] = 
 
 /* ---------- 做：猜下一步 ---------- */
 
+/** 猜下一步：容量和操作数 */
+export const PREDICT_CAP = 5;
+export const PREDICT_OPS = 12;
+
+/** 猜下一步的一串操作 */
+export function genPredict(rand: () => number = Math.random): Op[] {
+  return randomOps(PREDICT_CAP, PREDICT_OPS, rand);
+}
+
 export interface Round {
   before: Ring<number>;
   op: Op;
@@ -445,6 +457,10 @@ export interface Round {
   next: number | null;
   after: Ring<number>;
   ret: Ret;
+  /** 第一问答错时的解释 */
+  why: string;
+  /** 第二问答错时的解释；没有第二问时是 null */
+  whyNext: string | null;
 }
 
 export function rounds(cap: number, ops: Op[]): Round[] {
@@ -455,37 +471,46 @@ export function rounds(cap: number, ops: Op[]): Round[] {
       const r = ringOffer(ring, op.x);
       ring = r.ring;
       return r.ok
-        ? { before, op, at: before.tail, next: ring.tail, after: ring, ret: true }
-        : { before, op, at: 'full' as const, next: null, after: ring, ret: false };
+        ? {
+            before, op, at: before.tail, next: ring.tail, after: ring, ret: true,
+            why: '还没满（size = ' + before.size + '），新元素写进 items[tail]，tail = ' + before.tail + '。',
+            whyNext: 'tail = (' + before.tail + ' + 1) % ' + cap + ' = ' + ring.tail + (ring.tail === 0 ? '：走到最后一格之后绕回 0 号格。' : '。'),
+          }
+        : {
+            before, op, at: 'full' as const, next: null, after: ring, ret: false,
+            why: 'size = ' + before.size + '，等于容量 ' + cap + '，满了，offer 直接返回 false。',
+            whyNext: null,
+          };
     }
     const r = ringPoll(ring);
     ring = r.ring;
     return r.x !== null
-      ? { before, op, at: before.head, next: ring.head, after: ring, ret: r.x }
-      : { before, op, at: 'empty' as const, next: null, after: ring, ret: null };
+      ? {
+          before, op, at: before.head, next: ring.head, after: ring, ret: r.x,
+          why: '队列不空（size = ' + before.size + '），poll 读 items[head]，head = ' + before.head + '。',
+          whyNext: 'head = (' + before.head + ' + 1) % ' + cap + ' = ' + ring.head + (ring.head === 0 ? '：走到最后一格之后绕回 0 号格。' : '。'),
+        }
+      : {
+          before, op, at: 'empty' as const, next: null, after: ring, ret: null,
+          why: 'size = 0，队列是空的，poll 直接返回 null。',
+          whyNext: null,
+        };
   });
 }
 
 /* ---------- 做：找 bug ---------- */
 
-export interface Bug {
+export interface Bug extends BugInfo {
   id: 'tail-mod' | 'head-tail' | 'full-check';
-  title: string;
-  /** 有 bug 的 Kotlin 代码，和 CODE 只差一行 */
-  code: string[];
-  wrongLine: number;
-  fixed: string;
   cap: number;
   ops: Op[];
-  expect: string;
-  explain: string;
 }
 
 function variant(line: number, text: string): string[] {
   return CODE.map((t, k) => (k + 1 === line ? text : t));
 }
 
-export const BUGS: Bug[] = [
+export const BUGS: readonly Bug[] = [
   {
     id: 'tail-mod',
     title: '排着排着，程序崩溃了',
@@ -551,11 +576,13 @@ export function runBug(bug: Bug): Trace<BugStep> {
   let tail = 0;
   let size = 0;
   const out: number[] = [];
+  const rets: Record<number, string> = {};
   let op = -1;
   const push = (line: number, note: string, extra: Partial<BugStep> = {}) => {
+    if (extra.ret) rets[op] = extra.ret;
     steps.push({
       line, note, done: false, cells: cells.slice(), head, tail, size,
-      op, touched: null, out: out.slice(), ret: null, outcome: 'running', ...extra,
+      op, touched: null, out: out.slice(), ret: null, rets: { ...rets }, outcome: 'running', ...extra,
     });
   };
   const liveAt = (k: number) => size > 0 && (k - head + cap) % cap < size;
@@ -620,6 +647,20 @@ export function runBug(bug: Bug): Trace<BugStep> {
   return steps;
 }
 
+/** 找 bug 面板底部的判定文字：没跑完是空 */
+export function bugVerdict(step: BugStep, _bug: Bug): string {
+  if (!step.done) return '';
+  if (step.outcome === 'crash') return '💥 下标越界，程序崩溃';
+  if (step.outcome === 'wrong') return '❌ 返回了 ' + step.ret + '，不对';
+  return '';
+}
+
+/* ---------- 做：逐步执行里的「随机」序列 ---------- */
+
+/** 「随机」序列的容量和操作数 */
+export const TRACE_CAP = 5;
+export const TRACE_OPS = 12;
+
 /* ---------- 做：挑战 ---------- */
 
 export const CHALLENGE_CAP = 5;
@@ -628,7 +669,7 @@ export const CHALLENGE_CAP = 5;
  * 挑战题：一串 9～11 个操作，容量 5。保证 tail 绕回过、有出过队但还留在数组里的旧值、
  * 最后队里不空，这样数组最后的样子不容易一眼看出来。
  */
-export function challenge(rand: () => number = Math.random): Op[] {
+export function genChallenge(rand: () => number = Math.random): Op[] {
   for (;;) {
     const ops = randomOps(CHALLENGE_CAP, 9 + Math.floor(rand() * 3), rand);
     const { ring } = simulate(CHALLENGE_CAP, ops);

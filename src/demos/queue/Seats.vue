@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../components/shared/timing';
 
 // 奶茶店的椅子：排成一排或者围成一圈（两种摆法之间有动画）。
 // 看、玩法二、做的「逐步执行」共用，只负责画，不管规则。
@@ -41,12 +43,20 @@ const emit = defineEmits<{ pick: [i: number] }>();
 const n = computed(() => props.seats.length);
 
 const shaking = ref<number | null>(null);
+let shakeTimer: ReturnType<typeof setTimeout> | null = null;
+function stopShake() {
+  if (shakeTimer) clearTimeout(shakeTimer);
+  shakeTimer = null;
+  shaking.value = null;
+}
 watch(() => props.shake, (v) => {
   if (!v) return;
-  shaking.value = null;
+  stopShake();
   requestAnimationFrame(() => (shaking.value = v[0]));
-  setTimeout(() => (shaking.value = null), 600);
+  shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
 });
+useStageStop(stopShake);
+onBeforeUnmount(stopShake);
 
 /** 圈的半径（占容器宽度的百分比） */
 const R = 35;

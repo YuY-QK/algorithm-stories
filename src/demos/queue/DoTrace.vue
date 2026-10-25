@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { buildTrace, CODE, opText, PRESETS, randomOps, type Op } from '../../engine/queue';
+import { buildTrace, CODE, opText, PRESETS, randomOps, TRACE_CAP, TRACE_OPS, type Op } from '../../engine/queue';
 import CodePanel from '../../components/shared/CodePanel.vue';
 import Segmented from '../../components/shared/Segmented.vue';
 import Transport from '../../components/shared/Transport.vue';
@@ -21,26 +21,15 @@ function load() {
     cap.value = p.cap;
     ops.value = p.ops;
   } else {
-    cap.value = 5;
-    ops.value = randomOps(5, 12);
+    cap.value = TRACE_CAP;
+    ops.value = randomOps(TRACE_CAP, TRACE_OPS);
   }
 }
 watch(which, load);
 
 const steps = computed(() => buildTrace(cap.value, ops.value));
-const p = usePlayer(steps, [
-  { label: '慢', ms: 1200 },
-  { label: '中', ms: 700 },
-  { label: '快', ms: 300 },
-]);
+const p = usePlayer(steps);
 const s = computed(() => p.step.value);
-
-/** 每个操作做完时的返回值，用来在操作列表里标出来 */
-const rets = computed(() => {
-  const r: Record<number, string> = {};
-  for (const st of steps.value.slice(0, p.idx.value + 1)) if (st.ret !== null) r[st.op] = st.ret;
-  return r;
-});
 
 const n = computed(() => s.value.cells.length);
 const live = (k: number) => s.value.size > 0 && (k - s.value.head + n.value) % n.value < s.value.size;
@@ -70,7 +59,7 @@ const vars = computed<[string, string | number][]>(() => [
   <div class="stage">
     <ol class="ops" aria-label="操作序列">
       <li v-for="(o, k) in ops" :key="k" :class="{ now: k === s.op, past: k < s.op }">
-        {{ opText(o) }}<b v-if="rets[k] !== undefined"> → {{ rets[k] }}</b>
+        {{ opText(o) }}<b v-if="s.rets[k] !== undefined"> → {{ s.rets[k] }}</b>
       </li>
     </ol>
     <div class="views">

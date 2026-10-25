@@ -21,11 +21,14 @@ const card = computed<Card | null>(() => game.value.cards[at.value] ?? null);
 const done = computed(() => card.value === null);
 const earned = computed(() => stars(mistakes.value));
 
-function prompt() {
+/** 说一句：刚才做了什么 + 现在轮到什么 */
+function prompt(done = '') {
   const c = card.value;
-  if (!c) say.value = '🎉 椅子转了一圈，大家还是按顺序买到 🧋';
-  else if ('arrive' in c) say.value = c.arrive + ' 来了，坐哪把椅子？';
-  else say.value = '🧋 做好一杯，给谁？';
+  let next: string;
+  if (!c) next = '🎉 椅子转了一圈，大家还是按顺序买到 🧋';
+  else if ('arrive' in c) next = c.arrive + ' 来了，该坐哪把椅子？';
+  else next = '🧋 做好一杯了，该给谁？';
+  say.value = done ? done + ' ' + next : next;
 }
 prompt();
 
@@ -48,10 +51,17 @@ function tap(i: number) {
   }
   glow.value = [];
   raise.value = null;
-  if ('sell' in c) served.value = [...served.value, ring.value.cells[i] as string];
+  let done: string;
+  if ('sell' in c) {
+    const who = ring.value.cells[i] as string;
+    served.value = [...served.value, who];
+    done = '✅ ' + who + ' 是队头，等得最久，先买到 🧋，离开 ' + i + ' 号椅子。';
+  } else {
+    done = '✅ ' + c.arrive + ' 坐上 ' + i + ' 号椅子，排在队尾。';
+  }
   ring.value = applyCard(ring.value, c);
   at.value++;
-  prompt();
+  prompt(done);
 }
 
 const tags = computed<Record<number, string>>(() => (ring.value.size ? { [ring.value.head]: '队头' } : {}));
@@ -75,6 +85,7 @@ function again() {
 
 <template>
   <div class="game">
+    <p class="small-note">目标：椅子围成一圈，按上面的指令卡干活。有人来了，点他该坐的椅子（最后一位后面那把，走到 5 号后面回到 0 号）；卖出一杯，点买到奶茶的人（队头，等得最久的）。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <ol class="tickets" aria-label="指令卡">
       <li

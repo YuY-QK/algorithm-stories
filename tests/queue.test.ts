@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BIG, BUGS, CHALLENGE_CAP, CODE, PRESETS, SEATS, applyCard, buildTrace, cardAnswer, challenge, clerkGame,
-  countWraps, emptyRing, isLive, lineAt, lineScript, lookFrames, nextUp, randomOps, ringItems, ringOffer,
+  BIG, BUGS, CHALLENGE_CAP, CODE, PRESETS, SEATS, PREDICT_CAP, PREDICT_OPS, TRACE_CAP, TRACE_OPS, applyCard, buildTrace, bugVerdict, cardAnswer, clerkGame,
+  countWraps, emptyRing, genChallenge, genPredict, isLive, lineAt, lineScript, lookFrames, nextUp, randomOps, ringItems, ringOffer,
   ringPoll, rounds, runBug, simulate, stars, type Op,
 } from '../src/engine/queue';
 
@@ -265,7 +265,7 @@ describe('队列 做：找 bug', () => {
 describe('队列 做：挑战', () => {
   it('题目里 tail 绕回过、有残留的旧值、队里不空', () => {
     for (let k = 0; k < 300; k++) {
-      const ops = challenge(seeded(k));
+      const ops = genChallenge(seeded(k));
       expect(ops.length).toBeGreaterThanOrEqual(9);
       expect(ops.length).toBeLessThanOrEqual(11);
       const { ring } = simulate(CHALLENGE_CAP, ops);
@@ -273,5 +273,51 @@ describe('队列 做：挑战', () => {
       expect(countWraps(CHALLENGE_CAP, ops).tail).toBeGreaterThan(0);
       expect(ring.cells.some((c, i) => c !== null && !isLive(ring, i))).toBe(true);
     }
+  });
+});
+
+describe('队列 迁移后的引擎导出', () => {
+  it('genPredict、genChallenge：固定种子可复现，规模符合常量', () => {
+    for (const seed of [1, 5, 99]) {
+      expect(genPredict(seeded(seed))).toEqual(genPredict(seeded(seed)));
+      expect(genChallenge(seeded(seed))).toEqual(genChallenge(seeded(seed)));
+      expect(genPredict(seeded(seed))).toHaveLength(PREDICT_OPS);
+    }
+    expect(PREDICT_CAP).toBe(5);
+    expect(TRACE_CAP).toBe(5);
+    expect(randomOps(TRACE_CAP, TRACE_OPS, seeded(2))).toHaveLength(TRACE_OPS);
+  });
+
+  it('rounds：每题带解释，第二问有解释当且仅当有第二问；绕回时点明', () => {
+    for (let k = 0; k < 300; k++) {
+      const cap = PREDICT_CAP;
+      const rs = rounds(cap, genPredict(seeded(k)));
+      for (const r of rs) {
+        expect(r.why.length).toBeGreaterThan(0);
+        expect(r.whyNext === null).toBe(r.next === null);
+        if (r.next === 0) expect(r.whyNext).toContain('绕回 0 号格');
+        if (r.at === 'full') expect(r.why).toContain('满了');
+        if (r.at === 'empty') expect(r.why).toContain('空的');
+      }
+    }
+  });
+
+  it('QueueStep.rets：只记已经返回的操作，和 simulate 一致', () => {
+    const { cap, ops } = PRESETS[1];
+    const steps = buildTrace(cap, ops);
+    expect(steps[0].rets).toEqual({});
+    expect(Object.values(steps.at(-1)!.rets)).toEqual(simulate(cap, ops).results.map(String));
+    for (const b of BUGS) {
+      const last = runBug(b).at(-1)!;
+      for (const k of Object.keys(last.rets)) expect(Number(k)).toBeLessThanOrEqual(last.op);
+    }
+  });
+
+  it('bugVerdict：没跑完是空，崩溃和返回错误各有说法', () => {
+    for (const b of BUGS) expect(bugVerdict(runBug(b)[0], b)).toBe('');
+    const text = Object.fromEntries(BUGS.map((b) => [b.id, bugVerdict(runBug(b).at(-1)!, b)]));
+    expect(text['tail-mod']).toBe('💥 下标越界，程序崩溃');
+    expect(text['head-tail']).toBe('❌ 返回了 null，不对');
+    expect(text['full-check']).toMatch(/^❌ 返回了 \d+，不对$/);
   });
 });
