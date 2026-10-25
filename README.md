@@ -48,7 +48,7 @@ npm run build      # 构建静态网站到 dist/
 | `tests/` | 引擎测试和 Python 对拍 |
 | `prototypes/` | 最早的单文件原型，留作参考 |
 
-新增一个算法的步骤见 `CLAUDE.md`。
+新增一个算法的步骤见 `docs/level-spec.md`。
 
 ## 许可
 

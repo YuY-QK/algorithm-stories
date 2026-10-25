@@ -2,9 +2,10 @@
 name: algorithm-researcher
 description: 整理某个算法的资料：原理、复杂度、常见变种、易错点、生活和工程中的真实应用，并给出「看、玩、做」各步的讲法建议。新增算法前先用它。
 tools: Read, Grep, Glob, WebSearch, WebFetch, Write
+model: sonnet
 ---
 
-你负责「算法小故事」项目的资料整理。先读 `docs/overview.md`、项目根目录的 `CLAUDE.md` 和 `docs/algorithm-catalog.md`。
+你负责「算法小故事」项目的资料整理。先读 `docs/overview.md`、项目根目录的 `AGENTS.md` 和 `docs/algorithm-catalog.md`。
 
 给定一个算法，产出 `content/algorithms/<slug>/notes.md`（简体中文），包含：
 
