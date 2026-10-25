@@ -1,4 +1,4 @@
-import type { Step, Trace } from './types';
+import type { BugInfo, LookFrame, Step, Trace } from './types';
 
 /* ---------- 看、玩：小熊理纸牌 ---------- */
 
@@ -33,8 +33,7 @@ export interface HandView {
   inHand: number;
 }
 
-export interface StoryFrame extends HandView {
-  say: string;
+export interface LookPage extends LookFrame, HandView {
   /** 正在和新牌比大小的那张牌 */
   cmp: number | null;
 }
@@ -43,12 +42,12 @@ export interface StoryFrame extends HandView {
  * 「看」的绘本画面：真的跑一遍插入排序，每次比较和挪动都是一页。
  * 和下面的 buildTrace 是同一个过程，只是说给孩子听。
  */
-export function storyFrames(values: number[]): StoryFrame[] {
+export function lookFrames(values: number[]): LookPage[] {
   const n = values.length;
   const v = (id: number) => values[id];
   const slots: (number | null)[] = values.map((_, id) => id);
-  const out: StoryFrame[] = [];
-  const push = (say: string, extra: Partial<StoryFrame>) =>
+  const out: LookPage[] = [];
+  const push = (say: string, extra: Partial<LookPage>) =>
     out.push({ say, slots: [...slots], held: null, heldAt: 0, inHand: 0, cmp: null, ...extra });
 
   push('桌上有 ' + n + ' 张牌 🃏 小熊 🐻 要从小到大理好', {});
@@ -136,7 +135,7 @@ export const CODE = [
   '}',
 ];
 
-export interface SortStep extends Step {
+export interface InsertionStep extends Step {
   arr: number[];
   /** 每个位置上的元素原来在哪个下标，用来看稳定性（相等的元素有没有换顺序） */
   ids: number[];
@@ -175,11 +174,11 @@ export function isStable(a: number[], ids: number[]): boolean {
 }
 
 /** 按某个版本的代码逐行执行。行号对应 CODE（bug 版本只改了一行，行号不变） */
-export function simulate(values: number[], variant: Variant = 'ok'): Trace<SortStep> {
+export function simulate(values: number[], variant: Variant = 'ok'): Trace<InsertionStep> {
   const arr = [...values];
   const ids = values.map((_, k) => k);
   const n = arr.length;
-  const steps: SortStep[] = [];
+  const steps: InsertionStep[] = [];
   let i: number | null = null;
   let j: number | null = null;
   let key: number | null = null;
@@ -188,13 +187,13 @@ export function simulate(values: number[], variant: Variant = 'ok'): Trace<SortS
   let sorted = Math.min(1, n);
   let compares = 0;
   let moves = 0;
-  const push = (line: number, note: string, extra: Partial<SortStep> = {}) => {
+  const push = (line: number, note: string, extra: Partial<InsertionStep> = {}) => {
     steps.push({
       line, note, done: false, arr: [...arr], ids: [...ids], i, j, key, keyId, cmp: null, hole, sorted,
       compares, moves, outcome: 'running', ...extra,
     });
   };
-  const finish = (line: number, note: string, extra: Partial<SortStep> = {}) => {
+  const finish = (line: number, note: string, extra: Partial<InsertionStep> = {}) => {
     const outcome = !isSorted(arr) ? 'wrong' : !isStable(arr, ids) ? 'unstable' : 'ok';
     push(line, note, { done: true, outcome, ...extra });
     return steps;
@@ -264,7 +263,7 @@ export function simulate(values: number[], variant: Variant = 'ok'): Trace<SortS
 }
 
 /** 正确版本的逐步执行 */
-export function buildTrace(values: number[]): Trace<SortStep> {
+export function buildTrace(values: number[]): Trace<InsertionStep> {
   return simulate(values, 'ok');
 }
 
@@ -302,6 +301,33 @@ export interface Round {
   pos: number;
   compares: number;
   moves: number;
+  /** 点错「key 落在哪一格」时的解释 */
+  whyPos: string;
+  /** 选错「比较了几次」时的解释 */
+  why: string;
+}
+
+/** 猜下一步的数组：PREDICT_N 个数，值在 1 到 PREDICT_MAX，可能有重复 */
+export const PREDICT_N = 8;
+export const PREDICT_MAX = 15;
+
+export function genPredict(rand: () => number = Math.random): number[] {
+  return genArray(PREDICT_N, PREDICT_MAX, rand);
+}
+
+function whyPos(before: number[], i: number, key: number, pos: number): string {
+  const bigger = before.slice(pos, i);
+  const head = bigger.length ? '从右往左比：' + [...bigger].reverse().join('、') + ' 比 ' + key + ' 大，依次往右挪；' : '';
+  const stop = pos > 0
+    ? 'arr[' + (pos - 1) + '] = ' + before[pos - 1] + ' 不比 ' + key + ' 大，停下'
+    : '一直挪到了最左边';
+  return head + stop + '。key 落在下标 ' + pos + '。' + (before.slice(0, i).includes(key) ? '相等的元素不挪，key 排在它后面。' : '');
+}
+
+function whyCompares(before: number[], pos: number, moves: number, compares: number): string {
+  return '挪了 ' + moves + ' 次，每挪一次之前都比较过一次。' + (pos > 0
+    ? '最后和 arr[' + (pos - 1) + '] = ' + before[pos - 1] + ' 比，不比 key 大，又比了 1 次，一共 ' + compares + ' 次。'
+    : '挪到最左边后 j = -1，j >= 0 不成立，&& 短路，arr[j] > key 不再计算，一共 ' + compares + ' 次。');
 }
 
 export function rounds(values: number[]): Round[] {
@@ -319,32 +345,27 @@ export function rounds(values: number[]): Round[] {
       j--;
     }
     arr[j + 1] = key;
-    out.push({ i, before, key, pos: j + 1, compares, moves: i - (j + 1) });
+    const pos = j + 1;
+    const moves = i - pos;
+    out.push({ i, before, key, pos, compares, moves, whyPos: whyPos(before, i, key, pos), why: whyCompares(before, pos, moves, compares) });
   }
   return out;
 }
 
 /* ---------- 做：找 bug ---------- */
 
-export interface Bug {
+export interface Bug extends BugInfo {
   id: Exclude<Variant, 'ok'>;
-  title: string;
-  /** 有 bug 的 Kotlin 代码，和 CODE 只差一行 */
-  code: string[];
-  wrongLine: number;
-  fixed: string;
   values: number[];
   /** 是否要显示花色（看稳定性时用） */
   suits: boolean;
-  expect: string;
-  explain: string;
 }
 
 function variant(line: number, text: string): string[] {
   return CODE.map((t, k) => (k + 1 === line ? text : t));
 }
 
-export const BUGS: Bug[] = [
+export const BUGS: readonly Bug[] = [
   {
     id: 'gt0',
     title: '最小的数排不到最前面',
@@ -381,8 +402,23 @@ export const BUGS: Bug[] = [
 ];
 
 /** 按 bug 版本的代码执行 */
-export function runBug(bug: Bug): Trace<SortStep> {
+export function runBug(bug: Bug): Trace<InsertionStep> {
   return simulate(bug.values, bug.id);
+}
+
+/** 数组写成文字；suits 为真时点数后面带花色（id 是牌原来的位置） */
+export function showCards(arr: number[], ids: number[], suits: boolean): string {
+  return '[' + arr.map((v, k) => v + (suits ? suitOf(ids[k]) : '')).join(', ') + ']';
+}
+
+/** 找 bug 面板底部的判定：动画跑完后结果是什么 */
+export function bugVerdict(step: InsertionStep, bug: Bug): string {
+  if (!step.done) return '';
+  if (step.outcome === 'crash') return '💥 下标越界，程序崩溃';
+  if (step.outcome === 'stuck') return '🔁 死循环，程序卡住了';
+  if (step.outcome === 'unstable') return '⚠️ 结果 ' + showCards(step.arr, step.ids, bug.suits) + '：数字排好了，但两张 3 换了先后顺序，不稳定';
+  if (step.outcome === 'wrong') return '❌ 结果 ' + showCards(step.arr, step.ids, bug.suits) + '，没排好';
+  return '✅ 排好了';
 }
 
 /* ---------- 做：挑战 ---------- */
@@ -392,11 +428,11 @@ export interface RaceLane {
   values: number[];
 }
 
-export const RACE_N = 12;
+export const CHALLENGE_N = 12;
 
 /** 四组 12 个数：几乎有序、随机、倒序、只有最后一个最小。顺序打乱 */
-export function raceLanes(rand: () => number = Math.random): RaceLane[] {
-  const n = RACE_N;
+export function genChallenge(rand: () => number = Math.random): RaceLane[] {
+  const n = CHALLENGE_N;
   const sortedArr = Array.from({ length: n }, (_, k) => k + 1);
   // 几乎有序：交换两对不相邻的相邻元素，挪 2 次
   const nearly = [...sortedArr];

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { dealHand, judgeGap, stars, toCards } from '../../engine/insertion-sort';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { MOVE_NEXT, MOVE_SETTLE, MOVE_STEP } from '../../components/shared/timing';
 import Hand from './Hand.vue';
 
 // 玩法一「找位置」：小熊摸到一张新牌，孩子点出它该插在哪两张牌中间。
@@ -18,6 +20,10 @@ const glow = ref<number | null>(null);
 const say = ref('');
 let timers: ReturnType<typeof setTimeout>[] = [];
 const later = (ms: number, fn: () => void) => timers.push(setTimeout(fn, ms));
+function stopTimers() {
+  timers.forEach(clearTimeout);
+  timers = [];
+}
 
 const key = computed(() => values.value[i.value]);
 const held = computed(() => (phase.value === 'done' ? null : i.value));
@@ -32,8 +38,7 @@ function lift() {
 }
 
 function fresh() {
-  timers.forEach(clearTimeout);
-  timers = [];
+  stopTimers();
   values.value = dealHand(N);
   slots.value = values.value.map((_, id) => id);
   i.value = 1;
@@ -61,17 +66,17 @@ function pickGap(g: number) {
       requestAnimationFrame(() => (glow.value = id));
       tell.push(values.value[id] + ' 比 ' + key.value + ' 小');
     }
-    say.value = '🤔 ' + tell.join('，') + '哦，再看看';
+    say.value = '🤔 ' + tell.join('，') + '，' + key.value + ' 放这里顺序就乱了，再看看';
     return;
   }
   glow.value = null;
   phase.value = 'moving';
-  say.value = g === i.value ? '👍 比它小的都在左边，就放这儿' : '➡️ 大的往右挪一挪……';
+  say.value = g === i.value ? '👍 左边的牌都比 ' + key.value + ' 小，' + key.value + ' 就放这儿' : '➡️ 比 ' + key.value + ' 大的牌往右挪一格，给 ' + key.value + ' 让位……';
   // 比 key 大的牌从右往左一张张挪，空位跟着往左走
   let t = 0;
   for (let s = i.value - 1; s >= g; s--) {
     const at = s;
-    later((t += 380), () => {
+    later((t += MOVE_STEP), () => {
       const next = [...slots.value];
       next[at + 1] = next[at];
       next[at] = null;
@@ -79,7 +84,7 @@ function pickGap(g: number) {
       heldAt.value = at;
     });
   }
-  later((t += 450), () => {
+  later((t += MOVE_SETTLE), () => {
     const next = [...slots.value];
     next[g] = i.value;
     slots.value = next;
@@ -87,7 +92,7 @@ function pickGap(g: number) {
     heldAt.value = g;
     say.value = '✨ 放好啦';
   });
-  later(t + 650, () => {
+  later(t + MOVE_NEXT, () => {
     if (i.value + 1 >= N) {
       phase.value = 'done';
       say.value = '🎉 理好啦！';
@@ -102,11 +107,19 @@ function pickGap(g: number) {
 const showHeld = computed(() => (phase.value === 'moving' && slots.value[heldAt.value] === i.value ? null : held.value));
 const earned = computed(() => stars(mistakes.value));
 
-onBeforeUnmount(() => timers.forEach(clearTimeout));
+// 切换标签时动画要停：让牌直接落到该去的位置，从下一张重新开始
+useStageStop(() => {
+  if (timers.length && phase.value === 'moving') {
+    stopTimers();
+    fresh();
+  }
+});
+onBeforeUnmount(stopTimers);
 </script>
 
 <template>
   <div class="game">
+    <p class="small-note">目标：小熊每摸到一张新牌，点出它该放在哪两张牌中间（点 ▼），放对了牌会自己挪好，一直放到全部理好。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Hand
       :cards="cards" :slots="slots" :held="showHeld" :held-at="heldAt"

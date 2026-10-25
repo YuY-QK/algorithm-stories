@@ -26,3 +26,12 @@ export const PAUSE_HOLD = 1500;
 export const PAUSE_ROUND = 1800;
 /** 「玩」里一句提示读完再往下的停顿 */
 export const PAUSE_NOTE = 1100;
+/** 「玩」里一张牌挪一格、放下、再摸下一张的节拍 */
+export const MOVE_STEP = 380;
+export const MOVE_SETTLE = 450;
+export const MOVE_NEXT = 650;
+/** 牌答错后摇晃多久 */
+export const SHAKE_MS = 600;
+/** 挑战赛跑动画的刷新间隔，和每次前进的步数 */
+export const RACE_TICK = 30;
+export const RACE_STRIDE = 2;

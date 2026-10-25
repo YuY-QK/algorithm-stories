@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { isRed, suitOf, type Card } from '../../engine/insertion-sort';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../components/shared/timing';
 
 // 牌桌：一排位置，牌放在位置上，拿在手上的牌悬在空位上方。
 // 看、玩法一、玩法二共用，只负责画，不管规则。
@@ -34,12 +36,20 @@ const slotOf = computed(() => {
 });
 
 const shaking = ref<number | null>(null);
+let shakeTimer: ReturnType<typeof setTimeout> | null = null;
+function stopShake() {
+  if (shakeTimer) clearTimeout(shakeTimer);
+  shakeTimer = null;
+  shaking.value = null;
+}
 watch(() => props.shake, (v) => {
   if (!v) return;
-  shaking.value = null;
+  stopShake();
   requestAnimationFrame(() => (shaking.value = v[0]));
-  setTimeout(() => (shaking.value = null), 600);
+  shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
 });
+useStageStop(stopShake);
+onBeforeUnmount(stopShake);
 
 function where(id: number) {
   const lifted = props.held === id;
