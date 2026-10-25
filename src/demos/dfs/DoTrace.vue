@@ -14,11 +14,7 @@ import { emojisOf, stepLabels, stepTones, wallsOf } from './view';
 const which = ref(0);
 const maze = computed<MazeT>(() => parseMaze(TRACE_MAZES[which.value].rows));
 const steps = computed(() => buildTrace(maze.value));
-const p = usePlayer(steps, [
-  { label: '慢', ms: 900 },
-  { label: '中', ms: 450 },
-  { label: '快', ms: 120 },
-], 2);
+const p = usePlayer(steps);
 const s = computed<DfsStep>(() => p.step.value);
 
 const vars = computed<[string, string | number][]>(() => {

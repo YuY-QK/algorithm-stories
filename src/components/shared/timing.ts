@@ -40,3 +40,6 @@ export const FOLLOW_STEP = 650;
 export const FOLLOW_END = 600;
 /** 「玩」里提示动画（透光、晃动）持续多久 */
 export const FLASH_MS = 1900;
+/** 「玩」里涂一座岛：每格亮起的间隔，和涂完后的收尾停顿 */
+export const FILL_STEP = 160;
+export const FILL_END = 350;

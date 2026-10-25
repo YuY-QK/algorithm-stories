@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { FLASH_MS, SHAKE_MS } from '../../components/shared/timing';
 import {
   BACK, DIR_ARROWS, DIR_NAMES, DIRS, PLAY_MAZES, around, exploreStars, expectedChoice, judgeChoice, parseMaze, type Choice,
 } from '../../engine/dfs';
@@ -26,7 +28,13 @@ const padShake = ref<Choice | null>(null);
 const padGlow = ref<Choice | null>(null);
 const glowKey = ref(0);
 const glow = ref<number[]>([]);
-const timers: ReturnType<typeof setTimeout>[] = [];
+let timers: ReturnType<typeof setTimeout>[] = [];
+function stopTimers() {
+  timers.forEach(clearTimeout);
+  timers = [];
+  padShake.value = null;
+  padGlow.value = null;
+}
 
 function fresh(): boolean[] {
   const v = new Array<boolean>(maze.value.w * maze.value.h).fill(false);
@@ -57,11 +65,11 @@ function flash(kind: 'shake' | 'glow', c: Choice) {
   if (kind === 'shake') {
     padShake.value = null;
     requestAnimationFrame(() => (padShake.value = c));
-    timers.push(setTimeout(() => (padShake.value = null), 600));
+    timers.push(setTimeout(() => (padShake.value = null), SHAKE_MS));
   } else {
     padGlow.value = null;
     requestAnimationFrame(() => (padGlow.value = c));
-    timers.push(setTimeout(() => (padGlow.value = null), 1900));
+    timers.push(setTimeout(() => (padGlow.value = null), FLASH_MS));
   }
 }
 
@@ -73,21 +81,21 @@ function choose(c: Choice) {
   if (v.kind !== 'ok') {
     misses.value++;
     if (v.kind === 'wall') {
-      say.value = nb === null ? '🧱 那边已经是洞外啦，换个方向' : '🧱 那边是岩石，过不去';
+      say.value = nb === null ? '🧱 ' + DIR_NAMES[c] + '边已经是洞外啦，探险家出不去，换个方向' : '🧱 ' + DIR_NAMES[c] + '边是岩石，探险家过不去，换个方向';
       flash('shake', c);
       if (nb !== null) shake.value = [nb, (shake.value?.[1] ?? 0) + 1];
     } else if (v.kind === 'crumb') {
-      say.value = '🍞 那边有面包屑，来过啦，不走回头路';
+      say.value = '🍞 ' + DIR_NAMES[c] + '边有面包屑，探险家来过那里啦，不走回头路';
       flash('shake', c);
       shake.value = [nb!, (shake.value?.[1] ?? 0) + 1];
     } else if (v.kind === 'skip') {
-      say.value = '☝️ 能走是能走，可是排在前面的方向还没试呢';
+      say.value = '☝️ ' + DIR_NAMES[c] + '边能走，可是排在前面的「' + DIR_NAMES[v.better] + '」边也能走、还没试，先走它（它在发光）';
       flash('shake', c);
       flash('glow', v.better as Choice);
       glow.value = [around(m, cur.value)[v.better]!];
       glowKey.value++;
     } else {
-      say.value = '🔍 前面还有路可以走，不用退回';
+      say.value = '🔍 ' + DIR_NAMES[v.better] + '边还有路可以走，探险家不用退回，先走它（它在发光）';
       flash('shake', c);
       flash('glow', v.better as Choice);
       glow.value = [around(m, cur.value)[v.better]!];
@@ -100,7 +108,7 @@ function choose(c: Choice) {
     backs.value++;
     path.value = path.value.slice(0, -1);
     const open = expectedChoice(m, visited.value, cur.value);
-    say.value = open === BACK ? '↩️ 这个路口也没路了，再退一步' : '↩️ 退回到路口啦！换下一个方向试试';
+    say.value = open === BACK ? '↩️ 探险家退回上一格，这个路口也没路了，再退一步' : '↩️ 探险家退回到路口啦！这里还有没试过的方向，换下一个方向试试';
     return;
   }
   const to = nb!;
@@ -112,7 +120,7 @@ function choose(c: Choice) {
     return;
   }
   const next = expectedChoice(m, visited.value, to);
-  say.value = next === BACK ? '🧱 死路！四边都走不通，怎么办？' : '🍞 撒下面包屑，继续';
+  say.value = next === BACK ? '🧱 探险家往' + DIR_NAMES[c] + '走了一步，到了死路！四边都走不通，怎么办？' : '🍞 探险家往' + DIR_NAMES[c] + '走了一步，撒下面包屑，继续按 ①②③④ 找能走的方向';
 }
 
 const earned = computed(() => exploreStars(misses.value));
@@ -129,7 +137,8 @@ function again() {
   intro();
 }
 
-onBeforeUnmount(() => timers.forEach(clearTimeout));
+useStageStop(stopTimers);
+onBeforeUnmount(stopTimers);
 
 const PAD: { c: Choice; area: string }[] = [
   { c: 0, area: 'up' }, { c: 3, area: 'left' }, { c: 1, area: 'right' }, { c: 2, area: 'down' },
@@ -139,6 +148,7 @@ const ORDER = [1, 2, 3, 4]; // 方向 0～3 对应的顺序号：上右下左 = 
 
 <template>
   <div class="game">
+    <p class="small-note">目标：帮探险家 🧭 找到宝藏 💎。每到一个路口，按 ①上 ②右 ③下 ④左 的顺序，哪边能走就走哪边；走过的地方撒面包屑 🍞，不走回头路。四边都走不通，就点 ↩️ 退回上一个路口。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <div class="bar">
       <span class="count" aria-label="走了几步">👣 {{ steps }}</span>

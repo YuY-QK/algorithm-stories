@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { CHALLENGE_ROOMS, challengeK, coord, genMaze, parseMaze, visitOrder } from '../../engine/dfs';
+import { challengeK, coord, genChallenge, parseMaze, visitOrder } from '../../engine/dfs';
 import Grid, { type Tone } from './Grid.vue';
 import { emojisOf, wallsOf } from './view';
 
 // 做：挑战。9×9 的山洞，同一个山洞里 DFS 和 BFS 访问格子的顺序完全不同。
 // 题目：DFS（上右下左的顺序）第 k 个被标记 visited 的格子是哪一个？起点算第 1 个。
 // 可以要一次提示（给出前一半），答完以后把 DFS 的前 k 个和 BFS 的第 k 个一起亮出来比。
-const maze = ref(parseMaze(genMaze(CHALLENGE_ROOMS)));
+const first = genChallenge();
+const maze = ref(parseMaze(first.maze));
 const dfsOrder = computed(() => visitOrder(maze.value, 'dfs'));
 const bfsOrder = computed(() => visitOrder(maze.value, 'bfs'));
-const k = ref(challengeK());
+const k = ref(first.k);
 const phase = ref<'ask' | 'right' | 'wrong'>('ask');
 const hinted = ref(false);
 const picked = ref<number | null>(null);
@@ -23,8 +24,11 @@ const target = computed(() => dfsOrder.value[k.value - 1]);
 const bfsTarget = computed(() => bfsOrder.value[k.value - 1]);
 
 function newQuestion(newMaze: boolean) {
-  if (newMaze) maze.value = parseMaze(genMaze(CHALLENGE_ROOMS));
-  k.value = challengeK();
+  if (newMaze) {
+    const q = genChallenge();
+    maze.value = parseMaze(q.maze);
+    k.value = q.k;
+  } else k.value = challengeK();
   phase.value = 'ask';
   hinted.value = false;
   picked.value = null;
