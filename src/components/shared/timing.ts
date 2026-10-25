@@ -38,3 +38,5 @@ export const RACE_STRIDE = 2;
 /** 「玩」里一队走光后，剩下的一个个跟上的间隔和收尾停顿 */
 export const FOLLOW_STEP = 650;
 export const FOLLOW_END = 600;
+/** 「玩」里提示动画（透光、晃动）持续多久 */
+export const FLASH_MS = 1900;

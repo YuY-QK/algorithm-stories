@@ -1,4 +1,4 @@
-import type { Step, Trace } from './types';
+import type { BugInfo, LookFrame, Step, Trace } from './types';
 
 /* ---------- 看、玩一：小熊叠盘子 ---------- */
 
@@ -44,6 +44,34 @@ const pop: PlateOp = { kind: 'pop' };
 
 /** 「看」的绘本：放星星、月亮、爱心，拿一个，放小花，再全部拿完 */
 export const LOOK_OPS: PlateOp[] = [push(0), push(1), push(2), pop, push(3), pop, pop, pop];
+
+/** 看：绘本的一页。盘子的状态加上这一页的台词 */
+export interface LookPage extends LookFrame, PlateState {}
+
+/** 看：生成绘本的每一页。盘子由 runPlates 真正执行得到，台词按这一步做了什么来写 */
+export function lookFrames(ops: PlateOp[] = LOOK_OPS): LookPage[] {
+  const states = runPlates(ops);
+  let pushed = 0;
+  let popped = 0;
+  const out: LookPage[] = states.map((s, k) => {
+    const icon = s.moved === null ? '' : PLATE_ICONS[s.moved];
+    let say = '小熊 🐻 洗好了盘子，要一个一个叠起来 🍽️';
+    if (s.op?.kind === 'push') {
+      say = pushed++ === 0 ? '先放上 ' + icon + ' 盘' : '再放 ' + icon + ' 盘，叠在最上面';
+    } else if (s.op?.kind === 'pop') {
+      const prev = states[k - 1];
+      const justPut = prev.op?.kind === 'push' && prev.moved === s.moved;
+      if (popped++ === 0) say = '要拿一个盘子：只能拿最上面的 ' + icon;
+      else if (s.stack.length === 0) say = '最先放的 ' + icon + '，最后才拿到';
+      else if (justPut) say = '拿走 ' + icon + '：刚放上去的，最先拿走';
+      else say = '再拿最上面的 ' + icon;
+    }
+    return { ...s, say };
+  });
+  const last = states[states.length - 1];
+  out.push({ ...last, say: '后放的先拿，先放的后拿：这就叫「栈」📚' });
+  return out;
+}
 
 /** 栈顶在数组里的下标，空栈是 -1 */
 export function topIndex(stack: readonly unknown[]): number {
@@ -186,6 +214,21 @@ export function bracketPuzzle(kind: PuzzleKind, pairs: number, rand: () => numbe
   return b.slice(0, at) + c + b.slice(at);
 }
 
+/** 逐步执行里括号串最多几个字符 */
+export const TRACE_MAX = 16;
+/** 逐步执行里「换一个」的按钮 */
+export const TRACE_PRESETS: readonly { label: string; kind: PuzzleKind }[] = [
+  { label: '能配上', kind: 'good' },
+  { label: '形状不对', kind: 'cross' },
+  { label: '多了左括号', kind: 'left' },
+  { label: '多了右括号', kind: 'extra' },
+];
+
+/** 逐步执行里「换一个」按钮用的串：某一种题，3～5 对 */
+export function presetString(kind: PuzzleKind, rand: () => number = Math.random): string {
+  return bracketPuzzle(kind, 3 + Math.floor(rand() * 3), rand);
+}
+
 /** 玩法二的一局：三串积木，一串能全拼好、一串形状不对、一串多了一块，顺序打乱 */
 export function bracketGame(rand: () => number = Math.random): string[] {
   const third: PuzzleKind = rand() < 0.5 ? 'left' : 'extra';
@@ -280,54 +323,79 @@ export function isValid(s: string): boolean {
 /** 每个字符要做的事，加上扫完以后的返回值 */
 export type Move = 'push' | 'pop' | 'fail' | 'true' | 'false';
 
-export interface Decision {
+/** 每个字符三选一的按钮 */
+export const CHAR_MOVES: readonly { move: Move; text: string }[] = [
+  { move: 'push', text: 'stack.addLast(c)' },
+  { move: 'pop', text: '弹出栈顶，配上了' },
+  { move: 'fail', text: 'return false' },
+];
+/** 扫完以后二选一的按钮 */
+export const END_MOVES: readonly { move: Move; text: string }[] = [
+  { move: 'true', text: 'return stack.isEmpty() → true' },
+  { move: 'false', text: 'return stack.isEmpty() → false' },
+];
+
+export interface Round {
   /** 字符下标；扫完以后的那一题是 s.length */
   i: number;
   /** 做决定之前栈里的内容 */
   stack: string[];
-  move: Move;
+  /** 正确答案 */
+  correct: Move;
+  /** 这一题的选项 */
+  options: readonly { move: Move; text: string }[];
+  /** 答错时的解释 */
+  why: string;
 }
 
-export function decisions(s: string): Decision[] {
-  const out: Decision[] = [];
+function whyMove(s: string, i: number, stack: string[], move: Move): string {
+  const c = s[i];
+  const top = stack[stack.length - 1];
+  switch (move) {
+    case 'push': return c + ' 是左括号，直接入栈，等后面的右括号来配。';
+    case 'pop': return c + ' 是右括号，栈顶 ' + top + ' 正好是它的另一半：弹出栈顶，配上了。';
+    case 'fail': return top === undefined
+      ? c + ' 是右括号，可栈是空的，没有左括号能配：return false。'
+      : '栈顶 ' + top + ' 要配 ' + pairOf(top) + '，来的却是 ' + c + '：return false。';
+    case 'true': return '扫完了，栈是空的，每个左括号都配上了：返回 true。';
+    default: return '扫完了，栈里还剩 ' + stack.length + ' 个左括号没配上：返回 false。';
+  }
+}
+
+export function rounds(s: string): Round[] {
+  const out: Round[] = [];
   let stack: string[] = [];
   for (let i = 0; i < s.length; i++) {
     const a = bracketAction(stack, s[i]);
-    out.push({ i, stack, move: a === 'stuck' ? 'fail' : a });
+    const correct: Move = a === 'stuck' ? 'fail' : a;
+    out.push({ i, stack, correct, options: CHAR_MOVES, why: whyMove(s, i, stack, correct) });
     if (a === 'stuck') return out;
     stack = a === 'push' ? [...stack, s[i]] : stack.slice(0, -1);
   }
-  out.push({ i: s.length, stack, move: stack.length === 0 ? 'true' : 'false' });
+  const correct: Move = stack.length === 0 ? 'true' : 'false';
+  out.push({ i: s.length, stack, correct, options: END_MOVES, why: whyMove(s, s.length, stack, correct) });
   return out;
 }
 
 /** 猜下一步用的串：四种题随机一种，3～5 对 */
-export function predictString(rand: () => number = Math.random): string {
+export function genPredict(rand: () => number = Math.random): string {
   const kinds: PuzzleKind[] = ['good', 'good', 'cross', 'left', 'extra'];
   return bracketPuzzle(kinds[Math.floor(rand() * kinds.length)], 3 + Math.floor(rand() * 3), rand);
 }
 
 /* ---------- 做：找 bug ---------- */
 
-export interface Bug {
+export interface Bug extends BugInfo {
   id: 'no-empty' | 'no-final' | 'no-type';
-  title: string;
-  /** 有 bug 的 Kotlin 代码，和 CODE 只差一行 */
-  code: string[];
-  /** 出错的那一行（从 1 开始） */
-  wrongLine: number;
-  /** 改对之后的那一行 */
-  fixed: string;
+  /** 演示用的括号串 */
   input: string;
-  expect: string;
-  explain: string;
 }
 
 function variant(line: number, text: string): string[] {
   return CODE.map((t, k) => (k + 1 === line ? text : t));
 }
 
-export const BUGS: Bug[] = [
+export const BUGS: readonly Bug[] = [
   {
     id: 'no-empty',
     title: '右括号一多，程序就崩溃',
@@ -416,10 +484,19 @@ export function runBug(bug: Bug): Trace<BugStep> {
   return steps;
 }
 
+/** 找 bug 面板底部的判定文字：没跑完是空 */
+export function bugVerdict(step: BugStep, _bug: Bug): string {
+  if (!step.done) return '';
+  if (step.outcome === 'crash') return '💥 NoSuchElementException，程序崩溃';
+  return '❌ 返回了 ' + step.result + '，不对';
+}
+
 /* ---------- 做：挑战 ---------- */
 
-/** 挑战用 1..PERM_N 依次入栈 */
-export const PERM_N = 5;
+/** 挑战用 1..CHALLENGE_N 依次入栈 */
+export const CHALLENGE_N = 5;
+/** 挑战一组几道题 */
+export const CHALLENGE_COUNT = 5;
 
 export interface PermStep {
   /** 还没入栈的下一个数，全进去了是 n + 1 */
@@ -488,7 +565,7 @@ function reachable(n: number, rand: () => number): number[] {
 }
 
 /** 挑战的一组题：count 道，能和不能大约各一半，不重复，不出 1 2 3 4 5 这种太简单的 */
-export function permPuzzles(count: number, n = PERM_N, rand: () => number = Math.random): number[][] {
+export function permPuzzles(count: number, n = CHALLENGE_N, rand: () => number = Math.random): number[][] {
   const plan = shuffle(Array.from({ length: count }, (_, k) => k < Math.ceil(count / 2)), rand);
   const easy = [Array.from({ length: n }, (_, k) => k + 1).join(','), Array.from({ length: n }, (_, k) => n - k).join(',')];
   const seen = new Set<string>(easy);
@@ -501,4 +578,9 @@ export function permPuzzles(count: number, n = PERM_N, rand: () => number = Math
       return p;
     }
   });
+}
+
+/** 挑战的一组题（CHALLENGE_COUNT 道） */
+export function genChallenge(rand: () => number = Math.random): number[][] {
+  return permPuzzles(CHALLENGE_COUNT, CHALLENGE_N, rand);
 }

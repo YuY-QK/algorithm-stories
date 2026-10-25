@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { PLATE_ICONS, plateGame, runPlates, stars, topIndex, type PlateOp } from '../../engine/stack';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { PAUSE_LONG } from '../../components/shared/timing';
 import Plates from './Plates.vue';
 
 // 玩法一「拿盘子」：小熊一个个叠盘子，要拿的时候孩子点出会拿到哪一个。
@@ -29,17 +31,22 @@ function later(fn: () => void, ms: number) {
   timer = setTimeout(fn, ms);
 }
 
+/** 放上盘子后说清楚：放了哪个、现在叠了几个、最上面是谁 */
+function putText(plate: number, n: number): string {
+  return '🐻 把 ' + PLATE_ICONS[plate] + ' 盘放在最上面，现在叠了 ' + n + ' 个';
+}
+
 /** 自动放盘子，遇到「拿」就停下来问孩子 */
 function step() {
   if (at.value >= ops.value.length) return finish();
   const op = ops.value[at.value];
   if (op.kind === 'push') {
     at.value++;
-    say.value = '🐻 放上 ' + PLATE_ICONS[op.plate] + ' 盘';
-    later(step, 900);
+    say.value = putText(op.plate, cur.value.stack.length);
+    later(step, PAUSE_LONG);
   } else {
     phase.value = 'ask';
-    say.value = '🐻 要拿一个盘子，会拿到哪个？👆';
+    say.value = '🐻 要拿一个盘子了。只能拿最上面的，是哪一个？点点看 👆';
   }
 }
 
@@ -57,8 +64,9 @@ function tap(p: number) {
   glow.value = false;
   at.value++;
   phase.value = 'moving';
-  say.value = '👍 拿到 ' + PLATE_ICONS[p] + ' 盘';
-  later(step, 1000);
+  const left = cur.value.stack.length;
+  say.value = '👍 拿走最上面的 ' + PLATE_ICONS[p] + ' 盘，' + (left ? '还剩 ' + left + ' 个' : '盘子拿光了');
+  later(step, PAUSE_LONG);
 }
 
 function finish() {
@@ -74,8 +82,13 @@ function answerQuiz(when: 'first' | 'last') {
   quiz.value = when === 'last' ? 'right' : 'wrong';
 }
 
-function again() {
+function stopTimer() {
   if (timer) clearTimeout(timer);
+  timer = null;
+}
+
+function again() {
+  stopTimer();
   ops.value = plateGame();
   at.value = 0;
   misses.value = 0;
@@ -86,11 +99,17 @@ function again() {
 }
 
 step();
-onBeforeUnmount(() => { if (timer) clearTimeout(timer); });
+// 切换标签时动画要停：自动放盘子还没停下来的话，重新开一局
+useStageStop(() => {
+  if (phase.value === 'moving') again();
+  else stopTimer();
+});
+onBeforeUnmount(stopTimer);
 </script>
 
 <template>
   <div class="game">
+    <p class="small-note">目标：小熊一个个叠盘子，叠好以后会拿走几个。每次要拿的时候，点出你觉得会被拿走的那个盘子。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Plates
       :stack="cur.stack" :taken="cur.taken" :room="5"

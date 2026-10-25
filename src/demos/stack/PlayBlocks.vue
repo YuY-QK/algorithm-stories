@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { bracketAction, bracketEnd, bracketGame, stars, type Action } from '../../engine/stack';
+import { computed, onBeforeUnmount, ref } from 'vue';
+import { bracketAction, bracketEnd, bracketGame, pairOf, stars, type Action } from '../../engine/stack';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { FLASH_MS } from '../../components/shared/timing';
 import Piece from './Piece.vue';
 
 // 玩法二「拼积木」：( [ { 是左半块，) ] } 是右半块。孩子当栈：
@@ -24,13 +26,22 @@ const roundOver = computed(() => phase.value === 'stuck' || phase.value === 'cle
 const gameOver = computed(() => roundOver.value && r.value === rounds.value.length - 1);
 const earned = computed(() => stars(misses.value));
 
+let timers: ReturnType<typeof setTimeout>[] = [];
+function stopFlash() {
+  timers.forEach(clearTimeout);
+  timers = [];
+  wiggle.value = glowTop.value = glowBasket.value = 0;
+}
+useStageStop(stopFlash);
+onBeforeUnmount(stopFlash);
+
 /** 重新触发提示动画：先清零，下一帧再设上 */
 function flash(which: typeof wiggle) {
   which.value = 0;
   requestAnimationFrame(() => {
     const t = Date.now();
     which.value = t;
-    setTimeout(() => { if (which.value === t) which.value = 0; }, 1900);
+    timers.push(setTimeout(() => { if (which.value === t) which.value = 0; }, FLASH_MS));
   });
 }
 
@@ -53,14 +64,17 @@ function act(choice: Action) {
   wiggle.value = glowTop.value = glowBasket.value = 0;
   if (right === 'push') {
     basket.value = [...basket.value, c];
-    say.value = '⬆️ 放进篮子';
+    say.value = '⬆️ ' + c + ' 是左半块，放进篮子，篮子里现在有 ' + basket.value.length + ' 块';
   } else if (right === 'pop') {
-    made.value = [...made.value, basket.value[basket.value.length - 1] + c];
+    const top = basket.value[basket.value.length - 1];
+    made.value = [...made.value, top + c];
     basket.value = basket.value.slice(0, -1);
-    say.value = '🧩 拼成一整块！';
+    say.value = '🧩 ' + c + ' 和篮子最上面的 ' + top + ' 是一对，拼成一整块 ' + top + c + '！';
   } else {
     phase.value = 'stuck';
-    say.value = basket.value.length ? '🙅 形状对不上，这一串卡住啦' : '🙅 篮子空了，它没有伙伴，卡住啦';
+    say.value = basket.value.length
+      ? '🙅 ' + c + ' 要找 ' + pairOf(basket.value[basket.value.length - 1]) + ' 才拼得上最上面的 ' + basket.value[basket.value.length - 1] + '，形状对不上，这一串卡住啦'
+      : '🙅 篮子空了，' + c + ' 没有伙伴，卡住啦';
     return;
   }
   i.value++;
@@ -77,7 +91,7 @@ function finish(choice: 'clear' | 'left') {
     return right === 'clear' ? hint('🤔 看看篮子里还有吗？', glowBasket) : hint('🤔 篮子里还剩积木呢', glowBasket);
   }
   phase.value = right;
-  say.value = right === 'clear' ? '🎉 全拼好啦，篮子空空！' : '🙅 篮子里剩下的没有伙伴，没拼完';
+  say.value = right === 'clear' ? '🎉 全拼好啦，篮子空空！' : '🙅 篮子里还剩 ' + basket.value.length + ' 块没有伙伴，没拼完';
 }
 
 function startRound(k: number) {
@@ -103,6 +117,7 @@ function pieceLabel(c: string, k: number) {
 
 <template>
   <div class="game">
+    <p class="small-note">目标：左半块 ( [ { 放进篮子，右半块 ) ] } 来了，要和篮子最上面的一块形状一样才能拼上。一串看完，篮子空了才算全拼好。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <div class="dots" aria-label="第几串">
       <span v-for="(_, k) in rounds" :key="k" :class="{ on: k === r, past: k < r }" />

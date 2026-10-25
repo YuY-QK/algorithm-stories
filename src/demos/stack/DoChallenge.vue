@@ -1,25 +1,21 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { PERM_N, canPop, permPuzzles, permTrace } from '../../engine/stack';
+import { CHALLENGE_COUNT, CHALLENGE_N, canPop, genChallenge, permTrace } from '../../engine/stack';
 import Transport from '../../components/shared/Transport.vue';
 import { usePlayer } from '../../components/shared/usePlayer';
 
 // 做：挑战。1 到 5 依次入栈，中间随时可以出栈。给一个出栈顺序，先判断能不能做到，再看栈实际演一遍。
-const COUNT = 5;
-const puzzles = ref<number[][]>(permPuzzles(COUNT));
+const COUNT = CHALLENGE_COUNT;
+const puzzles = ref<number[][]>(genChallenge());
 const q = ref(0);
 const answer = ref<boolean | null>(null);
 const score = ref(0);
 const want = computed(() => puzzles.value[q.value]);
-const truth = computed(() => canPop(PERM_N, want.value));
-const steps = computed(() => permTrace(PERM_N, want.value));
-const p = usePlayer(steps, [
-  { label: '慢', ms: 1200 },
-  { label: '中', ms: 750 },
-  { label: '快', ms: 350 },
-]);
+const truth = computed(() => canPop(CHALLENGE_N, want.value));
+const steps = computed(() => permTrace(CHALLENGE_N, want.value));
+const p = usePlayer(steps);
 const st = computed(() => p.step.value);
-const waiting = computed(() => Array.from({ length: PERM_N - st.value.next + 1 }, (_, k) => st.value.next + k));
+const waiting = computed(() => Array.from({ length: CHALLENGE_N - st.value.next + 1 }, (_, k) => st.value.next + k));
 const finished = computed(() => q.value === COUNT - 1 && answer.value !== null && st.value.done);
 
 function judge(yes: boolean) {
@@ -36,7 +32,7 @@ function nextQ() {
 }
 
 function restart() {
-  puzzles.value = permPuzzles(COUNT);
+  puzzles.value = genChallenge();
   q.value = 0;
   score.value = 0;
   answer.value = null;
@@ -45,7 +41,7 @@ function restart() {
 
 <template>
   <div class="stage">
-    <p>1 到 {{ PERM_N }} 按顺序排队入栈，中间随时可以把栈顶拿出来。下面这个出栈顺序，能做到吗？先判断，再看栈演一遍。</p>
+    <p>1 到 {{ CHALLENGE_N }} 按顺序排队入栈，中间随时可以把栈顶拿出来。下面这个出栈顺序，能做到吗？先判断，再看栈演一遍。</p>
     <div class="vars">
       <span class="chip"><small>第</small>{{ q + 1 }} / {{ COUNT }} 题</span>
       <span class="chip"><small>答对</small>{{ score }}</span>
