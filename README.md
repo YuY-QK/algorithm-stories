@@ -6,10 +6,23 @@
 
 ## 已完成
 
-| 算法 | 故事 | 已有步骤 |
+共 13 关，每关都有看、玩、做、延伸四步，点名字直接玩。
+
+| 分类 | 算法 | 故事 |
 |---|---|---|
-| [二分查找](content/algorithms/binary-search/) | 小邮差找信箱 | 看、玩、做、延伸（样板关） |
-| [冒泡排序](content/algorithms/bubble-sort/) | 排队拍合照 | 玩、做、延伸（待按样板关重做） |
+| 查找 | [二分查找](https://yuy-qk.github.io/algorithm-stories/algo/binary-search/) | 小邮差找信箱 |
+| 排序 | [冒泡排序](https://yuy-qk.github.io/algorithm-stories/algo/bubble-sort/) | 排队拍合照 |
+| 排序 | [选择排序](https://yuy-qk.github.io/algorithm-stories/algo/selection-sort/) | 小熊排糖果 |
+| 排序 | [插入排序](https://yuy-qk.github.io/algorithm-stories/algo/insertion-sort/) | 小熊理纸牌 |
+| 排序 | [归并排序](https://yuy-qk.github.io/algorithm-stories/algo/merge-sort/) | 两队合一队 |
+| 排序 | [快速排序](https://yuy-qk.github.io/algorithm-stories/algo/quick-sort/) | 体育课排队 |
+| 数据结构 | [栈](https://yuy-qk.github.io/algorithm-stories/algo/stack/) | 小熊叠盘子 |
+| 数据结构 | [队列](https://yuy-qk.github.io/algorithm-stories/algo/queue/) | 奶茶店排队 |
+| 搜索与图 | [广度优先搜索](https://yuy-qk.github.io/algorithm-stories/algo/bfs/) | 小老鼠走迷宫 |
+| 搜索与图 | [深度优先搜索](https://yuy-qk.github.io/algorithm-stories/algo/dfs/) | 探险家走山洞 |
+| 算法思想 | [贪心算法](https://yuy-qk.github.io/algorithm-stories/algo/greedy/) | 小熊的小卖部 |
+| 算法思想 | [动态规划](https://yuy-qk.github.io/algorithm-stories/algo/dynamic-programming/) | 小兔子爬楼梯 |
+| 工程常用 | [LRU 缓存](https://yuy-qk.github.io/algorithm-stories/algo/lru-cache/) | 书桌上的五本书 |
 
 项目的基调见 [docs/overview.md](docs/overview.md)，候选算法清单见 [docs/algorithm-catalog.md](docs/algorithm-catalog.md)。
 
@@ -48,7 +61,7 @@ npm run build      # 构建静态网站到 dist/
 | `tests/` | 引擎测试和 Python 对拍 |
 | `prototypes/` | 最早的单文件原型，留作参考 |
 
-新增一个算法的步骤见 `CLAUDE.md`。
+新增一个算法的步骤见 `docs/level-spec.md`。
 
 ## 许可
 

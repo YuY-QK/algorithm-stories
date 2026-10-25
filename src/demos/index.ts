@@ -1,8 +1,10 @@
-import BinarySearch from './binary-search/Demo.astro';
-import BubbleSort from './bubble-sort/Demo.astro';
+import type { AstroComponentFactory } from 'astro/runtime/server/index.js';
 
-/** 算法目录名 → 演示页组件。新增一个算法，在这里登记一行 */
-export const DEMOS: Record<string, typeof BinarySearch> = {
-  'binary-search': BinarySearch,
-  'bubble-sort': BubbleSort,
-};
+/**
+ * 算法目录名 → 关卡页组件。自动收集 src/demos/<slug>/Demo.astro，新增算法不用在这里登记。
+ */
+const modules = import.meta.glob<{ default: AstroComponentFactory }>('./*/Demo.astro', { eager: true });
+
+export const DEMOS: Record<string, AstroComponentFactory> = Object.fromEntries(
+  Object.entries(modules).map(([path, mod]) => [path.split('/')[1], mod.default]),
+);

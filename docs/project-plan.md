@@ -82,7 +82,7 @@
 
 ### 4.1 分层
 
-把每个演示拆成三层，这也是 `CLAUDE.md` 里「逻辑和渲染分开」的延伸：
+把每个演示拆成三层，这也是 `AGENTS.md` 里「三层结构」的延伸：
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -299,4 +299,4 @@ algorithm/
 - 起步讨论：`docs/conversation-2026-10-20.md`
 - 规划、选型、建仓和部署讨论：`docs/discussion-log.md`
 - 算法清单：`docs/algorithm-catalog.md`
-- 项目约定：`CLAUDE.md`
+- 项目约定：`AGENTS.md`、`docs/level-spec.md`

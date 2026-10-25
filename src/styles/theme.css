@@ -200,7 +200,7 @@ select { width: auto; font-family: var(--body); }
 
 /* site chrome */
 .topnav { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; font-size: 14px; }
-.topnav a { color: var(--muted); text-decoration: none; }
+.topnav a { color: var(--muted); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
 .topnav a:hover, .topnav a[aria-current="page"] { color: var(--accent); }
 .topnav .home { font-family: var(--display); font-size: 1.15rem; color: var(--fg); margin-right: auto; }
 a { color: var(--accent); text-underline-offset: 3px; }
