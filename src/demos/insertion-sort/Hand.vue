@@ -151,7 +151,7 @@ button.pc:hover { border-color: var(--accent); }
 .pip { position: absolute; top: 3%; left: 9%; font-size: calc(var(--w) * 0.26); line-height: 1; }
 .pc.red .pip { color: var(--warn); }
 .rank { font: 700 calc(var(--w) * 0.5) / 1 var(--mono); font-variant-numeric: tabular-nums; }
-.pc.up { top: 0; transform: rotate(-5deg); border-color: var(--accent); box-shadow: 0 6px 12px rgba(0, 0, 0, 0.18); z-index: 2; }
+.pc.up { top: 0; transform: rotate(-5deg); border-color: var(--accent); box-shadow: 0 6px 12px color-mix(in srgb, var(--fg) 18%, transparent); z-index: 2; }
 .pc.away { opacity: 0.45; }
 .pc.vs { border-color: var(--mid); background: var(--mid); color: var(--mid-ink); }
 .pc.vs .pip { color: inherit; }
