@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BUGS, CHALLENGE, CODE, KID_COINS, LOOK_AMOUNT, ODD, PUZZLES, SYSTEMS, bestPicks, buildTrace, canTake,
-  cashierAmount, cashierStars, cashierTrace, counterexample, greedyNext, greedyPicks, judgePuzzle, minCoins,
-  rounds, runBug,
+  BUGS, CHALLENGE, CODE, KID_COINS, LOOK_AMOUNT, ODD, PUZZLES, SYSTEMS, bestPicks, bugVerdict, buildTrace, canTake,
+  cashierAmount, cashierStars, cashierTrace, counterexample, countOptions, desc, genPredict, greedyNext, greedyPicks,
+  judgePuzzle, lookFrames, minCoins, randomAmount, rounds, runBug, whyCoin,
 } from '../src/engine/greedy';
+import { seeded } from './helpers/seeded';
 
 const sum = (a: number[]) => a.reduce((s, x) => s + x, 0);
 
@@ -98,6 +99,38 @@ describe('贪心 看、玩：小熊的小卖部', () => {
   });
 });
 
+describe('贪心 看：lookFrames', () => {
+  const frames = lookFrames();
+
+  it('台词都在引擎里，一页一行，前两页是开场，最后一页是结论', () => {
+    expect(frames[0].say).toContain('46');
+    for (const f of frames) {
+      expect(f.say.length).toBeGreaterThan(0);
+      expect(f.say).not.toContain('\n');
+    }
+    expect(frames.at(-1)!.say).toContain('不一定最少');
+  });
+
+  it('第一章：46 找成 20、20、5、1，最少；第二章：1、3、4 找 6，贪心 3 枚，对比的拿法是 3 + 3', () => {
+    const one = frames.find((f) => f.say.includes('最少！'))!;
+    expect(one.plate).toEqual([20, 20, 5, 1]);
+    expect(one.left).toBe(0);
+    const two = frames.find((f) => f.say.startsWith('贪心用了'))!;
+    expect(two.plate).toEqual(greedyPicks(ODD.coins, ODD.amount));
+    expect(two.say).toContain('3 枚');
+    expect(frames.at(-1)!.compare).toEqual([3, 3]);
+    expect(frames.filter((f) => f.compare).length).toBe(2);
+  });
+
+  it('每页的 left + plate 总和 = 当时的金额，跳过的面值都比剩下的大', () => {
+    for (const f of frames) {
+      const total = f.plate.reduce((a, b) => a + b, 0) + f.left;
+      expect([LOOK_AMOUNT, ODD.amount]).toContain(total);
+      for (const d of f.dim) if (f.focus === null) expect(d).toBeGreaterThan(f.left);
+    }
+  });
+});
+
 describe('贪心 动态规划 minCoins', () => {
   it('和宽度优先搜索结果一致（包括凑不出来的 -1）', () => {
     for (let k = 0; k < 400; k++) {
@@ -175,6 +208,47 @@ describe('贪心 做：猜下一步', () => {
   });
 });
 
+describe('贪心 做：猜下一步（解释和出题）', () => {
+  it('每题带 why 和 options：options 含正确枚数、4 个互不相同的正整数；why 说得出 left、面值和余数', () => {
+    for (let k = 0; k < 500; k++) {
+      const rand = seeded(k);
+      const q = genPredict(rand);
+      for (const r of rounds(q.coins, q.amount)) {
+        expect(r.options).toContain(r.count);
+        expect(new Set(r.options).size).toBe(r.options.length);
+        expect(r.options.every((x) => x >= 1)).toBe(true);
+        expect(r.why).toContain(r.left + ' ÷ ' + r.coin + ' = ' + r.count);
+        expect(r.why).toContain('余 ' + (r.left - r.count * r.coin));
+      }
+    }
+    expect(countOptions(1)).toEqual([1, 2, 3, 4]);
+    expect(countOptions(5)).toEqual([4, 5, 6, 7]);
+  });
+
+  it('whyCoin：太大和不是最大两种说法', () => {
+    const r = rounds([1, 5, 10, 25], 37)[0];
+    expect(r.coin).toBe(25);
+    expect(whyCoin(r, 50)).toContain('比剩下的 37 大');
+    expect(whyCoin(r, 10)).toContain('更大的 25');
+  });
+
+  it('genPredict / randomAmount：固定种子结果固定，范围和面值都在约定里', () => {
+    expect(genPredict(seeded(7))).toEqual(genPredict(seeded(7)));
+    expect(randomAmount(seeded(7))).toBe(randomAmount(seeded(7)));
+    for (let k = 0; k < 500; k++) {
+      const q = genPredict(seeded(k));
+      expect(q.amount).toBeGreaterThanOrEqual(20);
+      expect(q.amount).toBeLessThan(200);
+      expect(SYSTEMS.map((s) => desc(s.coins))).toContainEqual(q.coins);
+      const a = randomAmount(seeded(k));
+      expect(a).toBeGreaterThanOrEqual(10);
+      expect(a).toBeLessThan(100);
+    }
+    expect(randomAmount(() => 0)).toBe(10);
+    expect(randomAmount(() => 0.999999)).toBe(99);
+  });
+});
+
 describe('贪心 做：找 bug', () => {
   it('每个坑只改了一行，改回来就是正确代码', () => {
     for (const b of BUGS) {
@@ -192,6 +266,17 @@ describe('贪心 做：找 bug', () => {
     expect(end.if.outcome).toBe('ok');
     expect(sum(end.if.picked)).toBeLessThan(BUGS.find((b) => b.id === 'if')!.amount);
     expect(end.reset.outcome).toBe('stuck');
+  });
+
+  it('bugVerdict：没跑完是空，跑完按结果说话', () => {
+    for (const b of BUGS) {
+      const tr = runBug(b);
+      for (const st of tr.slice(0, -1)) expect(bugVerdict(st, b)).toBe('');
+    }
+    const v = Object.fromEntries(BUGS.map((b) => [b.id, bugVerdict(runBug(b).at(-1)!, b)]));
+    expect(v.ascending).toBe('❌ 找了 12 枚，太多了');
+    expect(v.if).toBe('❌ 只找出 18，还差 9');
+    expect(v.reset).toContain('死循环');
   });
 
   it('runBug 的行号在范围里，只有最后一步 done', () => {

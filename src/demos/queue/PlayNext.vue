@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { BIG, lineAt, lineScript, nextUp, stars, type LineEvent } from '../../engine/queue';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { PAUSE_MID, PAUSE_SHORT } from '../../components/shared/timing';
 
 // 玩法一「谁先买到？」：顾客一个个来排队，店员问「下一个是谁」，孩子点出来。
 // 答案由剧本固定（永远是队头）。点错时被点的晃一下，队头举手 🙋。
@@ -19,7 +21,16 @@ const say = ref('🧑‍🍳 奶茶店开门啦，客人来了……');
 
 let timers: ReturnType<typeof setTimeout>[] = [];
 const later = (fn: () => void, ms: number) => timers.push(setTimeout(fn, ms));
-onBeforeUnmount(() => timers.forEach(clearTimeout));
+function stopTimers() {
+  timers.forEach(clearTimeout);
+  timers = [];
+}
+// 切换标签时动画要停：客人还在陆续来或者正在离开的话，重新开一局
+useStageStop(() => {
+  if (phase.value === 'walk' || phase.value === 'serve') again();
+  else stopTimers();
+});
+onBeforeUnmount(stopTimers);
 
 /** 往下走剧本：来人就排进队尾，遇到「问」就停下等孩子点 */
 function step() {
@@ -32,15 +43,15 @@ function step() {
   const e = script.value[at.value];
   if ('arrive' in e) {
     line.value = [...line.value, e.arrive];
-    say.value = e.arrive + ' 来了';
+    say.value = e.arrive + ' 来了，排在队伍最后面，现在队里有 ' + line.value.length + ' 位';
     at.value++;
-    later(step, 750);
+    later(step, PAUSE_SHORT);
   } else {
     phase.value = 'ask';
-    say.value = '🧑‍🍳 下一个买到 🧋 的是谁？';
+    say.value = '🧑‍🍳 要做好一杯 🧋 了，队里下一个买到的是谁？点一点 👆';
   }
 }
-later(step, 600);
+later(step, PAUSE_SHORT);
 
 function tap(a: string) {
   if (phase.value !== 'ask') return;
@@ -50,13 +61,13 @@ function tap(a: string) {
     shaking.value = null;
     requestAnimationFrame(() => (shaking.value = a));
     raise.value = right;
-    say.value = a === BIG ? '🐘 个子大，也要排队哦' : '🙋 谁排在最前面？';
+    say.value = a === BIG ? '🐘 个子大也要排队，来得晚就排在后面哦。举手的才是排最前面的' : '🙋 ' + a + ' 不是最先来的。举手的排在最前面，先来的先买';
     return;
   }
   raise.value = null;
   phase.value = 'serve';
   leaving.value = a;
-  say.value = '🎉 ' + a + ' 买到 🧋';
+  say.value = '🎉 ' + a + ' 排在最前面，先买到 🧋，离开队伍';
   later(() => {
     line.value = line.value.slice(1);
     served.value = [...served.value, a];
@@ -64,7 +75,7 @@ function tap(a: string) {
     at.value++;
     phase.value = 'walk';
     step();
-  }, 800);
+  }, PAUSE_MID);
 }
 
 function answer(c: 'first' | 'last' | 'big') {
@@ -83,8 +94,7 @@ const earned = computed(() => stars(mistakes.value));
 const arrived = computed(() => script.value.flatMap((e) => ('arrive' in e ? [e.arrive] : [])));
 
 function again() {
-  timers.forEach(clearTimeout);
-  timers = [];
+  stopTimers();
   script.value = lineScript();
   at.value = 0;
   line.value = [];
@@ -95,12 +105,13 @@ function again() {
   leaving.value = null;
   phase.value = 'walk';
   say.value = '🧑‍🍳 又来了一批客人……';
-  later(step, 600);
+  later(step, PAUSE_SHORT);
 }
 </script>
 
 <template>
   <div class="game">
+    <p class="small-note">目标：客人一个个来排队。店员问「下一个是谁」的时候，点出下一个能买到奶茶的人。点错了，排最前面的会举手提醒你。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <div class="shop">
       <div class="counter" aria-hidden="true">🧑‍🍳<small>🧋</small></div>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 import { CANDY_MAX } from '../../engine/selection-sort';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../components/shared/timing';
 
 // 一排糖果加上方的小熊。看、玩法一、玩法二共用，只负责画，不管规则。
 // 糖果的大小就是它的数字，各不相同，所以直接用数字当 key，交换时会滑过去换位置。
@@ -25,12 +27,21 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ pick: [k: number] }>();
 
 const shaking = ref<number | null>(null);
+let shakeTimer: ReturnType<typeof setTimeout> | null = null;
+function stopShake() {
+  if (shakeTimer) clearTimeout(shakeTimer);
+  shakeTimer = null;
+  shaking.value = null;
+}
 watch(() => props.shake, (v) => {
   if (!v) return;
-  shaking.value = null;
+  stopShake();
   requestAnimationFrame(() => (shaking.value = v[0]));
-  setTimeout(() => (shaking.value = null), 600);
+  shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
 });
+// 切换标签或卸载时，晃动动画停下
+useStageStop(stopShake);
+onBeforeUnmount(stopShake);
 
 const left = (k: number) => 'calc(' + ((k + 0.5) / props.values.length) * 100 + '% - 0.6em)';
 const scale = (v: number) => (0.42 + (0.58 * v) / CANDY_MAX).toFixed(3);

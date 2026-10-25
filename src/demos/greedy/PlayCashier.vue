@@ -34,18 +34,19 @@ function tap(c: number) {
   if (done.value) return;
   if (!canTake(left.value, c)) {
     shake.value = [c, (shake.value?.[1] ?? 0) + 1];
-    say.value = '🙅 ' + c + ' 太大啦，找多了';
+    say.value = '🙅 ' + c + ' 比还要找的 ' + left.value + ' 大，放进去就找多了，换小一点的';
     return;
   }
   plate.value = [...plate.value, c];
   if (left.value === 0) finish();
-  else say.value = '还要找 ' + left.value;
+  else say.value = '放进 ' + c + '，还要找 ' + left.value;
 }
 
 function undo() {
   if (done.value || !plate.value.length) return;
+  const back = plate.value[plate.value.length - 1];
   plate.value = plate.value.slice(0, -1);
-  say.value = '还要找 ' + left.value;
+  say.value = '把 ' + back + ' 拿回钱盒，还要找 ' + left.value;
 }
 
 function finish() {
@@ -81,6 +82,7 @@ function nextCustomer() {
 
 <template>
   <div class="game">
+    <p class="small-note">目标：把客人要找的钱凑够，用的硬币越少越好。点钱盒里的硬币，放进找零盘。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Shop
       :coins="COINS" :left="left" :plate="plate" who="🐻"

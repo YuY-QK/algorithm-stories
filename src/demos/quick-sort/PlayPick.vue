@@ -53,7 +53,7 @@ function pickKid(id: number) {
   split.value = s;
   if (isBalanced(s, PICK_N)) {
     phase.value = 'good';
-    say.value = '🎉 两边差不多多，分得真均匀！';
+    say.value = '🎉 矮的 ' + s.left + ' 人在左边，高的 ' + s.right + ' 人在右边，分得真均匀！';
   } else {
     phase.value = 'bad';
     bad.value++;
@@ -82,6 +82,7 @@ const earned = computed(() => stars(bad.value));
 
 <template>
   <div class="game">
+    <p class="small-note">目标：点一位同学当标杆 🚩，让他左边（比他矮）和右边（比他高）的人数尽量接近。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <p class="small-note">第 {{ Math.min(round, ROUNDS) }} / {{ ROUNDS }} 回</p>
     <Lineup :heights="values" :order="order" :kinds="kinds" :pickable="phase === 'pick'" :glow="glow" @pick="pickKid" />

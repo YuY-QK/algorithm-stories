@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
-import { LANE_NAME, RACE_N, buildTrace, raceLanes, type RaceLane } from '../../engine/insertion-sort';
+import { CHALLENGE_N, LANE_NAME, buildTrace, genChallenge, type RaceLane } from '../../engine/insertion-sort';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { RACE_STRIDE, RACE_TICK } from '../../components/shared/timing';
 
 // 做：挑战。四组数组同时跑插入排序，先预测谁最快、谁最慢，再开跑，和实际的挪动次数比一比。
 const LETTERS = ['A', 'B', 'C', 'D'];
@@ -18,7 +20,7 @@ function stop() {
 }
 function fresh() {
   stop();
-  lanes.value = raceLanes();
+  lanes.value = genChallenge();
   fast.value = null;
   slow.value = null;
   phase.value = 'fast';
@@ -42,9 +44,9 @@ function go() {
   phase.value = 'race';
   t.value = 0;
   timer = setInterval(() => {
-    t.value += 2;
+    t.value += RACE_STRIDE;
     if (t.value >= longest.value) finish();
-  }, 30);
+  }, RACE_TICK);
 }
 function finish() {
   stop();
@@ -73,6 +75,11 @@ const prompt = computed(() => ({
   end: '',
 }[phase.value]));
 
+// 切换标签时赛跑要停下，停在当前画面
+useStageStop(() => {
+  if (phase.value === 'race') finish();
+  else stop();
+});
 onBeforeUnmount(stop);
 </script>
 
@@ -96,12 +103,12 @@ onBeforeUnmount(stop);
           <span v-if="slow === k" class="pick-tag">🐢 猜最慢</span>
           <span v-if="phase === 'end'" class="kind">{{ LANE_NAME[l.kind] }}</span>
         </span>
-        <span class="sticks" :style="{ '--n': RACE_N }" aria-hidden="true">
+        <span class="sticks" :style="{ '--n': CHALLENGE_N }" aria-hidden="true">
           <i
             v-for="(v, x) in now(k).arr"
             :key="x"
             :class="{ hole: x === now(k).hole && now(k).key !== null, vs: x === now(k).cmp }"
-            :style="{ height: (v / RACE_N) * 100 + '%' }"
+            :style="{ height: (v / CHALLENGE_N) * 100 + '%' }"
           />
         </span>
         <span class="meter">
@@ -121,7 +128,7 @@ onBeforeUnmount(stop);
         最快的是 {{ LETTERS[fastest] }}（{{ LANE_NAME[lanes[fastest].kind] }}，挪 {{ traces[fastest].at(-1)!.moves }} 次），
         最慢的是 {{ LETTERS[slowest] }}（{{ LANE_NAME[lanes[slowest].kind] }}，挪 {{ traces[slowest].at(-1)!.moves }} 次）。
       </p>
-      <p>挪动次数正好等于逆序对数（前大后小的对数）。「只有最后一个最小」看着几乎有序，可 1 得一路挪到最前面，要挪 {{ RACE_N - 1 }} 次；完全倒序每一对都是逆序，{{ RACE_N }} × {{ RACE_N - 1 }} ÷ 2 = {{ (RACE_N * (RACE_N - 1)) / 2 }} 次。</p>
+      <p>挪动次数正好等于逆序对数（前大后小的对数）。「只有最后一个最小」看着几乎有序，可 1 得一路挪到最前面，要挪 {{ CHALLENGE_N - 1 }} 次；完全倒序每一对都是逆序，{{ CHALLENGE_N }} × {{ CHALLENGE_N - 1 }} ÷ 2 = {{ (CHALLENGE_N * (CHALLENGE_N - 1)) / 2 }} 次。</p>
       <button type="button" class="btn small" @click="fresh">再来一局</button>
     </div>
   </div>

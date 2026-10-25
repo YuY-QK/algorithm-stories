@@ -1,4 +1,4 @@
-import type { Step, Trace } from './types';
+import type { BugInfo, LookFrame, Step, Trace } from './types';
 
 /* ---------- 看、玩：书桌上的书 ---------- */
 
@@ -51,6 +51,63 @@ export function countHits(seq: number[], cap: number, policy: Policy = 'lru'): n
 
 /** 「看」的借书顺序：第 5 本书一出现，桌子就放不下了 */
 export const LOOK_SEQ = [1, 2, 3, 4, 2, 5, 3, 1];
+
+/** 「看」里一共有几本书 */
+export const LOOK_BOOKS = Math.max(...LOOK_SEQ);
+
+/** 「看」的一页：台词，加上书桌的画面 */
+export interface BookFrame extends LookFrame {
+  /** 桌上的书，从最久没碰（左）到刚碰过（右） */
+  desk: number[];
+  /** 一闪一闪：刚被借的书 */
+  pulse: number | null;
+  /** 透光：要被放回书架的书 */
+  glow: number | null;
+  /** 到这一页为止跑了几趟书架 */
+  trips: number;
+}
+
+const bookName = (b: number) => BOOK_EMOJI[b] + b + ' 号';
+
+/** 「看」的全部页：真的跑一遍 simulate，台词和画面都由结果生成 */
+export function lookFrames(seq: number[] = LOOK_SEQ, cap: number = KID_CAP): BookFrame[] {
+  const acc = simulate(seq, cap);
+  const out: BookFrame[] = [];
+  let tripCount = 0;
+  const add = (say: string, desk: number[], extra: Partial<BookFrame> = {}) =>
+    out.push({ say, desk, pulse: null, glow: null, trips: tripCount, ...extra });
+
+  add('书桌只放得下 ' + cap + ' 本书 📚 书架在很远的地方 🚶', []);
+  tripCount = cap;
+  add('先借了 ' + acc.slice(0, cap).map((a) => a.book).join(' ') + ' 号，桌子满了', acc[cap - 1].desk);
+
+  let firstHit = true;
+  let firstMiss = true;
+  for (const a of acc.slice(cap)) {
+    if (a.hit) {
+      if (firstHit) {
+        add('要 ' + bookName(a.book) + '：桌上有！✅', a.before, { pulse: a.book });
+        add('拿起来看一看，放到最右边 👉', a.desk);
+        firstHit = false;
+      } else {
+        add('要 ' + bookName(a.book) + '：桌上有 ✅ 放到最右边', a.desk);
+      }
+      continue;
+    }
+    tripCount++;
+    if (firstMiss) {
+      add('要 ' + bookName(a.book) + '：桌上没有，只好去书架 🚶', a.before, { pulse: a.book });
+      add('桌子满了！' + bookName(a.evicted!) + '最久没碰，放回书架', a.before, { glow: a.evicted });
+      add(bookName(a.book) + '坐到最右边', a.desk);
+      firstMiss = false;
+    } else {
+      add('要 ' + bookName(a.book) + '：没有 🚶 放回最久没碰的 ' + bookName(a.evicted!), a.before, { glow: a.evicted, pulse: a.book });
+      add(bookName(a.book) + '坐到最右边', a.desk);
+    }
+  }
+  add('最久没碰的在左边，刚碰过的在右边 🎉 一共跑了 ' + tripCount + ' 趟书架', acc[acc.length - 1].desk);
+  return out;
+}
 
 /** 玩法一：4 次要放回书架。第 2 次放回的是 3 号而不是 2 号，因为 2 号刚被翻过 */
 export const EVICT_SEQ = [1, 2, 3, 4, 5, 2, 6, 3, 5, 1];
@@ -241,7 +298,7 @@ interface SimNode {
  * bug 不为空时执行 bug 版本的代码，和 CODE 只差一行。
  * 因为是真的在改指针，bug 版本出的错是真的，不是画出来的。
  */
-export function buildTrace(cap: number, ops: Op[], bug?: BugId): Trace<LruStep> {
+function traceOf(cap: number, ops: Op[], bug?: BugId): Trace<LruStep> {
   const steps: LruStep[] = [];
   const mk = (key: number, value: number): SimNode => ({ key, value, prev: null, next: null });
   const map = new Map<number, SimNode>();
@@ -399,6 +456,11 @@ export function buildTrace(cap: number, ops: Op[], bug?: BugId): Trace<LruStep> 
   return steps;
 }
 
+/** 正确版本的逐步执行 */
+export function buildTrace(cap: number, ops: Op[]): Trace<LruStep> {
+  return traceOf(cap, ops);
+}
+
 /* ---------- 做：猜下一步 ---------- */
 
 export function genOps(n: number, keys: number, rand: () => number = Math.random): Op[] {
@@ -410,7 +472,7 @@ export function genOps(n: number, keys: number, rand: () => number = Math.random
   return out;
 }
 
-export interface Quiz {
+export interface Round {
   /** 操作之前链表的样子 */
   before: Item[];
   /** 操作 */
@@ -418,7 +480,8 @@ export interface Quiz {
   prompt: string;
   options: string[];
   correct: number;
-  explain: string;
+  /** 答完（对或错）都显示的解释 */
+  why: string;
 }
 
 const orderText = (l: Item[]) => (l.length ? l.map((x) => x.k).join(' → ') : '（空）');
@@ -430,18 +493,24 @@ function shuffleIn(correct: string, wrong: string[], rand: () => number): { opti
   return { options, correct: at };
 }
 
+/** 一局猜下一步：书桌容量 2 或 3，随机 14 个操作 */
+export function genPredict(rand: () => number = Math.random): { cap: number; ops: Op[] } {
+  const cap = 2 + Math.floor(rand() * 2);
+  return { cap, ops: genOps(14, cap + 2, rand) };
+}
+
 /** 对每个操作出一道题，题目和选项都由标准答案生成 */
-export function quizzes(cap: number, ops: Op[], rand: () => number = Math.random): Quiz[] {
-  const out: Quiz[] = [];
+export function rounds(cap: number, ops: Op[], rand: () => number = Math.random): Round[] {
+  const out: Round[] = [];
   let list: Item[] = [];
   for (const op of ops) {
     const r = refApply(list, cap, op);
     const label = opText(op);
     const exists = list.some((x) => x.k === op.k);
-    let q: Omit<Quiz, 'before' | 'op'>;
+    let q: Omit<Round, 'before' | 'op'>;
     if (op.t === 'get' && !exists) {
       const s = shuffleIn('返回 -1', ['返回 ' + (op.k + 1)], rand);
-      q = { prompt: label + ' 返回什么？', ...s, explain: 'map 里没有 ' + op.k + '，直接 return -1，链表不动。' };
+      q = { prompt: label + ' 返回什么？', ...s, why: 'map 里没有 ' + op.k + '，直接 return -1，链表不动。' };
     } else if (op.t === 'get') {
       const wrongOld = [op.k, ...list.filter((x) => x.k !== op.k).map((x) => x.k)];
       const correct = orderText(r.list);
@@ -449,21 +518,21 @@ export function quizzes(cap: number, ops: Op[], rand: () => number = Math.random
       q = {
         prompt: label + ' 命中了。之后链表从最久到最近的顺序是？',
         ...s,
-        explain: '命中就是用过了：' + op.k + ' 挪到最右边（最近用过），其他的顺序不变。',
+        why: '命中就是用过了：' + op.k + ' 挪到最右边（最近用过），其他的顺序不变。',
       };
     } else if (exists && list.length === cap) {
       const s = shuffleIn('没人被淘汰', list.map((x) => '淘汰 ' + x.k), rand);
       q = {
         prompt: '桌子满了。' + label + '，key 已经存在，会淘汰谁？',
         ...s,
-        explain: op.k + ' 已经在里面了，只更新值并挪到最右边，一个都不用淘汰。',
+        why: op.k + ' 已经在里面了，只更新值并挪到最右边，一个都不用淘汰。',
       };
     } else if (!exists && list.length === cap) {
       const s = shuffleIn('淘汰 ' + list[0].k, [...list.slice(1).map((x) => '淘汰 ' + x.k), '没人被淘汰'], rand);
       q = {
         prompt: '满了。' + label + '，key 是新的，会淘汰谁？',
         ...s,
-        explain: '淘汰最久没用的，也就是链表最左边的 ' + list[0].k + '。新来的 ' + op.k + ' 放到最右边。',
+        why: '淘汰最久没用的，也就是链表最左边的 ' + list[0].k + '。新来的 ' + op.k + ' 放到最右边。',
       };
     } else {
       const correct = orderText(r.list);
@@ -474,7 +543,7 @@ export function quizzes(cap: number, ops: Op[], rand: () => number = Math.random
       q = {
         prompt: label + ' 之后，链表从最久到最近的顺序是？',
         ...s,
-        explain: exists
+        why: exists
           ? op.k + ' 已存在：更新值，并挪到最右边。'
           : '还有空位，不用淘汰。新来的 ' + op.k + ' 放到最右边（最近用过）。',
       };
@@ -487,26 +556,18 @@ export function quizzes(cap: number, ops: Op[], rand: () => number = Math.random
 
 /* ---------- 做：找 bug ---------- */
 
-export interface Bug {
+export interface Bug extends BugInfo {
   id: BugId;
-  title: string;
-  /** 有 bug 的 Kotlin 代码，和 CODE 只差一行 */
-  code: string[];
-  /** 出错的那一行（从 1 开始） */
-  wrongLine: number;
-  /** 改对之后的那一行 */
-  fixed: string;
+  /** code 是有 bug 的 Kotlin 代码，和 CODE 只差一行 */
   cap: number;
   ops: Op[];
-  expect: string;
-  explain: string;
 }
 
 function variant(line: number, text: string): string[] {
   return CODE.map((t, k) => (k + 1 === line ? text : t));
 }
 
-export const BUGS: Bug[] = [
+export const BUGS: readonly Bug[] = [
   {
     id: 'no-touch',
     title: '刚用过的书，却被先淘汰了',
@@ -558,27 +619,22 @@ export const BUGS: Bug[] = [
   },
 ];
 
-export interface BugRun {
-  steps: Trace<LruStep>;
-  /** 最后判定出错的那句话 */
-  verdict: string;
+/** 按 bug 版本的代码执行：真的在改指针和哈希表 */
+export function runBug(bug: Bug): Trace<LruStep> {
+  return traceOf(bug.cap, bug.ops, bug.id);
 }
 
-export function runBug(bug: Bug): BugRun {
-  const steps = buildTrace(bug.cap, bug.ops, bug.id);
+/** 找 bug 面板底部的判定文字：跑到最后一步才有，指出第一个返回值不对的 get；返回值都对就看内容 */
+export function bugVerdict(step: LruStep, bug: Bug): string {
+  if (!step.done) return '';
+  const steps = runBug(bug);
   const expected = refRun(bug.cap, bug.ops);
-  const last = steps[steps.length - 1];
-  const gets = bug.ops.map((o, i) => ({ o, i })).filter((x) => x.o.t === 'get');
-  let verdict = '';
-  for (const { o, i } of gets) {
+  for (let i = 0; i < bug.ops.length; i++) {
+    if (bug.ops[i].t !== 'get') continue;
     const end = steps.find((s) => s.op === i && s.opEnd)!;
-    if (end.ret !== expected.rets[i]) {
-      verdict = '❌ ' + opText(o) + ' 返回了 ' + end.ret + '，应该是 ' + expected.rets[i];
-      break;
-    }
+    if (end.ret !== expected.rets[i]) return '❌ ' + opText(bug.ops[i]) + ' 返回了 ' + end.ret + '，应该是 ' + expected.rets[i];
   }
-  if (!verdict && last.bad) verdict = '❌ 缓存的内容和正确的 LRU 对不上';
-  return { steps, verdict };
+  return step.bad ? '❌ 缓存的内容和正确的 LRU 对不上' : '';
 }
 
 /* ---------- 做：挑战 ---------- */

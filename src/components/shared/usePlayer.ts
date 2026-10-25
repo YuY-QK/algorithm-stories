@@ -1,4 +1,5 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue';
+import { SPEEDS } from './timing';
 
 export interface Speed {
   label: string;
@@ -9,10 +10,19 @@ export interface Speed {
 export const STAGE_CHANGE_EVENT = 'algo:stagechange';
 
 /**
+ * 任何自己开 setTimeout / setInterval 的组件都要调用：切换标签（看、玩、做、延伸）时 stop 会被调用，
+ * 卸载时自动清理监听。stop 里负责清掉自己的定时器。
+ */
+export function useStageStop(stop: () => void) {
+  onMounted(() => window.addEventListener(STAGE_CHANGE_EVENT, stop));
+  onBeforeUnmount(() => window.removeEventListener(STAGE_CHANGE_EVENT, stop));
+}
+
+/**
  * 播放一条步骤轨迹：单步、自动播放、调速、跳转。
  * 所有算法的逐步执行面板都用它，自己只负责画出 step。
  */
-export function usePlayer<S>(steps: Ref<S[]>, speeds: Speed[], defaultSpeed = 1) {
+export function usePlayer<S>(steps: Ref<S[]>, speeds: Speed[] = SPEEDS, defaultSpeed = 1) {
   const idx = ref(0);
   const speed = ref(speeds[defaultSpeed].ms);
   const timer = ref<ReturnType<typeof setInterval> | null>(null);

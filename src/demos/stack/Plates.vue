@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 import { PLATE_ICONS, PLATE_NAMES } from '../../engine/stack';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../components/shared/timing';
 
 // 一摞盘子加「拿走的」一排。看、玩法一共用，只负责画，不管规则。
 const props = withDefaults(defineProps<{
@@ -23,12 +25,20 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ pick: [plate: number] }>();
 
 const shaking = ref<number | null>(null);
+let shakeTimer: ReturnType<typeof setTimeout> | null = null;
+function stopShake() {
+  if (shakeTimer) clearTimeout(shakeTimer);
+  shakeTimer = null;
+  shaking.value = null;
+}
 watch(() => props.shake, (v) => {
   if (!v) return;
-  shaking.value = null;
+  stopShake();
   requestAnimationFrame(() => (shaking.value = v[0]));
-  setTimeout(() => (shaking.value = null), 600);
+  shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
 });
+useStageStop(stopShake);
+onBeforeUnmount(stopShake);
 
 function label(p: number, k: number) {
   const top = k === props.stack.length - 1;

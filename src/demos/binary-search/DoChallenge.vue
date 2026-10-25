@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { CHALLENGE_LIMIT, CHALLENGE_MAX, middle } from '../../engine/binary-search';
+import { CHALLENGE_LIMIT, CHALLENGE_MAX, genChallenge, middle } from '../../engine/binary-search';
 
 // 做：挑战。1 到 1000 里猜一个数，10 次以内猜中过关。
 const secret = ref(0);
@@ -12,7 +12,7 @@ const msg = ref('');
 const state = ref<'play' | 'win' | 'lose'>('play');
 
 function fresh() {
-  secret.value = 1 + Math.floor(Math.random() * CHALLENGE_MAX);
+  secret.value = genChallenge();
   lo.value = 1;
   hi.value = CHALLENGE_MAX;
   log.value = [];

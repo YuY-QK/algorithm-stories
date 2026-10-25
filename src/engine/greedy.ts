@@ -1,4 +1,4 @@
-import type { Step, Trace } from './types';
+import type { BugInfo, LookFrame, Step, Trace } from './types';
 
 /* ---------- 通用：贪心找零和动态规划的最少枚数 ---------- */
 
@@ -90,6 +90,62 @@ export function cashierTrace(coins: number[], amount: number): CashierMove[] {
   return out;
 }
 
+/** 「看」的一页：台词，加上小卖部的画面 */
+export interface LookPage extends LookFrame {
+  /** 柜台上的面值，从大到小 */
+  coins: number[];
+  /** 还要找多少 */
+  left: number;
+  /** 找零盘里已经放的硬币 */
+  plate: number[];
+  /** 正在看的面值 */
+  focus: number | null;
+  /** 已经跳过（比剩下的大）的面值 */
+  dim: number[];
+  /** 最少拿法，贪心失灵时在最后两页展示 */
+  compare: number[] | null;
+}
+
+/** 一段找零过程的画面：每看一枚硬币一页 */
+function coinPages(coins: number[], amount: number): LookPage[] {
+  const out: LookPage[] = [];
+  let plate: number[] = [];
+  let dim: number[] = [];
+  for (const m of cashierTrace(coins, amount)) {
+    if (m.action === 'skip') {
+      dim = [...dim, m.coin];
+      out.push({ say: m.coin + ' 比 ' + m.left + ' 大，找多啦 🙅', coins, left: m.left, plate, focus: m.coin, dim, compare: null });
+    } else {
+      plate = [...plate, m.coin];
+      const left = m.left - m.coin;
+      out.push({ say: '拿 ' + m.coin + '！' + (left ? '还要找 ' + left : '找完啦'), coins, left, plate, focus: m.coin, dim, compare: null });
+    }
+  }
+  return out;
+}
+
+/** 「看」的全部页：小卖部找 46，再换一盒奇怪的硬币找 6，台词和画面都由真实的贪心过程生成 */
+export function lookFrames(): LookPage[] {
+  const kid = desc(KID_COINS);
+  const odd = desc(ODD.coins);
+  const a = coinPages(kid, LOOK_AMOUNT);
+  const b = coinPages(odd, ODD.amount);
+  const lastA = a[a.length - 1];
+  const lastB = b[b.length - 1];
+  const best = bestPicks(odd, ODD.amount)!;
+  return [
+    { say: '🐰 买了蜂蜜，小熊要找她 ' + LOOK_AMOUNT, coins: kid, left: LOOK_AMOUNT, plate: [], focus: null, dim: [], compare: null },
+    { say: '小熊的秘诀：每次拿最大的、不超过剩下的 🪙', coins: kid, left: LOOK_AMOUNT, plate: [], focus: kid[0], dim: [], compare: null },
+    ...a,
+    { ...lastA, say: '只用了 ' + lastA.plate.length + ' 枚，最少！🎉', focus: null, dim: [] },
+    { say: '咦？换一盒奇怪的硬币，找 ' + ODD.amount, coins: odd, left: ODD.amount, plate: [], focus: null, dim: [], compare: null },
+    ...b,
+    { ...lastB, say: '贪心用了 ' + lastB.plate.length + ' 枚……', focus: null, dim: [] },
+    { ...lastB, say: best.join(' + ') + ' 只要 ' + best.length + ' 枚！😮', focus: null, dim: [], compare: best },
+    { ...lastB, say: '眼前最大的，不一定最少 🤔', focus: null, dim: [], compare: best },
+  ];
+}
+
 /** 能不能把这枚硬币放进找零盘：比剩下的大就找多了 */
 export function canTake(left: number, coin: number): boolean {
   return coin <= left;
@@ -151,6 +207,8 @@ export const CODE = [
 ];
 
 export interface GreedyStep extends Step {
+  /** 'running' 还在跑；'ok' 正常返回（找bug时结果可能是错的）；'stuck' 判定为死循环 */
+  outcome: 'running' | 'ok' | 'stuck';
   /** 排好序的面值，排序之前是空的 */
   sorted: number[];
   /** 正在看的面值 */
@@ -167,6 +225,11 @@ export const SYSTEMS: { id: string; label: string; coins: number[] }[] = [
   { id: 'odd', label: '1·3·4', coins: [1, 3, 4] },
 ];
 
+/** 「做」里随机一个金额 */
+export function randomAmount(rand: () => number = Math.random): number {
+  return 10 + Math.floor(rand() * 90);
+}
+
 const listText = (a: number[]) => '[' + a.join(', ') + ']';
 
 export function buildTrace(coins: number[], amount: number): Trace<GreedyStep> {
@@ -176,7 +239,7 @@ export function buildTrace(coins: number[], amount: number): Trace<GreedyStep> {
   let left: number | null = null;
   let picked: number[] = [];
   const push = (line: number, note: string, done = false) => {
-    steps.push({ line, note, done, sorted, c, left, picked });
+    steps.push({ line, note, done, outcome: done ? 'ok' : 'running', sorted, c, left, picked });
   };
 
   sorted = [...coins].sort((a, b) => b - a);
@@ -214,6 +277,27 @@ export interface Round {
   left: number;
   coin: number;
   count: number;
+  /** 「拿几枚」的四个选项：正确答案和它附近的数 */
+  options: number[];
+  /** 拿几枚答错时的解释 */
+  why: string;
+}
+
+/** 拿几枚的四个选项：正确答案和它附近的数 */
+export function countOptions(n: number): number[] {
+  const set = new Set([n]);
+  for (const d of [1, -1, 2, -2, 3]) {
+    if (set.size >= 4) break;
+    if (n + d >= 1) set.add(n + d);
+  }
+  return [...set].sort((a, b) => a - b);
+}
+
+/** 点错面值时的解释：拿大了，或者还有更大的能拿 */
+export function whyCoin(r: Round, picked: number): string {
+  return picked > r.left
+    ? picked + ' 比剩下的 ' + r.left + ' 大，拿了就找多了。不超过 ' + r.left + ' 的最大面值是 ' + r.coin + '。'
+    : picked + ' 拿得下，但还有更大的 ' + r.coin + ' 也拿得下。贪心每次拿不超过 left 的最大面值。';
 }
 
 export function rounds(coins: number[], amount: number): Round[] {
@@ -222,32 +306,35 @@ export function rounds(coins: number[], amount: number): Round[] {
   for (const c of desc(coins)) {
     if (c > left) continue;
     const count = Math.floor(left / c);
-    out.push({ left, coin: c, count });
+    const rest = left - count * c;
+    out.push({
+      left, coin: c, count, options: countOptions(count),
+      why: left + ' ÷ ' + c + ' = ' + count + ' 余 ' + rest + '：while 循环会一直拿 ' + c + '，拿 ' + count + ' 枚后剩 ' + rest + '，比 ' + c + ' 小才停。',
+    });
     left -= count * c;
   }
   return out;
 }
 
+/** 猜下一步每次出一道新题：随机一套面值和金额 */
+export function genPredict(rand: () => number = Math.random): { coins: number[]; amount: number } {
+  const sys = SYSTEMS[Math.floor(rand() * SYSTEMS.length)];
+  return { coins: desc(sys.coins), amount: 20 + Math.floor(rand() * 180) };
+}
+
 /* ---------- 做：找 bug ---------- */
 
-export interface Bug {
+export interface Bug extends BugInfo {
   id: 'ascending' | 'if' | 'reset';
-  title: string;
-  /** 有 bug 的 Kotlin 代码，和 CODE 只差一行 */
-  code: string[];
-  wrongLine: number;
-  fixed: string;
   coins: number[];
   amount: number;
-  expect: string;
-  explain: string;
 }
 
 function variant(line: number, text: string): string[] {
   return CODE.map((t, k) => (k + 1 === line ? text : t));
 }
 
-export const BUGS: Bug[] = [
+export const BUGS: readonly Bug[] = [
   {
     id: 'ascending',
     title: '找了一大把硬币',
@@ -283,22 +370,17 @@ export const BUGS: Bug[] = [
   },
 ];
 
-export interface BugStep extends GreedyStep {
-  /** 'ok' 正常返回（结果可能是错的）；'stuck' 判定为死循环 */
-  outcome: 'running' | 'ok' | 'stuck';
-}
-
 /**
  * 按 bug 版本的代码逐行执行，line 对应 bug.code 的行号。
  * 在 while 判断处，（面值，left）重复出现就判定为死循环。
  */
-export function runBug(bug: Bug): Trace<BugStep> {
-  const steps: BugStep[] = [];
+export function runBug(bug: Bug): Trace<GreedyStep> {
+  const steps: GreedyStep[] = [];
   let sorted: number[] = [];
   let c: number | null = null;
   let left: number | null = null;
   let picked: number[] = [];
-  const push = (line: number, note: string, outcome: BugStep['outcome'] = 'running') => {
+  const push = (line: number, note: string, outcome: GreedyStep['outcome'] = 'running') => {
     steps.push({ line, note, done: outcome !== 'running', outcome, sorted, c, left, picked });
   };
 
@@ -341,6 +423,16 @@ export function runBug(bug: Bug): Trace<BugStep> {
   c = null;
   push(11, '返回 ' + listText(picked) + '，' + picked.length + ' 枚，加起来 ' + sum(picked) + '。', 'ok');
   return steps;
+}
+
+/** 找 bug 面板底部的判定：没跑完是空，跑完按结果说话 */
+export function bugVerdict(step: GreedyStep, bug: Bug): string {
+  if (!step.done) return '';
+  if (step.outcome === 'stuck') return '🔁 死循环，程序卡住了';
+  const total = sum(step.picked);
+  return total !== bug.amount
+    ? '❌ 只找出 ' + total + '，还差 ' + (bug.amount - total)
+    : '❌ 找了 ' + step.picked.length + ' 枚，太多了';
 }
 
 /* ---------- 做：挑战「贪心靠得住吗」 ---------- */

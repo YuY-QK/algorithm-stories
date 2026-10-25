@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import {
   STORY_KIDS, randomKids, shootAnswer, shootInit, shootNextRound, shootQuiet, stars,
   type Choice, type Kid, type ShootState,
 } from '../../engine/bubble-sort';
 import Lineup from './Lineup.vue';
+import { PAUSE_ROUND } from '../../components/shared/timing';
+import { useStageStop } from '../../components/shared/usePlayer';
 
 // 玩法一「当摄影师」：孩子看挨着的两个，决定换不换。
 // 答案由身高决定，孩子改不了；判断不对时高的那个透光、左边的摇一摇，让孩子自己再比一比。
@@ -21,6 +23,20 @@ const say = ref('📷 你是摄影师！看 👀 这两个，要换吗？');
 
 const pairIdx = computed(() => (s.value.phase === 'pair' ? s.value.j : null));
 const earned = computed(() => stars(mistakes.value));
+
+// 所有定时器都登记在这里，切换标签或卸载时一起清掉
+const timers = new Set<ReturnType<typeof setTimeout>>();
+function later(fn: () => void, ms: number) {
+  const t = setTimeout(() => {
+    timers.delete(t);
+    fn();
+  }, ms);
+  timers.add(t);
+}
+function clearTimers() {
+  timers.forEach(clearTimeout);
+  timers.clear();
+}
 
 function blink(id: string) {
   glow.value = null;
@@ -41,16 +57,16 @@ function answer(c: Choice) {
   }
   glow.value = null;
   s.value = n;
-  if (n.phase === 'pair') say.value = c === 'swap' ? '🔄 换好啦！下一对 👀' : '👍 不用换，下一对 👀';
+  if (n.phase === 'pair') say.value = c === 'swap' ? L.face + ' 比 ' + R.face + ' 高，换了位置 🔄 下一对 👀' : L.face + ' 没有 ' + R.face + ' 高，不用换 👍 下一对 👀';
   else if (n.phase === 'next') {
     const top = n.line[n.end];
     say.value = (n.round === 0 ? '🫧 最高的 ' : '🫧 ') + top.face + ' 冒到右边啦，站好不动 ⭐';
     busy.value = true;
-    setTimeout(() => {
+    later(() => {
       s.value = shootNextRound(s.value);
       say.value = '👀 再从最左边开始看';
       busy.value = false;
-    }, 1800);
+    }, PAUSE_ROUND);
   } else if (n.phase === 'quiet') {
     say.value = '🤫 这一轮谁也没换……还要再看一轮吗？';
   } else finish();
@@ -83,10 +99,22 @@ function again() {
   busy.value = false;
   say.value = '📷 新的小伙伴来啦！看 👀 这两个，要换吗？';
 }
+function stopAll() {
+  clearTimers();
+  if (busy.value) {
+    s.value = shootNextRound(s.value);
+    say.value = '👀 再从最左边开始看';
+    busy.value = false;
+  }
+}
+// 切换标签或卸载时，定时器清掉，正在进行的状态复位到可再次操作
+useStageStop(stopAll);
+onBeforeUnmount(clearTimers);
 </script>
 
 <template>
   <div class="game">
+    <p class="small-note">目标：看高亮的挨着的两个小伙伴，左边比右边高就点 🔄 换，不高就点 👍 不换。一直点到全部排好。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Lineup :line="s.line" :pair="pairIdx" :fixed-from="s.end" :glow="glow" :shake="shake" :photo="s.phase === 'done'" />
     <p class="tally" :class="{ hinted: hintQuiet }" :aria-label="'这一轮换了 ' + s.roundSwaps + ' 次'">

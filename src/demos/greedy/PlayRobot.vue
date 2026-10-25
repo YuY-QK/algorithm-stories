@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { PUZZLES, bestPicks, canTake, desc, greedyPicks, judgePuzzle } from '../../engine/greedy';
-import { STAGE_CHANGE_EVENT } from '../../components/shared/usePlayer';
+import { PAUSE_LONG, PAUSE_MID, PAUSE_RETRY } from '../../components/shared/timing';
+import { useStageStop } from '../../components/shared/usePlayer';
 import Shop from './Shop.vue';
 
 // 玩法二「打败贪心机器人」：每关的面值和金额是固定的，机器人 🤖 先用贪心找一遍，
@@ -45,34 +46,34 @@ function start() {
       return;
     }
     robot.value = [...robot.value, picks[k]];
-    timer = setTimeout(() => step(k + 1), 800);
+    timer = setTimeout(() => step(k + 1), PAUSE_MID);
   };
-  timer = setTimeout(() => step(0), 900);
+  timer = setTimeout(() => step(0), PAUSE_LONG);
 }
 
 function tap(c: number) {
   if (phase.value !== 'me') return;
   if (!canTake(left.value, c)) {
     shake.value = [c, (shake.value?.[1] ?? 0) + 1];
-    say.value = '🙅 ' + c + ' 太大啦';
+    say.value = '🙅 ' + c + ' 比还要找的 ' + left.value + ' 大，放不进去';
     return;
   }
   plate.value = [...plate.value, c];
   if (left.value > 0) {
-    say.value = '还要找 ' + left.value;
+    say.value = '放进 ' + c + '，还要找 ' + left.value;
     return;
   }
   if (judgePuzzle(p.value, plate.value) === 'beat') {
     phase.value = 'win';
     won.value = won.value.map((w, k) => w || k === level.value);
-    say.value = '🏅 ' + plate.value.length + ' 枚！你赢了 🤖';
+    say.value = '🏅 你用了 ' + plate.value.length + ' 枚，比 🤖 的 ' + robot.value.length + ' 枚少，你赢了 🤖';
     return;
   }
   fails.value++;
   shakePlate.value++;
-  say.value = '🤔 和 🤖 一样多……还能更少吗？';
+  say.value = '🤔 你用了 ' + plate.value.length + ' 枚，没比 🤖 的 ' + robot.value.length + ' 枚少……还能更少吗？';
   phase.value = 'oops';
-  timer = setTimeout(tryAgain, 1300);
+  timer = setTimeout(tryAgain, PAUSE_RETRY);
 }
 
 function tryAgain() {
@@ -83,8 +84,9 @@ function tryAgain() {
 
 function undo() {
   if (phase.value !== 'me' || !plate.value.length) return;
+  const back = plate.value[plate.value.length - 1];
   plate.value = plate.value.slice(0, -1);
-  say.value = '还要找 ' + left.value;
+  say.value = '把 ' + back + ' 拿回钱盒，还要找 ' + left.value;
 }
 
 function nextLevel() {
@@ -110,12 +112,14 @@ function pause() {
   else if (phase.value === 'oops') tryAgain();
 }
 
-onMounted(() => { start(); window.addEventListener(STAGE_CHANGE_EVENT, pause); });
-onBeforeUnmount(() => { clear(); window.removeEventListener(STAGE_CHANGE_EVENT, pause); });
+useStageStop(pause);
+onMounted(start);
+onBeforeUnmount(clear);
 </script>
 
 <template>
   <div class="game">
+    <p class="small-note">目标：机器人每次都拿最大的硬币。你要凑出同样的钱，却用比它更少的硬币。</p>
     <p class="medals" :aria-label="'已经赢了 ' + won.filter(Boolean).length + ' 关，共 ' + PUZZLES.length + ' 关'">
       <span v-for="(w, k) in won" :key="k" :class="{ dim: !w, cur: k === level && phase !== 'all' }">🏅</span>
     </p>

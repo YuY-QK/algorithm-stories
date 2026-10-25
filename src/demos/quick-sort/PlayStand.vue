@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { dealStand, sideOf, stars } from '../../engine/quick-sort';
+import { WIGGLE_MS } from '../../components/shared/timing';
+import { useStageStop } from '../../components/shared/usePlayer';
 import { animalOf } from './animals';
 import KidBar from './KidBar.vue';
 
@@ -39,6 +41,13 @@ function fresh() {
 }
 fresh();
 
+function clearWiggle() {
+  if (timer) clearTimeout(timer);
+  timer = null;
+  shaking.value = false;
+  glowing.value = false;
+}
+
 function wiggle() {
   if (timer) clearTimeout(timer);
   shaking.value = false;
@@ -47,7 +56,7 @@ function wiggle() {
     shaking.value = true;
     glowing.value = true;
   });
-  timer = setTimeout(() => { shaking.value = false; glowing.value = false; }, 1000);
+  timer = setTimeout(() => { shaking.value = false; glowing.value = false; }, WIGGLE_MS);
 }
 
 function choose(side: 'left' | 'right') {
@@ -63,15 +72,17 @@ function choose(side: 'left' | 'right') {
   ruler.value = false;
   (side === 'left' ? left : right).value.push(id);
   qi.value++;
-  if (phase.value === 'done') say.value = '🎉 都站好啦！';
-  else ask();
+  const did = animalOf(id) + ' 比 🚩 ' + (side === 'left' ? '矮' : '高') + '，站' + (side === 'left' ? '左' : '右') + '边了 ✅ ';
+  say.value = phase.value === 'done' ? did + '🎉 都站好啦！' : did + '轮到 ' + animalOf(cur.value) + ' 了：他该站 🚩 的哪一边？';
+
 }
 
-onBeforeUnmount(() => { if (timer) clearTimeout(timer); });
+useStageStop(clearWiggle);
 </script>
 
 <template>
   <div class="game">
+    <p class="small-note">目标：把每位同学和 🚩 比身高，矮的站左边，高的站右边。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
 
     <div class="qbox" aria-label="排队的同学">

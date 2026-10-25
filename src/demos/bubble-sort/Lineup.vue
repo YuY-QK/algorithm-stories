@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 import { KID_MAX_H, KID_MIN_H, type Kid } from '../../engine/bubble-sort';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../components/shared/timing';
 
 // 排队的小伙伴：一排站着的小动物，高矮按身高画。看、玩法一、玩法二共用，只负责画，不管规则。
 // 换位置时用 TransitionGroup 让两人真的走过去。
@@ -23,12 +25,21 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ pick: [index: number, kid: Kid] }>();
 
 const shaking = ref<string | null>(null);
+let shakeTimer: ReturnType<typeof setTimeout> | null = null;
+function stopShake() {
+  if (shakeTimer) clearTimeout(shakeTimer);
+  shakeTimer = null;
+  shaking.value = null;
+}
 watch(() => props.shake, (v) => {
   if (!v) return;
-  shaking.value = null;
+  stopShake();
   requestAnimationFrame(() => (shaking.value = v[0]));
-  setTimeout(() => (shaking.value = null), 600);
+  shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
 });
+// 切换标签或卸载时，晃动动画停下
+useStageStop(stopShake);
+onBeforeUnmount(stopShake);
 
 const frac = (h: number) => (h - KID_MIN_H) / (KID_MAX_H - KID_MIN_H);
 

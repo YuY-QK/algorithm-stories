@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import {
   HAND_N, genCandies, handInit, handNeed, handPlace, handRoundOver, handStep, stars,
   type HandChoice, type HandState,
 } from '../../engine/selection-sort';
 import Candies from './Candies.vue';
 import CandyPair from './CandyPair.vue';
+import { PAUSE_NOTE } from '../../components/shared/timing';
+import { useStageStop } from '../../components/shared/usePlayer';
 
 // 玩法二「小熊的手」：小熊手里拿着目前最小的那颗，一颗一颗看后面的。
 // 孩子决定「换成新的」还是「留着」。答案由引擎判定，答错时更小的那颗透光。
@@ -19,8 +21,24 @@ const say = ref('🐻 小熊先拿起第一颗。👀 新的这颗，要换吗�
 const earned = computed(() => stars(mistakes.value));
 const asking = computed(() => !s.value.done && !handRoundOver(s.value) && !busy.value);
 
+// 所有定时器都登记在这里，切换标签或卸载时一起清掉
+const timers = new Set<ReturnType<typeof setTimeout>>();
+function later(fn: () => void, ms: number) {
+  const t = setTimeout(() => {
+    timers.delete(t);
+    fn();
+  }, ms);
+  timers.add(t);
+}
+function clearTimers() {
+  timers.forEach(clearTimeout);
+  timers.clear();
+}
+
 function answer(c: HandChoice) {
   if (!asking.value) return;
+  const held = s.value.a[s.value.held];
+  const look = s.value.a[s.value.j];
   const n = handStep(s.value, c);
   if (!n) {
     mistakes.value++;
@@ -34,16 +52,16 @@ function answer(c: HandChoice) {
   if (handRoundOver(n)) {
     busy.value = true;
     say.value = '👐 看完啦！手里的就是最小的';
-    setTimeout(() => {
+    later(() => {
       s.value = handPlace(s.value);
       say.value = s.value.done ? '🎉 排好啦！最后一颗不用挑' : '🔄 放到最前面。下一轮，再拿起第一颗';
-      setTimeout(() => {
+      later(() => {
         busy.value = false;
         if (!s.value.done) say.value = '👀 新的这颗，要换吗？';
-      }, 1100);
-    }, 1100);
+      }, PAUSE_NOTE);
+    }, PAUSE_NOTE);
   } else {
-    say.value = c === 'take' ? '🔄 换成小的啦。👀 下一颗呢？' : '✋ 留着。👀 下一颗呢？';
+    say.value = c === 'take' ? '🔄 ' + look + ' 号比 ' + held + ' 号小，小熊换成了 ' + look + ' 号。👀 下一颗呢？' : '✋ ' + look + ' 号没有 ' + held + ' 号小，小熊留着 ' + held + ' 号。👀 下一颗呢？';
   }
 }
 
@@ -54,10 +72,18 @@ function again() {
   busy.value = false;
   say.value = '🐻 小熊先拿起第一颗。👀 新的这颗，要换吗？';
 }
+function stopAll() {
+  clearTimers();
+  if (busy.value) again();
+}
+// 切换标签或卸载时，定时器清掉，正在进行的状态复位到可再次操作
+useStageStop(stopAll);
+onBeforeUnmount(clearTimers);
 </script>
 
 <template>
   <div class="game">
+    <p class="small-note">目标：小熊手里拿着一颗糖果（🐻），看 👀 那颗新的：比手里的小就点 🔄 换成它，不比手里的小就点 ✋ 留着。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Candies
       :values="s.a" :sorted="s.done ? s.a.length : s.i"

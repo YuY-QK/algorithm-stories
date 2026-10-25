@@ -39,16 +39,17 @@ function ask() {
 }
 ask();
 
-function advance() {
+function advance(prefix = '') {
   desk.value = cur.value.desk;
   if (i.value >= acc.length - 1) {
     phase.value = 'done';
     glow.value = null;
-    say.value = '🎉 借完啦！';
+    say.value = prefix + '🎉 借完啦！';
     return;
   }
   i.value++;
   ask();
+  say.value = prefix + say.value;
 }
 
 function wiggle(b: number) {
@@ -58,16 +59,15 @@ function wiggle(b: number) {
 function pick(b: number, where: 'desk' | 'shelf') {
   const a = cur.value;
   if (phase.value === 'fetch') {
-    if (a.hit && where === 'desk' && b === a.book) return advance();
-    if (!a.hit && where === 'shelf' && b === a.book) return advance();
+    if (a.hit && where === 'desk' && b === a.book) return advance('✅ ' + em(a.book) + '翻了一下，挪到最右边。');
+    if (!a.hit && where === 'shelf' && b === a.book) return advance('✅ ' + em(a.book) + '从书架拿上了桌，放在最右边。');
     wiggle(b);
     say.value = '要的是 ' + em(a.book) + ' 哦，看看一闪一闪的那本 ✨';
   } else if (phase.value === 'evict' && where === 'desk') {
     const v = judgeEvict(desk.value, b);
     if (v === 'right') {
       evicted.value++;
-      advance();
-      if (phase.value !== 'done') say.value = '放回' + em(a.evicted!) + ' ✅ 它最久没碰！' + say.value;
+      advance('放回' + em(a.evicted!) + ' ✅ 它最久没碰！' + em(a.book) + '坐到最右边。');
     } else {
       mistakes.value++;
       wiggle(b);
@@ -89,6 +89,7 @@ function again() {
 
 <template>
   <div class="game">
+    <p class="small-note">目标：按顺序借书；桌子放不下时，把最久没碰（桌上最左边）的那本放回书架。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Desk
       :cap="KID_CAP" :desk="desk" :books="EVICT_BOOKS"

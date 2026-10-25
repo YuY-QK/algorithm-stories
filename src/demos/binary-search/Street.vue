@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 import type { Dir } from '../../engine/binary-search';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../components/shared/timing';
 
 // 信箱街：一排信箱加上方的小邮差。看、玩法一、玩法二共用，只负责画，不管规则。
 const props = withDefaults(defineProps<{
@@ -29,12 +31,21 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ pick: [i: number] }>();
 
 const shaking = ref<number | null>(null);
+let shakeTimer: ReturnType<typeof setTimeout> | null = null;
+function stopShake() {
+  if (shakeTimer) clearTimeout(shakeTimer);
+  shakeTimer = null;
+  shaking.value = null;
+}
 watch(() => props.shake, (v) => {
   if (!v) return;
-  shaking.value = null;
+  stopShake();
   requestAnimationFrame(() => (shaking.value = v[0]));
-  setTimeout(() => (shaking.value = null), 600);
+  shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
 });
+// 切换标签或卸载时，晃动动画停下
+useStageStop(stopShake);
+onBeforeUnmount(stopShake);
 
 const ICON: Record<Dir, string> = { left: '⬅️', right: '➡️', hit: '✉️' };
 

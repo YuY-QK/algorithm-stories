@@ -1,25 +1,25 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { opText, randomOps, retText, rounds, type Round } from '../../engine/queue';
+import { genPredict, opText, PREDICT_CAP, retText, rounds, type Round } from '../../engine/queue';
+import PredictFrame from '../../components/shared/PredictFrame.vue';
+import { useStreak } from '../../components/shared/useStreak';
 import Cells from './Cells.vue';
 
 // 做：猜下一步。每个操作先猜写进 / 读出哪一格（或者满了、空了），
 // 再猜 tail / head 接下来指向哪一格。连对 6 次过关。
 const GOAL = 6;
-const CAP = 5;
+const CAP = PREDICT_CAP;
 
 const list = ref<Round[]>([]);
 const r = ref(0);
 const phase = ref<'at' | 'next' | 'wrong' | 'end'>('at');
 const picked = ref<number | null>(null);
-const why = ref('');
-const streak = ref(0);
-const passed = ref(false);
+const { streak, passed, hit, miss } = useStreak(GOAL);
 /** 答错时停在哪一问，看完解释从这里继续 */
 let wrongAt: 'at' | 'next' = 'at';
 
 function fresh() {
-  list.value = rounds(CAP, randomOps(CAP, 12));
+  list.value = rounds(CAP, genPredict());
   r.value = 0;
   phase.value = 'at';
   picked.value = null;
@@ -38,28 +38,10 @@ const view = computed(() => {
   return { ...c.before, touched: null };
 });
 
-function hit() {
-  streak.value++;
-  if (streak.value >= GOAL) passed.value = true;
-}
-function miss(text: string, where: 'at' | 'next') {
-  streak.value = 0;
-  why.value = text;
+function wrong(where: 'at' | 'next') {
+  miss();
   wrongAt = where;
   phase.value = 'wrong';
-}
-
-function explainAt(): string {
-  const c = cur.value;
-  const b = c.before;
-  if (c.op.kind === 'offer') {
-    return c.at === 'full'
-      ? 'size = ' + b.size + '，等于容量 ' + CAP + '，满了，offer 直接返回 false。'
-      : '还没满（size = ' + b.size + '），新元素写进 items[tail]，tail = ' + b.tail + '。';
-  }
-  return c.at === 'empty'
-    ? 'size = 0，队列是空的，poll 直接返回 null。'
-    : '队列不空（size = ' + b.size + '），poll 读 items[head]，head = ' + b.head + '。';
 }
 
 /** 第一问：点格子，或者点「满了 / 空了」 */
@@ -70,21 +52,17 @@ function answerAt(a: number | 'full' | 'empty') {
     hit();
     if (typeof a === 'number') phase.value = 'next';
     else advance();
-  } else miss(explainAt(), 'at');
+  } else wrong('at');
 }
 
 /** 第二问：指针接下来指向哪一格 */
 function answerNext(k: number) {
   if (phase.value !== 'next') return;
   picked.value = k;
-  const c = cur.value;
-  if (k === c.next) {
+  if (k === cur.value.next) {
     hit();
     advance();
-  } else {
-    const old = c.at as number;
-    miss(ptr.value + ' = (' + old + ' + 1) % ' + CAP + ' = ' + c.next + (c.next === 0 ? '：走到最后一格之后绕回 0 号格。' : '。'), 'next');
-  }
+  } else wrong('next');
 }
 
 function tapCell(k: number) {
@@ -119,40 +97,45 @@ const prompt = computed(() => {
   }
   return '返回 ' + retText(c.ret) + '。' + ptr.value + ' 接下来指向哪一格？';
 });
+
+const whyText = computed(() => (phase.value === 'wrong' ? (wrongAt === 'at' ? cur.value.why : cur.value.whyNext) : null));
 </script>
 
 <template>
-  <div class="stage">
-    <div class="vars">
+  <PredictFrame
+    :streak="streak"
+    :goal="GOAL"
+    :passed="passed"
+    :prompt="prompt"
+    :wrong="whyText"
+    :ended="phase === 'end'"
+    @continue="goOn"
+    @next="fresh"
+  >
+    <template #chips>
       <span class="chip"><small>容量</small>{{ CAP }}</span>
       <span class="chip"><small>size</small>{{ view.size }}</span>
-      <span class="chip"><small>连对</small>{{ Math.min(streak, GOAL) }} / {{ GOAL }}</span>
-      <span v-if="passed" class="chip win">🏅 过关</span>
-    </div>
-    <ol class="ops" aria-label="操作序列">
-      <li v-for="(x, k) in list" :key="k" :class="{ now: k === r && phase !== 'end', past: k < r || phase === 'end' }">
-        {{ opText(x.op) }}<b v-if="k < r || phase === 'end'"> → {{ retText(x.ret) }}</b>
-      </li>
-    </ol>
-    <Cells
-      :cells="view.cells" :head="view.head" :tail="view.tail" :size="view.size" :touched="view.touched"
-      :clickable="phase === 'at' || phase === 'next'"
-      :miss="phase === 'wrong' ? picked : null"
-      @pick="tapCell"
-    />
-    <p class="note" aria-live="polite">{{ prompt }}</p>
-    <div v-if="phase === 'at'" class="answers">
-      <button type="button" class="btn small mono" @click="answerAt('full')">满了：return false</button>
-      <button type="button" class="btn small mono" @click="answerAt('empty')">空了：return null</button>
-    </div>
-    <div v-if="phase === 'wrong'" class="oops-box">
-      <p>❌ {{ why }}</p>
-      <button type="button" class="btn small" @click="goOn">知道了，继续</button>
-    </div>
-    <div v-if="phase === 'end'" class="row">
-      <button type="button" class="btn small primary" @click="fresh">下一题</button>
-    </div>
-  </div>
+    </template>
+    <template #board>
+      <ol class="ops" aria-label="操作序列">
+        <li v-for="(x, k) in list" :key="k" :class="{ now: k === r && phase !== 'end', past: k < r || phase === 'end' }">
+          {{ opText(x.op) }}<b v-if="k < r || phase === 'end'"> → {{ retText(x.ret) }}</b>
+        </li>
+      </ol>
+      <Cells
+        :cells="view.cells" :head="view.head" :tail="view.tail" :size="view.size" :touched="view.touched"
+        :clickable="phase === 'at' || phase === 'next'"
+        :miss="phase === 'wrong' ? picked : null"
+        @pick="tapCell"
+      />
+    </template>
+    <template #answers>
+      <div v-if="phase === 'at'" class="answers">
+        <button type="button" class="btn small mono" @click="answerAt('full')">满了：return false</button>
+        <button type="button" class="btn small mono" @click="answerAt('empty')">空了：return null</button>
+      </div>
+    </template>
+  </PredictFrame>
 </template>
 
 <style scoped>
@@ -161,6 +144,4 @@ const prompt = computed(() => {
 .ops li.past { color: var(--muted); }
 .ops li.now { border-color: var(--mid); background: var(--mid); color: var(--mid-ink); }
 .mono { font-family: var(--mono); }
-.win { border-color: var(--accent); color: var(--accent); }
-.oops-box { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; border-left: 3px solid var(--warn); padding-left: 12px; }
 </style>

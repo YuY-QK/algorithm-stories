@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { genArray, rounds, swapAt, type Round } from '../../engine/selection-sort';
+import { genPredict, rounds, swapAt, whyMin, type Round } from '../../engine/selection-sort';
+import PredictFrame from '../../components/shared/PredictFrame.vue';
+import { useStreak } from '../../components/shared/useStreak';
 
 // 做：猜下一步。每一轮先点出 minIdx 最后停在哪，再说出这一轮 minIdx 被改了几次。连对 6 次过关。
 const GOAL = 6;
@@ -13,12 +15,10 @@ const phase = ref<'min' | 'count' | 'wrong' | 'end'>('min');
 const wrongAt = ref<'min' | 'count'>('min');
 const picked = ref<number | null>(null);
 const why = ref('');
-const streak = ref(0);
-const passed = ref(false);
+const { streak, passed, hit, miss: resetStreak } = useStreak(GOAL);
 
 function fresh() {
-  const n = 6 + Math.floor(Math.random() * 3);
-  arr.value = genArray(n, Math.random() < 0.35 ? 'dups' : 'random');
+  arr.value = genPredict();
   list.value = rounds(arr.value);
   r.value = 0;
   phase.value = 'min';
@@ -38,40 +38,22 @@ const showMin = computed(() => (phase.value === 'count' || (phase.value === 'wro
 
 const choices = computed(() => Array.from({ length: arr.value.length - cur.value.i }, (_, k) => k));
 
-function hit() {
-  streak.value++;
-  if (streak.value >= GOAL) passed.value = true;
-}
 function miss(at: 'min' | 'count', text: string) {
-  streak.value = 0;
+  resetStreak();
   wrongAt.value = at;
   why.value = text;
   phase.value = 'wrong';
 }
 
-/** minIdx 在这一轮里依次指过哪些下标 */
-function path(rd: Round): number[] {
-  const out = [rd.i];
-  for (let j = rd.i + 1; j < rd.before.length; j++) if (rd.before[j] < rd.before[out[out.length - 1]]) out.push(j);
-  return out;
-}
-
 function tapCell(k: number) {
   if (phase.value !== 'min') return;
   picked.value = k;
-  const { i, minIdx, before } = cur.value;
-  if (k === minIdx) {
+  if (k === cur.value.minIdx) {
     hit();
     phase.value = 'count';
     return;
   }
-  const v = before[minIdx];
-  const dup = k > i && before[k] === v;
-  miss('min', dup
-    ? 'arr[' + k + '] 也是 ' + v + '，可是判断用的是 <：遇到一样小的不会改 minIdx，所以留在最前面的 ' + minIdx + '。'
-    : k < i
-      ? '下标 ' + k + ' 在 i 前面，已经排好了。这一轮只在 i = ' + i + ' 及以后找，最小的是 arr[' + minIdx + '] = ' + v + '。'
-      : '从 i = ' + i + ' 往后，最小的是 arr[' + minIdx + '] = ' + v + '，minIdx 停在 ' + minIdx + '。');
+  miss('min', whyMin(cur.value, k));
 }
 
 function chooseCount(c: number) {
@@ -82,10 +64,7 @@ function chooseCount(c: number) {
     advance();
     return;
   }
-  const ps = path(rd);
-  miss('count', ps.length === 1
-    ? '后面没有比 arr[' + rd.i + '] = ' + rd.before[rd.i] + ' 更小的，minIdx 一次都没改。'
-    : 'minIdx 依次是 ' + ps.join(' → ') + '（值 ' + ps.map((x) => rd.before[x]).join(' → ') + '），改了 ' + rd.updates + ' 次。只有遇到比「目前最小的」还小的才改，不是比 arr[i] 小就改。');
+  miss('count', rd.why);
 }
 
 function advance() {
@@ -114,44 +93,45 @@ const prompt = computed(() => {
 </script>
 
 <template>
-  <div class="stage">
-    <div class="vars">
-      <span class="chip"><small>连对</small>{{ Math.min(streak, GOAL) }} / {{ GOAL }}</span>
-      <span v-if="passed" class="chip win">🏅 过关</span>
-    </div>
-    <div class="arr">
-      <button
-        v-for="(v, k) in view"
-        :key="k"
-        type="button"
-        class="cell"
-        :class="{
-          fixed: k < sorted,
-          least: k === showMin,
-          miss: phase === 'wrong' && wrongAt === 'min' && k === picked,
-          right: phase === 'wrong' && wrongAt === 'min' && k === cur.minIdx,
-        }"
-        :disabled="phase !== 'min'"
-        :aria-label="'下标 ' + k + '，值 ' + v"
-        @click="tapCell(k)"
-      >
-        <span class="tag">{{ phase !== 'end' && k === cur.i ? 'i' : '' }}</span>
-        <span class="val">{{ v }}</span>
-        <span class="idx">{{ k }}</span>
-      </button>
-    </div>
-    <p class="note" aria-live="polite">{{ prompt }}</p>
-    <div v-if="phase === 'count'" class="counts">
-      <button v-for="c in choices" :key="c" type="button" class="btn small mono" :aria-label="c + ' 次'" @click="chooseCount(c)">{{ c }}</button>
-    </div>
-    <div v-if="phase === 'wrong'" class="oops-box">
-      <p>❌ {{ why }}</p>
-      <button type="button" class="btn small" @click="goOn">知道了，继续</button>
-    </div>
-    <div v-if="phase === 'end'" class="row">
-      <button type="button" class="btn small primary" @click="fresh">下一题</button>
-    </div>
-  </div>
+  <PredictFrame
+    :streak="streak"
+    :goal="GOAL"
+    :passed="passed"
+    :prompt="prompt"
+    :wrong="phase === 'wrong' ? why : null"
+    :ended="phase === 'end'"
+    @continue="goOn"
+    @next="fresh"
+  >
+    <template #board>
+      <div class="arr">
+        <button
+          v-for="(v, k) in view"
+          :key="k"
+          type="button"
+          class="cell"
+          :class="{
+            fixed: k < sorted,
+            least: k === showMin,
+            miss: phase === 'wrong' && wrongAt === 'min' && k === picked,
+            right: phase === 'wrong' && wrongAt === 'min' && k === cur.minIdx,
+          }"
+          :disabled="phase !== 'min'"
+          :aria-label="'下标 ' + k + '，值 ' + v"
+          @click="tapCell(k)"
+        >
+          <span class="tag">{{ phase !== 'end' && k === cur.i ? 'i' : '' }}</span>
+          <span class="val">{{ v }}</span>
+          <span class="idx">{{ k }}</span>
+        </button>
+      </div>
+    </template>
+    <template #answers>
+      <div v-if="phase === 'count'" class="counts">
+        <button v-for="c in choices" :key="c" type="button" class="btn small mono" :aria-label="c + ' 次'" @click="chooseCount(c)">{{ c }}</button>
+      </div>
+    </template>
+  </PredictFrame>
 </template>
 
 <style scoped>
@@ -172,6 +152,4 @@ const prompt = computed(() => {
 .counts { display: flex; flex-wrap: wrap; gap: 8px; }
 .counts .btn { min-width: 3em; }
 .mono { font-family: var(--mono); }
-.win { border-color: var(--accent); color: var(--accent); }
-.oops-box { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; border-left: 3px solid var(--warn); padding-left: 12px; }
 </style>

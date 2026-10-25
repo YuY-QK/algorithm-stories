@@ -59,14 +59,14 @@ function tapCard(id: number) {
   if (s !== hole.value - 1) {
     wobble(id);
     hint(slots.value[hole.value - 1] ?? -1);
-    say.value = hole.value === 0 ? '👀 左边没有牌了，点空位 ⬇️' : '👀 先看空位左边那张';
+    say.value = hole.value === 0 ? '👀 左边没有牌了，点空位放下 ' + key.value + ' ⬇️' : '👀 先看紧挨着空位左边的那张，它和 ' + key.value + ' 比大小';
     return;
   }
   if (nextAction(row.value, hole.value, key.value) === 'drop') {
     mistakes.value++;
     wobble(id);
     hint(-1);
-    say.value = '🤔 ' + values.value[id] + ' 比 ' + key.value + ' 小，不用挪';
+    say.value = '🤔 ' + values.value[id] + ' 比 ' + key.value + ' 小，不用挪，点空位把 ' + key.value + ' 放下';
     return;
   }
   const next = [...slots.value];
@@ -76,7 +76,7 @@ function tapCard(id: number) {
   hole.value--;
   coins.value++;
   glow.value = null;
-  say.value = hole.value === 0 ? '🪙 挪好了。左边没有牌了' : '🪙 挪好了。再看空位左边';
+  say.value = '🪙 ' + values.value[id] + ' 比 ' + key.value + ' 大，往右挪了一格。' + (hole.value === 0 ? '左边没有牌了，点空位放下 ' + key.value : '再看空位左边那张');
 }
 
 function tapHole() {
@@ -86,7 +86,7 @@ function tapHole() {
     const left = slots.value[hole.value - 1]!;
     wobble(left);
     hint(left);
-    say.value = '🤔 ' + values.value[left] + ' 比 ' + key.value + ' 大，要给 ' + key.value + ' 让位';
+    say.value = '🤔 ' + values.value[left] + ' 比 ' + key.value + ' 大，要点它往右挪，给 ' + key.value + ' 让位';
     return;
   }
   const next = [...slots.value];
@@ -122,6 +122,7 @@ const earned = computed(() => stars(mistakes.value));
 
 <template>
   <div class="game">
+    <p class="small-note">目标：你来当小熊。新牌拿在手上，空位左边那张比它大，就点那张牌让它往右挪；不比它大，就点空位把新牌放下。全部理好后，数一数罐子里的硬币。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Hand
       :cards="cards" :slots="slots" :held="phase === 'play' ? i : null" :held-at="hole"

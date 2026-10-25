@@ -49,12 +49,12 @@ function tap(id: number) {
   const j = judgeDrawTap(maze.value, path.value, id);
   if (j === 'wall' || j === 'far') {
     shake.value = [id, (shake.value?.[1] ?? 0) + 1];
-    say.value = j === 'wall' ? '🧱 墙过不去哦' : '👣 一次只能走一格，要挨着 🐭';
+    say.value = j === 'wall' ? '🧱 这格是墙，小老鼠过不去，换一格' : '👣 一次只能走一格，只能点挨着 🐭 的格子';
     return;
   }
   path.value = applyDrawTap(maze.value, path.value, id);
   if (j === 'back') {
-    say.value = '↩️ 退回来啦';
+    say.value = '↩️ 小老鼠退回到你点的这一格，后面的路取消了';
     return;
   }
   if (id === maze.value.end) {
@@ -64,7 +64,7 @@ function tap(id: number) {
       : '🧀 吃到啦！你走了 ' + steps.value + ' 步，水波 🌊 只要 ' + best.value + ' 步';
     return;
   }
-  say.value = '👣 ' + steps.value;
+  say.value = '👣 走了 ' + steps.value + ' 步，继续往奶酪 🧀 走';
 }
 
 function undo() {
@@ -88,6 +88,7 @@ function next() {
 
 <template>
   <div class="game">
+    <p class="small-note">目标：帮小老鼠 🐭 点出一条去奶酪 🧀 的路，一次只能走一格。到了奶酪，和水波找到的最短路比一比谁的步数少；点回路上的格子可以退回去，也可以点 ↩️ 退一步。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <div class="bar">
       <span class="count" aria-label="已经走了几步">👣 {{ steps }}</span>

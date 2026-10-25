@@ -1,4 +1,4 @@
-import type { Step, Trace } from './types';
+import type { BugInfo, LookFrame, Step, Trace } from './types';
 
 /* ---------- 看、玩：排队拍合照 ---------- */
 
@@ -77,10 +77,14 @@ export interface Round<T> {
   top: T;
   /** 这一轮一次都没换：提前结束 */
   quiet: boolean;
+  /** 猜「结束后谁站在 end」答错时的解释 */
+  whyTop: string;
+  /** 猜「这一轮换几次」答错时的解释 */
+  why: string;
 }
 
-/** 带「一轮没换就停」的冒泡排序，按轮输出。key 取比较用的值 */
-export function bubbleRounds<T>(input: T[], key: (x: T) => number): Round<T>[] {
+/** 带「一轮没换就停」的冒泡排序，按轮输出（猜下一步的题，也是「玩」和「看」的底稿）。key 取比较用的值 */
+export function rounds<T>(input: T[], key: (x: T) => number): Round<T>[] {
   const a = input.slice();
   const n = a.length;
   const out: Round<T>[] = [];
@@ -97,7 +101,12 @@ export function bubbleRounds<T>(input: T[], key: (x: T) => number): Round<T>[] {
       compares.push({ j, swap, after: a.slice() });
     }
     const end = n - 1 - i;
-    out.push({ i, before, after: a.slice(), compares, swaps, end, top: a[end], quiet: swaps === 0 });
+    const vals = before.map(key);
+    const ks = passedOver(vals, end);
+    const whyTop = '这一轮要比的是下标 0 到 ' + end + '。每次比较都把较大的往右带，所以其中最大的 ' + key(a[end]) + ' 一旦被碰到，就会被一路带到下标 ' + end + '。';
+    const why = '这一轮换了 ' + swaps + ' 次。从左往右，「目前最大的数」一路往右走，遇到比它小的就换一次。'
+      + (ks.length ? '左边出现过更大数的是 ' + ks.map((k) => vals[k]).join('、') + '（标了红框），每个被越过一次。' : '每个数左边都没有比它大的，一次都不用换。');
+    out.push({ i, before, after: a.slice(), compares, swaps, end, top: a[end], quiet: swaps === 0, whyTop, why });
     if (swaps === 0) break;
   }
   return out;
@@ -105,9 +114,8 @@ export function bubbleRounds<T>(input: T[], key: (x: T) => number): Round<T>[] {
 
 /* ---------- 看：绘本画面 ---------- */
 
-export interface LookFrame<T> {
-  say: string;
-  line: T[];
+export interface LookPage extends LookFrame {
+  line: Kid[];
   /** 正在比较的一对（左边下标），没有是 null */
   pair: number | null;
   /** 这一对刚刚换过 */
@@ -119,11 +127,11 @@ export interface LookFrame<T> {
 }
 
 /** 绘本的全部画面，由 bubbleRounds 生成，和真实的冒泡过程一致 */
-export function lookFrames(kids: Kid[]): LookFrame<Kid>[] {
+export function lookFrames(kids: Kid[]): LookPage[] {
   const n = kids.length;
-  const rounds = bubbleRounds(kids, (k) => k.h);
-  const out: LookFrame<Kid>[] = [];
-  const f = (say: string, line: Kid[], extra: Partial<LookFrame<Kid>> = {}) =>
+  const rs = rounds(kids, (k) => k.h);
+  const out: LookPage[] = [];
+  const f = (say: string, line: Kid[], extra: Partial<LookPage> = {}) =>
     out.push({ say, line, pair: null, swapped: false, fixedFrom: n, photo: false, ...extra });
 
   f('要拍合照啦 📸 可是大家站得乱糟糟', kids);
@@ -131,7 +139,7 @@ export function lookFrames(kids: Kid[]): LookFrame<Kid>[] {
   f('他的办法：每次只看挨着的两个 👀', kids, { pair: 0 });
   let fixedFrom = n;
   let compares = 0;
-  for (const r of rounds) {
+  for (const r of rs) {
     if (r.i > 0) f('第 ' + (r.i + 1) + ' 轮：再从最左边开始看 👀', r.before, { pair: 0, fixedFrom });
     let prev = r.before;
     for (const c of r.compares) {
@@ -151,7 +159,7 @@ export function lookFrames(kids: Kid[]): LookFrame<Kid>[] {
       if (fixedFrom <= 1) fixedFrom = 0;
     }
   }
-  const last = rounds.length ? rounds[rounds.length - 1].after : kids;
+  const last = rs.length ? rs[rs.length - 1].after : kids;
   f('咔嚓 📸 比了 ' + compares + ' 次，就排好啦！', last, { fixedFrom: 0, photo: true });
   return out;
 }
@@ -371,6 +379,13 @@ export function distinctArray(n: number, max = 30, rand: () => number = Math.ran
 
 /* ---------- 做：猜下一步 ---------- */
 
+export const PREDICT_N = 6;
+
+/** 猜下一步出一道题：PREDICT_N 个互不相同的数 */
+export function genPredict(rand: () => number = Math.random): number[] {
+  return distinctArray(PREDICT_N, 30, rand);
+}
+
 /**
  * 这一轮会交换几次。一轮里「目前最大的数」一路往右走，遇到比它小的就换，
  * 所以左边出现过比它大的数的元素，各被换一次。
@@ -397,25 +412,16 @@ export function passedOver(before: number[], end: number): number[] {
 
 /* ---------- 做：找 bug ---------- */
 
-export interface Bug {
+export interface Bug extends BugInfo {
   id: 'temp' | 'bound' | 'stable';
-  title: string;
-  /** 有 bug 的 Kotlin 代码，和 CODE 只差一行 */
-  code: string[];
-  wrongLine: number;
-  /** 改对之后的那一行 */
-  fixed: string;
   input: Item[];
-  /** 演示输入上正确的结果是什么 */
-  expect: string;
-  explain: string;
 }
 
 function variant(line: number, text: string): string[] {
   return CODE.map((s, k) => (k + 1 === line ? text : s));
 }
 
-export const BUGS: Bug[] = [
+export const BUGS: readonly Bug[] = [
   {
     id: 'temp',
     title: '数字越排越少',
@@ -464,6 +470,18 @@ export function stableSorted(items: Item[]): Item[] {
   return items.map((x, k) => ({ x, k })).sort((p, q) => p.x.v - q.x.v || p.k - q.k).map((p) => p.x);
 }
 
+export const showItems = (xs: Item[]) => '[' + xs.map(show).join(', ') + ']';
+
+/** 找 bug 面板底部的判定：动画跑完后程序到底怎么错的 */
+export function bugVerdict(step: BubbleStep, bug: Bug): string {
+  if (!step.done) return '';
+  if (step.outcome === 'crash') return '💥 下标越界，程序崩溃';
+  const want = stableSorted(bug.input);
+  if (sameItems(step.a, want)) return '✅ 结果对了';
+  if (step.a.map((x) => x.v).join() === want.map((x) => x.v).join()) return '❌ 排成了 ' + showItems(step.a) + '：数字对了，两个 5 的先后顺序却反了';
+  return '❌ 排成了 ' + showItems(step.a) + '，不对';
+}
+
 export function sameItems(a: Item[], b: Item[]): boolean {
   return a.length === b.length && a.every((x, k) => x.v === b[k].v && (x.tag ?? '') === (b[k].tag ?? ''));
 }
@@ -484,7 +502,7 @@ export function isSorted(a: number[]): boolean {
 export const CHALLENGE_N = 6;
 
 /** 挑战用的序列：1 到 n 打乱，逆序对在 5 到 10 个之间，不太少也不太累 */
-export function challengeArray(n = CHALLENGE_N, rand: () => number = Math.random): number[] {
+export function genChallenge(n = CHALLENGE_N, rand: () => number = Math.random): number[] {
   for (;;) {
     const a = distinctArray(n, n, rand);
     const inv = inversions(a);

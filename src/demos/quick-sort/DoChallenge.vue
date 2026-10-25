@@ -1,28 +1,24 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import {
-  INPUT_NAME, STRATEGY_NAME, averageCompares, buildTrace, countCompares, seeded, worstCompares,
+  CHALLENGE_N, CHALLENGE_OPTIONS, INPUT_NAME, STRATEGY_NAME, averageCompares, buildTrace, countCompares, genChallenge,
+  seeded, worstCompares,
   type InputKind, type Strategy,
 } from '../../engine/quick-sort';
 import Segmented from '../../components/shared/Segmented.vue';
 
 // 做：挑战。先预测三种 10 个数的输入，「每次拿最后一个当标杆」要比较几次，
 // 再把三种输入、三种选标杆的办法放在一起比（n = 10、100、1000）。
-const N = 10;
-interface Q { name: string; arr: number[] }
-const QS: Q[] = [
-  { name: '已经从小到大排好：1 2 3 … 10', arr: Array.from({ length: N }, (_, k) => k + 1) },
-  { name: '完全倒过来：10 9 8 … 1', arr: Array.from({ length: N }, (_, k) => N - k) },
-  { name: '十个数全是 7', arr: Array.from({ length: N }, () => 7) },
-];
-const OPTIONS = [9, 20, 45, 90];
+const N = CHALLENGE_N;
+const OPTIONS = CHALLENGE_OPTIONS;
+const QS = ref(genChallenge());
 
 const qi = ref(0);
 const picked = ref<number | null>(null);
 const right = ref(0);
 const finished = ref(false);
 
-const q = computed(() => QS[qi.value]);
+const q = computed(() => QS.value[qi.value]);
 const answer = computed(() => countCompares(q.value.arr, 'last').compares);
 const rounds = computed(() =>
   buildTrace(q.value.arr).filter((s) => s.line === 3).map((s) => ({ size: s.hi! - s.lo! + 1, cmp: s.hi! - s.lo! })),
@@ -34,7 +30,7 @@ function choose(v: number) {
   if (v === answer.value) right.value++;
 }
 function next() {
-  if (qi.value >= QS.length - 1) {
+  if (qi.value >= QS.value.length - 1) {
     finished.value = true;
     return;
   }
@@ -42,6 +38,7 @@ function next() {
   picked.value = null;
 }
 function again() {
+  QS.value = genChallenge();
   qi.value = 0;
   picked.value = null;
   right.value = 0;

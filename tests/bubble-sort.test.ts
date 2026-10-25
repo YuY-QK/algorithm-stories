@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BUGS, CHALLENGE_N, CODE, KID_N, ROUND_END_LINE, STORY_KIDS, bubbleRounds, buildTrace, challengeArray, distinctArray,
+  BUGS, CHALLENGE_N, PREDICT_N, bugVerdict, genPredict, CODE, KID_N, ROUND_END_LINE, STORY_KIDS, rounds, buildTrace, genChallenge, distinctArray,
   genArray, inversions, isSorted, lookFrames, need, passedOver, randomKids, runBug, sameItems, shootAnswer, shootInit,
   shootNextRound, shootQuiet, stableSorted, stars, swapsInRound, type Kid, type Shape, type ShootState,
 } from '../src/engine/bubble-sort';
+import { seeded } from './helpers/seeded';
 
 const byH = (k: Kid) => k.h;
 const asc = (a: number[]) => [...a].sort((x, y) => x - y);
 
 describe('冒泡排序 看：排队拍合照', () => {
   it('故事里的队伍：3 轮、比 9 次、换 4 次，第 3 轮没人换提前拍照', () => {
-    const rs = bubbleRounds(STORY_KIDS, byH);
+    const rs = rounds(STORY_KIDS, byH);
     expect(rs).toHaveLength(3);
     expect(rs.map((r) => r.swaps)).toEqual([3, 1, 0]);
     expect(rs.flatMap((r) => r.compares)).toHaveLength(9);
@@ -61,11 +62,11 @@ describe('冒泡排序 玩法一：当摄影师', () => {
     return s;
   }
 
-  it('一直答对就能排好，比较、交换次数和 bubbleRounds 一致', () => {
+  it('一直答对就能排好，比较、交换次数和 rounds 一致', () => {
     for (let k = 0; k < 1000; k++) {
       const kids = randomKids();
       const s = playRight(kids);
-      const rs = bubbleRounds(kids, byH);
+      const rs = rounds(kids, byH);
       expect(s.phase).toBe('done');
       expect(s.line.map(byH)).toEqual(asc(kids.map(byH)));
       expect(s.compares).toBe(rs.reduce((t, r) => t + r.compares.length, 0));
@@ -109,7 +110,7 @@ describe('冒泡排序 做：逐步执行', () => {
       expect(last.swaps).toBe(inversions(input));
       expect(steps.filter((s) => s.line === 6)).toHaveLength(last.compares);
       expect(steps.filter((s) => s.line === 9)).toHaveLength(last.swaps);
-      const rs = bubbleRounds(input, (v) => v);
+      const rs = rounds(input, (v) => v);
       expect(steps.filter((s) => s.line === ROUND_END_LINE)).toHaveLength(rs.length);
       const bad: string[] = [];
       for (const s of steps) {
@@ -146,12 +147,56 @@ describe('冒泡排序 做：猜下一步', () => {
   it('一轮的交换次数 = 左边有更大数的元素个数；落到最右的是这一轮的最大值', () => {
     for (let k = 0; k < 3000; k++) {
       const a = distinctArray(2 + (k % 7));
-      for (const r of bubbleRounds(a, (v) => v)) {
+      for (const r of rounds(a, (v) => v)) {
         expect(swapsInRound(r.before, r.end)).toBe(r.swaps);
         expect(passedOver(r.before, r.end)).toHaveLength(r.swaps);
         expect(r.top).toBe(Math.max(...r.before.slice(0, r.end + 1)));
       }
     }
+  });
+});
+
+describe('冒泡排序 做：猜下一步的出题和解释', () => {
+  it('genPredict：固定种子可复现，PREDICT_N 个互不相同的数', () => {
+    expect(genPredict(seeded(5))).toEqual(genPredict(seeded(5)));
+    const r = seeded(8);
+    for (let k = 0; k < 200; k++) {
+      const a = genPredict(r);
+      expect(a).toHaveLength(PREDICT_N);
+      expect(new Set(a).size).toBe(PREDICT_N);
+    }
+  });
+
+  it('rounds：每题都有 whyTop 和 why，why 里写着这一轮真实的交换次数', () => {
+    const r = seeded(12);
+    for (let k = 0; k < 200; k++) {
+      for (const rd of rounds(genPredict(r), (v) => v)) {
+        expect(rd.whyTop).toContain('下标 0 到 ' + rd.end);
+        expect(rd.whyTop).toContain(String(rd.top));
+        expect(rd.why).toContain('换了 ' + rd.swaps + ' 次');
+      }
+    }
+  });
+
+  it('lookFrames：每页有台词，最后一页拍照；randomKids 固定种子可复现', () => {
+    const a = randomKids(5, seeded(3)), b = randomKids(5, seeded(3));
+    expect(a).toEqual(b);
+    const fs = lookFrames(a);
+    expect(fs.every((f) => f.say.length > 0)).toBe(true);
+    expect(fs.at(-1)!.photo).toBe(true);
+  });
+});
+
+describe('冒泡排序 引擎：bugVerdict', () => {
+  it('没跑完是空；三个坑跑完各有各的判定', () => {
+    const v = Object.fromEntries(BUGS.map((b) => {
+      const tr = runBug(b);
+      expect(bugVerdict(tr[0], b)).toBe('');
+      return [b.id, bugVerdict(tr.at(-1)!, b)];
+    }));
+    expect(v.bound).toBe('💥 下标越界，程序崩溃');
+    expect(v.stable).toContain('先后顺序却反了');
+    expect(v.temp).toContain('不对');
   });
 });
 
@@ -195,7 +240,7 @@ describe('冒泡排序 做：找 bug', () => {
 describe('冒泡排序 做：挑战', () => {
   it('最少相邻交换次数 = 逆序对 = 冒泡的交换次数', () => {
     for (let k = 0; k < 500; k++) {
-      const a = challengeArray();
+      const a = genChallenge(CHALLENGE_N, seeded(k));
       expect(a).toHaveLength(CHALLENGE_N);
       expect(asc(a)).toEqual(Array.from({ length: CHALLENGE_N }, (_, x) => x + 1));
       const inv = inversions(a);
@@ -209,5 +254,11 @@ describe('冒泡排序 做：挑战', () => {
     }
     expect(isSorted([1, 2, 2, 3])).toBe(true);
     expect(isSorted([2, 1])).toBe(false);
+  });
+});
+
+describe('冒泡排序 引擎：固定种子', () => {
+  it('genChallenge：固定种子可复现', () => {
+    expect(genChallenge(CHALLENGE_N, seeded(9))).toEqual(genChallenge(CHALLENGE_N, seeded(9)));
   });
 });

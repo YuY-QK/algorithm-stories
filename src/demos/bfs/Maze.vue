@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { colOf, isWall, rowOf, type Maze } from '../../engine/bfs';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { FLASH_MS, SHAKE_MS } from '../../components/shared/timing';
 
 // 迷宫：看、玩、做共用，只负责画，不管规则。
 // 每个格子可以有一个色调（tones）和一个小字（labels，通常是离起点几步）。
@@ -25,18 +27,38 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ pick: [id: number] }>();
 
 const shaking = ref<number | null>(null);
+const glowing = ref<Set<number>>(new Set());
+let shakeTimer: ReturnType<typeof setTimeout> | null = null;
+let glowTimer: ReturnType<typeof setTimeout> | null = null;
+function stopShake() {
+  if (shakeTimer) clearTimeout(shakeTimer);
+  shakeTimer = null;
+  shaking.value = null;
+}
+function stopGlow() {
+  if (glowTimer) clearTimeout(glowTimer);
+  glowTimer = null;
+  glowing.value = new Set();
+}
 watch(() => props.shake, (v) => {
   if (!v) return;
-  shaking.value = null;
+  stopShake();
   requestAnimationFrame(() => (shaking.value = v[0]));
-  setTimeout(() => (shaking.value = null), 600);
+  shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
 });
-
-const glowing = ref<Set<number>>(new Set());
 watch(() => props.glowKey, () => {
-  glowing.value = new Set();
+  stopGlow();
   requestAnimationFrame(() => (glowing.value = new Set(props.glow)));
-  setTimeout(() => (glowing.value = new Set()), 1900);
+  glowTimer = setTimeout(() => (glowing.value = new Set()), FLASH_MS);
+});
+// 切换标签或卸载时，晃动和透光动画停下
+useStageStop(() => {
+  stopShake();
+  stopGlow();
+});
+onBeforeUnmount(() => {
+  stopShake();
+  stopGlow();
 });
 
 const ids = computed(() => Array.from({ length: props.maze.w * props.maze.h }, (_, k) => k));

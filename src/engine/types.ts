@@ -14,3 +14,22 @@ export interface Step {
 
 /** 一个算法的步骤轨迹：Step 加上该算法自己的状态字段 */
 export type Trace<S extends Step> = S[];
+
+/** 看：绘本的一页。各关用交叉类型加自己的画面字段，台词一律由引擎生成 */
+export interface LookFrame {
+  say: string;
+}
+
+/** 找 bug 的一个坑。输入数据（数组、迷宫、操作序列等）放各关自己的扩展字段 */
+export interface BugInfo {
+  id: string;
+  title: string;
+  /** 有坑的 Kotlin 代码，行号从 1 开始 */
+  code: string[];
+  wrongLine: number;
+  /** 该行的正确写法 */
+  fixed: string;
+  explain: string;
+  /** 正确的结果应该是什么 */
+  expect: string;
+}

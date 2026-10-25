@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 import Kid from './Kid.vue';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../components/shared/timing';
 
 // 一队小动物，站在一条地线上，从左到右是队头到队尾。队头可以当按钮点。
 const props = withDefaults(defineProps<{
@@ -25,14 +27,21 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ pick: [id: number] }>();
 
 const shaking = ref<number | null>(null);
-let timer: ReturnType<typeof setTimeout> | undefined;
+let shakeTimer: ReturnType<typeof setTimeout> | null = null;
+function stopShake() {
+  if (shakeTimer) clearTimeout(shakeTimer);
+  shakeTimer = null;
+  shaking.value = null;
+}
 watch(() => props.shake, (v) => {
   if (!v) return;
-  shaking.value = null;
+  stopShake();
   requestAnimationFrame(() => (shaking.value = v[0]));
-  clearTimeout(timer);
-  timer = setTimeout(() => (shaking.value = null), 600);
+  shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
 });
+// 切换标签或卸载时，晃动动画停下
+useStageStop(stopShake);
+onBeforeUnmount(stopShake);
 
 const stateOf = (id: number) => (props.moved === id ? 'moved' : props.glow === id ? 'glow' : props.cmp.includes(id) ? 'cmp' : '');
 </script>

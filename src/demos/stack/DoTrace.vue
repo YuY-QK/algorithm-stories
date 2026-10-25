@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { buildTrace, bracketPuzzle, clean, CODE, type PuzzleKind } from '../../engine/stack';
+import { buildTrace, clean, CODE, presetString, TRACE_MAX, TRACE_PRESETS, type PuzzleKind } from '../../engine/stack';
 import CodePanel from '../../components/shared/CodePanel.vue';
 import Transport from '../../components/shared/Transport.vue';
 import VarChips from '../../components/shared/VarChips.vue';
@@ -8,22 +8,11 @@ import { usePlayer } from '../../components/shared/usePlayer';
 import BracketView from './BracketView.vue';
 
 // 做：逐步执行 isValid。括号串、栈和代码行同步。
-const MAX = 16;
+const MAX = TRACE_MAX;
 const s = ref('{[()]}');
 const steps = computed(() => buildTrace(s.value));
-const p = usePlayer(steps, [
-  { label: '慢', ms: 1100 },
-  { label: '中', ms: 650 },
-  { label: '快', ms: 280 },
-]);
+const p = usePlayer(steps);
 const st = computed(() => p.step.value);
-
-const PRESETS: { label: string; kind: PuzzleKind }[] = [
-  { label: '能配上', kind: 'good' },
-  { label: '形状不对', kind: 'cross' },
-  { label: '多了左括号', kind: 'left' },
-  { label: '多了右括号', kind: 'extra' },
-];
 
 function onInput(e: Event) {
   const el = e.target as HTMLInputElement;
@@ -32,7 +21,7 @@ function onInput(e: Event) {
   s.value = v;
 }
 function preset(kind: PuzzleKind) {
-  s.value = bracketPuzzle(kind, 3 + Math.floor(Math.random() * 3));
+  s.value = presetString(kind);
 }
 
 const ch = computed(() => (st.value.i >= 0 && st.value.i < s.value.length ? s.value[st.value.i] : '—'));
@@ -61,7 +50,7 @@ const summary = computed(() => {
     <div class="field">
       <span class="lab">换一个</span>
       <div class="inline">
-        <button v-for="b in PRESETS" :key="b.kind" type="button" class="btn small" @click="preset(b.kind)">{{ b.label }}</button>
+        <button v-for="b in TRACE_PRESETS" :key="b.kind" type="button" class="btn small" @click="preset(b.kind)">{{ b.label }}</button>
       </div>
     </div>
   </div>

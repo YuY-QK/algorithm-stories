@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import {
   FIND_LEVELS, GUESS_LEVELS, KID_N, allPaths, canHop, noteOptions, pathKey, pathSum, playStars, ways,
 } from '../../engine/dynamic-programming';
+import { PAUSE_LONG, PAUSE_MID, PAUSE_SHORT, SHAKE_MS } from '../../components/shared/timing';
+import { useStageStop } from '../../components/shared/usePlayer';
 import Stairs from './Stairs.vue';
 
 // 玩法一「数跳法」：先自己点出第 1～3 级的所有跳法，再看着便签猜第 4～6 级该写几。
@@ -22,7 +24,7 @@ const tried = ref<number[]>([]);
 const glow = ref<number[]>([]);
 const shake = ref<string | null>(null);
 const say = ref('');
-const timers: ReturnType<typeof setTimeout>[] = [];
+let timers: ReturnType<typeof setTimeout>[] = [];
 
 function blank(): (number | null)[] {
   const a: (number | null)[] = Array(KID_N + 1).fill(null);
@@ -41,7 +43,20 @@ const earned = computed(() => playStars(wrongs.value));
 function later(fn: () => void, ms: number) {
   timers.push(setTimeout(fn, ms));
 }
-onBeforeUnmount(() => timers.forEach(clearTimeout));
+function clearTimers() {
+  timers.forEach(clearTimeout);
+  timers = [];
+}
+// 切走时：抖动立刻结束，等着收起来的跳法也直接收起来
+useStageStop(() => {
+  clearTimers();
+  shake.value = null;
+  if (busy.value) {
+    path.value = [];
+    busy.value = false;
+  }
+});
+onBeforeUnmount(clearTimers);
 
 function start() {
   li.value = 0;
@@ -74,14 +89,14 @@ begin();
 function buzz(id: string) {
   shake.value = null;
   requestAnimationFrame(() => (shake.value = id));
-  later(() => (shake.value = null), 600);
+  later(() => (shake.value = null), SHAKE_MS);
 }
 
 function hop(h: 1 | 2) {
   if (busy.value || !finding.value || levelDone.value) return;
   if (!canHop(level.value, path.value, h)) {
     buzz('h' + h);
-    say.value = '🙈 跳过头啦，换一种试试';
+    say.value = '🙈 已经跳到第 ' + pathSum(path.value) + ' 级，再跳 ' + h + ' 级就超过第 ' + level.value + ' 级了，换一种试试';
     return;
   }
   path.value = [...path.value, h];
@@ -90,8 +105,8 @@ function hop(h: 1 | 2) {
   busy.value = true;
   const key = pathKey(path.value);
   if (found.value.some((p) => pathKey(p) === key)) {
-    say.value = '👀 这种跳法已经有啦，换一种';
-    later(() => { path.value = []; busy.value = false; }, 900);
+    say.value = '👀 ' + path.value.join(' + ') + ' 这种跳法已经有啦，换一种';
+    later(() => { path.value = []; busy.value = false; }, PAUSE_LONG);
     return;
   }
   found.value = [...found.value, path.value];
@@ -99,10 +114,10 @@ function hop(h: 1 | 2) {
     levelDone.value = true;
     notes.value = notes.value.map((v, i) => (i === level.value ? total.value : v));
     say.value = '🎉 第 ' + level.value + ' 级一共 ' + total.value + ' 种！贴上便签 📝';
-    later(() => { path.value = []; busy.value = false; }, 700);
+    later(() => { path.value = []; busy.value = false; }, PAUSE_SHORT);
   } else {
-    say.value = '✅ 找到 ' + found.value.length + ' 种，还有没找到的 ❓';
-    later(() => { path.value = []; busy.value = false; }, 800);
+    say.value = '✅ ' + path.value.join(' + ') + ' 是第 ' + found.value.length + ' 种，一共 ' + total.value + ' 种，还有没找到的 ❓';
+    later(() => { path.value = []; busy.value = false; }, PAUSE_MID);
   }
 }
 
@@ -122,7 +137,7 @@ function choose(v: number) {
   glow.value = [];
   requestAnimationFrame(() => (glow.value = [level.value - 1, level.value - 2]));
   say.value = levelWrongs.value === 1
-    ? '🤔 看看闪光的两张便签 💡'
+    ? '🤔 ' + v + ' 不对。看看闪光的两张便签 💡'
     : '💡 最后一步，不是从闪光的这一级来，就是从那一级来。合起来试试？';
 }
 
@@ -140,6 +155,7 @@ function next() {
 
 <template>
   <div class="game">
+    <p class="small-note">目标：先帮小兔子数出第 1～3 级的所有跳法，再看着便签，猜第 4～6 级的便签该写几。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Stairs
       :n="KID_N" :bunny="bunny" :notes="notes" :from="from" :glow="glow"

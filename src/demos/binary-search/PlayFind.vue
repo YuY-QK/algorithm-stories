@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { KID_N, middle, narrow, pointTo, stars, type Dir } from '../../engine/binary-search';
+import { KID_N, middle, narrow, pickSecret, pointTo, stars, type Dir } from '../../engine/binary-search';
 import Street from './Street.vue';
 
 // 玩法二「当小邮差」：信由程序藏好，孩子自己点信箱找。
 // 引导：点灰信箱会摇头；第一次排除时追问「灰色的还要看吗」；连续两局不到三颗星，
 // 可以看小邮差的秘诀（正中间一闪一闪）；拿到三颗星后问「点哪里最快」，让孩子自己说出「中间」。
-const pick = () => 1 + Math.floor(Math.random() * KID_N);
+const pick = () => pickSecret();
 
 const secret = ref(pick());
 const lo = ref(1);

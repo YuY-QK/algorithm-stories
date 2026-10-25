@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { FILL_END, FILL_STEP, SHAKE_MS } from '../../components/shared/timing';
 import {
   ISLAND_MAPS, exploreStars, floodFill, islandChoices, islands, isLand, judgeIslandTap, parseIslands,
 } from '../../engine/dfs';
@@ -23,7 +25,17 @@ const shake = ref<[number, number] | null>(null);
 const glow = ref<number[]>([]);
 const glowKey = ref(0);
 const wrongNum = ref<number | null>(null);
-const timers: ReturnType<typeof setTimeout>[] = [];
+let timers: ReturnType<typeof setTimeout>[] = [];
+/** 停掉所有定时器；涂到一半的岛按没点过算，回到「点陆地」 */
+function stopTimers() {
+  timers.forEach(clearTimeout);
+  timers = [];
+  wrongNum.value = null;
+  if (filling.value) {
+    filling.value = null;
+    intro();
+  }
+}
 
 function intro() {
   say.value = '👆 点一块陆地，探险家 🧭 会把整座岛涂上颜色';
@@ -61,22 +73,22 @@ function tap(id: number) {
   if (j === 'sea') {
     misses.value++;
     shake.value = [id, (shake.value?.[1] ?? 0) + 1];
-    say.value = '🌊 这是海，找灰色的陆地 🏝️';
+    say.value = '🌊 这格是海，探险家走不了，点灰色的陆地 🏝️';
     return;
   }
   if (j === 'done') {
     glow.value = painted.value.find((isl) => isl.includes(id))!;
     glowKey.value++;
-    say.value = '👀 这座岛已经涂过颜色啦，数过的不用再数';
+    say.value = '👀 这座岛已经涂过颜色啦（在发光），数过的不用再数，去找灰色的陆地';
     return;
   }
   const cells = floodFill(map.value, id);
-  say.value = '🧭 探险家一格一格走，把连着的陆地都涂上';
+  say.value = '🧭 探险家从你点的这一格出发，一格一格走，把连着的 ' + cells.length + ' 格陆地都涂上';
   filling.value = { cells, lit: 0 };
   cells.forEach((_, k) => {
     timers.push(setTimeout(() => {
       if (filling.value) filling.value.lit = k + 1;
-    }, 160 * (k + 1)));
+    }, FILL_STEP * (k + 1)));
   });
   timers.push(setTimeout(() => {
     painted.value = [...painted.value, cells];
@@ -85,9 +97,9 @@ function tap(id: number) {
       phase.value = 'count';
       say.value = '🏝️ 所有的岛都涂好啦！一共有几座岛？';
     } else {
-      say.value = '✨ 这座岛涂好了！还有灰色的陆地';
+      say.value = '✨ 这座岛涂好了（第 ' + painted.value.length + ' 座）！还有灰色的陆地，再点一块';
     }
-  }, 160 * cells.length + 350));
+  }, FILL_STEP * cells.length + FILL_END));
 }
 
 const choices = computed(() => islandChoices(all.value.length));
@@ -102,15 +114,14 @@ function answer(n: number) {
   misses.value++;
   wrongNum.value = null;
   requestAnimationFrame(() => (wrongNum.value = n));
-  timers.push(setTimeout(() => (wrongNum.value = null), 600));
-  say.value = '🤔 数数有几种颜色？每种颜色是一座岛';
+  timers.push(setTimeout(() => (wrongNum.value = null), SHAKE_MS));
+  say.value = '🤔 不是 ' + n + ' 座。数数一共涂了几种颜色，每种颜色是一座岛';
 }
 
 const earned = computed(() => exploreStars(misses.value));
 
 function again() {
-  timers.forEach(clearTimeout);
-  timers.length = 0;
+  stopTimers();
   which.value = (which.value + 1) % ISLAND_MAPS.length;
   painted.value = [];
   filling.value = null;
@@ -120,11 +131,13 @@ function again() {
   intro();
 }
 
-onBeforeUnmount(() => timers.forEach(clearTimeout));
+useStageStop(stopTimers);
+onBeforeUnmount(stopTimers);
 </script>
 
 <template>
   <div class="game">
+    <p class="small-note">目标：海上有好几座小岛。点一块灰色的陆地，探险家 🧭 会把和它连在一起的陆地全涂上同一种颜色；涂完所有的岛，再数一数一共有几座。点到海会摇头。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Grid
       :w="map.w" :h="map.h" :tones="tones" :emojis="emojis" :labels="labels"

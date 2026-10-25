@@ -7,7 +7,7 @@ describe.skipIf(!hasPython())('栈：和 Python 参考实现对拍', () => {
     const all = st.OPENERS + st.CLOSERS;
     const cases = Array.from({ length: 600 }, (_, k) =>
       k % 3 === 0
-        ? st.predictString()
+        ? st.genPredict()
         : Array.from({ length: k % 14 }, () => all[Math.floor(Math.random() * 6)]).join(''));
     const py = runPython(
       'stack',

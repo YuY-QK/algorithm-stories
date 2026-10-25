@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { BOOK_EMOJI } from '../../engine/lru-cache';
+import { SHAKE_MS } from '../../components/shared/timing';
+import { useStageStop } from '../../components/shared/usePlayer';
 
 // 书桌和书架：看、玩法一、玩法二共用，只负责画，不管规则。
 // 桌上的书从左到右按「最近碰过」排：最左边最久没碰，最右边刚碰过。
@@ -32,11 +34,18 @@ const shelf = computed(() => {
 });
 
 const shaking = ref<number | null>(null);
+let shakeTimer: ReturnType<typeof setTimeout> | null = null;
+function stopShake() {
+  if (shakeTimer) clearTimeout(shakeTimer);
+  shakeTimer = null;
+  shaking.value = null;
+}
+useStageStop(stopShake);
 watch(() => props.shake, (v) => {
   if (!v) return;
-  shaking.value = null;
+  stopShake();
   requestAnimationFrame(() => (shaking.value = v[0]));
-  setTimeout(() => (shaking.value = null), 600);
+  shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
 });
 
 const name = (b: number) => b + ' 号书 ' + BOOK_EMOJI[b];

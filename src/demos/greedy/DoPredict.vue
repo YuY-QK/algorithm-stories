@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { SYSTEMS, desc, rounds, type Round } from '../../engine/greedy';
+import { genPredict, rounds, whyCoin, type Round } from '../../engine/greedy';
+import PredictFrame from '../../components/shared/PredictFrame.vue';
+import { useStreak } from '../../components/shared/useStreak';
 
 // 做：猜下一步。每一轮先点出下一枚拿哪种面值，再选这种拿几枚。连对 5 次过关。
 const GOAL = 5;
@@ -12,16 +14,14 @@ const r = ref(0);
 const phase = ref<'coin' | 'count' | 'wrong' | 'end'>('coin');
 const picked = ref<number | null>(null);
 const why = ref('');
-const streak = ref(0);
-const passed = ref(false);
+const { streak, passed, hit, miss } = useStreak(GOAL);
 const plate = ref<{ coin: number; count: number }[]>([]);
-const options = ref<number[]>([]);
 
 function fresh() {
-  const sys = SYSTEMS[Math.floor(Math.random() * SYSTEMS.length)];
-  coins.value = desc(sys.coins);
-  amount.value = 20 + Math.floor(Math.random() * 180);
-  list.value = rounds(coins.value, amount.value);
+  const q = genPredict();
+  coins.value = q.coins;
+  amount.value = q.amount;
+  list.value = rounds(q.coins, q.amount);
   r.value = 0;
   plate.value = [];
   phase.value = 'coin';
@@ -32,22 +32,8 @@ fresh();
 const cur = computed(() => list.value[r.value]);
 const left = computed(() => (phase.value === 'end' ? 0 : cur.value.left));
 
-/** 拿几枚的四个选项：正确答案和它附近的数 */
-function makeOptions(n: number): number[] {
-  const set = new Set([n]);
-  for (const d of [1, -1, 2, -2, 3]) {
-    if (set.size >= 4) break;
-    if (n + d >= 1) set.add(n + d);
-  }
-  return [...set].sort((a, b) => a - b);
-}
-
-function hit() {
-  streak.value++;
-  if (streak.value >= GOAL) passed.value = true;
-}
-function miss(text: string) {
-  streak.value = 0;
+function wrong(text: string) {
+  miss();
   why.value = text;
   phase.value = 'wrong';
 }
@@ -55,27 +41,18 @@ function miss(text: string) {
 function tapCoin(c: number) {
   if (phase.value !== 'coin') return;
   picked.value = c;
-  const { left: l, coin } = cur.value;
-  if (c === coin) {
+  if (c === cur.value.coin) {
     hit();
-    options.value = makeOptions(cur.value.count);
     phase.value = 'count';
-  } else if (c > l) {
-    miss(c + ' 比剩下的 ' + l + ' 大，拿了就找多了。不超过 ' + l + ' 的最大面值是 ' + coin + '。');
-  } else {
-    miss(c + ' 拿得下，但还有更大的 ' + coin + ' 也拿得下。贪心每次拿不超过 left 的最大面值。');
-  }
+  } else wrong(whyCoin(cur.value, c));
 }
 
 function chooseCount(n: number) {
   if (phase.value !== 'count') return;
-  const { left: l, coin, count } = cur.value;
-  if (n === count) {
+  if (n === cur.value.count) {
     hit();
     advance();
-  } else {
-    miss(l + ' ÷ ' + coin + ' = ' + count + ' 余 ' + (l - count * coin) + '：while 循环会一直拿 ' + coin + '，拿 ' + count + ' 枚后剩 ' + (l - count * coin) + '，比 ' + coin + ' 小才停。');
-  }
+  } else wrong(cur.value.why);
 }
 
 function advance() {
@@ -92,7 +69,6 @@ function advance() {
 function goOn() {
   if (picked.value !== null && picked.value !== cur.value.coin) {
     picked.value = cur.value.coin;
-    options.value = makeOptions(cur.value.count);
     phase.value = 'count';
   } else advance();
 }
@@ -106,44 +82,47 @@ const prompt = computed(() => {
 </script>
 
 <template>
-  <div class="stage">
-    <div class="vars">
+  <PredictFrame
+    :streak="streak"
+    :goal="GOAL"
+    :passed="passed"
+    :prompt="prompt"
+    :wrong="phase === 'wrong' ? why : null"
+    :ended="phase === 'end'"
+    @continue="goOn"
+    @next="fresh"
+  >
+    <template #chips>
       <span class="chip"><small>amount</small>{{ amount }}</span>
       <span class="chip"><small>left</small>{{ left }}</span>
-      <span class="chip"><small>连对</small>{{ Math.min(streak, GOAL) }} / {{ GOAL }}</span>
-      <span v-if="passed" class="chip win">🏅 过关</span>
-    </div>
-    <div class="faces">
-      <button
-        v-for="c in coins"
-        :key="c"
-        type="button"
-        class="face"
-        :class="{
-          right: (phase === 'count' || phase === 'wrong') && c === cur?.coin && picked === c,
-          miss: phase === 'wrong' && c === picked && c !== cur.coin,
-        }"
-        :disabled="phase !== 'coin'"
-        :aria-label="'面值 ' + c"
-        @click="tapCoin(c)"
-      >{{ c }}</button>
-    </div>
-    <div class="pan" aria-label="已经拿的硬币">
-      <span class="pan-lab">picked</span>
-      <span v-for="(x, k) in plate" :key="k" class="grp">{{ x.coin }} × {{ x.count }}</span>
-    </div>
-    <p class="note" aria-live="polite">{{ prompt }}</p>
-    <div v-if="phase === 'count'" class="answers">
-      <button v-for="n in options" :key="n" type="button" class="btn small mono" @click="chooseCount(n)">{{ n }} 枚</button>
-    </div>
-    <div v-if="phase === 'wrong'" class="oops-box">
-      <p>❌ {{ why }}</p>
-      <button type="button" class="btn small" @click="goOn">知道了，继续</button>
-    </div>
-    <div v-if="phase === 'end'" class="row">
-      <button type="button" class="btn small primary" @click="fresh">下一题</button>
-    </div>
-  </div>
+    </template>
+    <template #board>
+      <div class="faces">
+        <button
+          v-for="c in coins"
+          :key="c"
+          type="button"
+          class="face"
+          :class="{
+            right: (phase === 'count' || phase === 'wrong') && c === cur?.coin && picked === c,
+            miss: phase === 'wrong' && c === picked && c !== cur.coin,
+          }"
+          :disabled="phase !== 'coin'"
+          :aria-label="'面值 ' + c"
+          @click="tapCoin(c)"
+        >{{ c }}</button>
+      </div>
+      <div class="pan" aria-label="已经拿的硬币">
+        <span class="pan-lab">picked</span>
+        <span v-for="(x, k) in plate" :key="k" class="grp">{{ x.coin }} × {{ x.count }}</span>
+      </div>
+    </template>
+    <template #answers>
+      <div v-if="phase === 'count'" class="answers">
+        <button v-for="n in cur.options" :key="n" type="button" class="btn small mono" @click="chooseCount(n)">{{ n }} 枚</button>
+      </div>
+    </template>
+  </PredictFrame>
 </template>
 
 <style scoped>
@@ -166,6 +145,4 @@ const prompt = computed(() => {
 .pan-lab { font: 400 12px var(--mono); color: var(--muted); margin-right: 4px; }
 .grp { font: 600 13px var(--mono); padding: 2px 8px; border-radius: 999px; background: var(--mid); color: var(--mid-ink); }
 .mono { font-family: var(--mono); }
-.win { border-color: var(--accent); color: var(--accent); }
-.oops-box { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; border-left: 3px solid var(--warn); padding-left: 12px; }
 </style>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 import { CANDY_MAX } from '../../engine/selection-sort';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../components/shared/timing';
 
 // 把两颗糖果并排放大、站在同一条线上，比一比哪颗小。玩法一、二共用。
 const props = withDefaults(defineProps<{
@@ -19,12 +21,21 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ pick: [side: 'l' | 'r'] }>();
 
 const shaking = ref<'l' | 'r' | null>(null);
+let shakeTimer: ReturnType<typeof setTimeout> | null = null;
+function stopShake() {
+  if (shakeTimer) clearTimeout(shakeTimer);
+  shakeTimer = null;
+  shaking.value = null;
+}
 watch(() => props.shake, (v) => {
   if (!v) return;
-  shaking.value = null;
+  stopShake();
   requestAnimationFrame(() => (shaking.value = v[0]));
-  setTimeout(() => (shaking.value = null), 600);
+  shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
 });
+// 切换标签或卸载时，晃动动画停下
+useStageStop(stopShake);
+onBeforeUnmount(stopShake);
 
 const scale = (v: number) => (0.42 + (0.58 * v) / CANDY_MAX).toFixed(3);
 const hue = (v: number) => 'hue-rotate(' + ((v * 47) % 360) + 'deg)';
@@ -43,7 +54,7 @@ const hue = (v: number) => 'hue-rotate(' + ((v * 47) % 360) + 'deg)';
       @click="emit('pick', side)"
     >
       <span class="tagline" aria-hidden="true">{{ side === 'l' ? leftTag : rightTag }}</span>
-      <span class="big" :style="{ '--s': scale(side === 'l' ? left : right), filter: hue(side === 'l' ? left : right) }">🍬</span>
+      <span class="candy" :style="{ '--s': scale(side === 'l' ? left : right), filter: hue(side === 'l' ? left : right) }">🍬</span>
       <span class="size">{{ side === 'l' ? left : right }}</span>
     </button>
   </div>
@@ -62,7 +73,7 @@ const hue = (v: number) => 'hue-rotate(' + ((v * 47) % 360) + 'deg)';
 .side:not(:disabled):hover { border-color: var(--accent); }
 .side:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 .tagline { font-size: 1.3rem; line-height: 1.2; margin-bottom: auto; }
-.big { font-size: calc(var(--u) * var(--s)); line-height: 1; }
+.candy { font-size: calc(var(--u) * var(--s)); line-height: 1; }
 .size { font: 600 14px var(--mono); color: var(--muted); }
 .side.glow { animation: glow 0.9s ease-in-out 2; }
 .side.shake { animation: shake 0.5s ease-in-out; }

@@ -1,23 +1,23 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { DIR_NAMES, L, coord, genMaze, parseMaze, rounds, type Round } from '../../engine/bfs';
+import { coord, genPredict, parseMaze, rounds, type Round } from '../../engine/bfs';
+import PredictFrame from '../../components/shared/PredictFrame.vue';
+import { useStreak } from '../../components/shared/useStreak';
 import Maze, { type Tone } from './Maze.vue';
 import QueueRow from './QueueRow.vue';
 
 // 做：猜下一步。每次出队停住：队首的格子出队以后，哪些邻居会入队？点出来，或者判断它就是终点。连对 5 次过关。
 const GOAL = 5;
 
-const maze = ref(parseMaze(genMaze(4, 0.3)));
+const maze = ref(parseMaze(genPredict()));
 const list = ref<Round[]>(rounds(maze.value));
 const r = ref(0);
 const picked = ref<Set<number>>(new Set());
 const phase = ref<'ask' | 'wrong' | 'end'>('ask');
-const why = ref<string[]>([]);
-const streak = ref(0);
-const passed = ref(false);
+const { streak, passed, hit, miss } = useStreak(GOAL);
 
 function fresh() {
-  maze.value = parseMaze(genMaze(4, 0.3));
+  maze.value = parseMaze(genPredict());
   list.value = rounds(maze.value);
   r.value = 0;
   picked.value = new Set();
@@ -55,17 +55,6 @@ function toggle(id: number) {
   picked.value = s;
 }
 
-function explain(q: Round): string[] {
-  if (q.isEnd) return [coord(maze.value, q.cur) + ' 就是终点 E：第 ' + L.isEnd + ' 行直接返回 dist = ' + q.dist[q.cur] + '，不再看邻居。'];
-  return q.checks.map((c) => {
-    const name = DIR_NAMES[c.dir] + '边' + (c.id === null ? '' : ' ' + coord(maze.value, c.id));
-    if (c.why === 'out') return name + '：出界，跳过。';
-    if (c.why === 'wall') return name + '：墙，跳过。';
-    if (c.why === 'seen') return name + '：已经 visited（它在队列里或者早就出过队），跳过。';
-    return name + '：新格子，入队，dist = ' + (q.dist[q.cur] + 1) + '。';
-  });
-}
-
 function judge(sayEnd: boolean) {
   if (phase.value !== 'ask') return;
   const q = cur.value;
@@ -73,12 +62,10 @@ function judge(sayEnd: boolean) {
     ? q.isEnd
     : !q.isEnd && q.pushed.length === picked.value.size && q.pushed.every((id) => picked.value.has(id));
   if (ok) {
-    streak.value++;
-    if (streak.value >= GOAL) passed.value = true;
+    hit();
     advance();
   } else {
-    streak.value = 0;
-    why.value = explain(q);
+    miss();
     phase.value = 'wrong';
   }
 }
@@ -102,31 +89,28 @@ const prompt = computed(() => {
 </script>
 
 <template>
-  <div class="stage">
-    <div class="vars">
-      <span class="chip"><small>连对</small>{{ Math.min(streak, GOAL) }} / {{ GOAL }}</span>
+  <PredictFrame
+    :streak="streak"
+    :goal="GOAL"
+    :passed="passed"
+    :prompt="prompt"
+    :wrong="phase === 'wrong' ? cur.why : null"
+    :ended="phase === 'end'"
+    @continue="advance"
+    @next="fresh"
+  >
+    <template #chips>
       <span class="chip"><small>第</small>{{ r + 1 }} 次出队</span>
-      <span v-if="passed" class="chip win">🏅 过关</span>
-    </div>
-    <Maze :maze="maze" :tones="tones" :labels="labels" :mouse="maze.start" coords :clickable="phase === 'ask'" @pick="toggle" />
-    <QueueRow :maze="maze" :queue="cur.queue" :dist="cur.dist" />
-    <p class="note" aria-live="polite">{{ prompt }}</p>
-    <div v-if="phase === 'ask'" class="answers">
-      <button type="button" class="btn small primary" @click="judge(false)">就这些（{{ picked.size }} 个）</button>
-      <button type="button" class="btn small" @click="judge(true)">🧀 它是终点，return</button>
-    </div>
-    <div v-if="phase === 'wrong'" class="oops-box">
-      <p>❌ 不对，四个方向逐个看：</p>
-      <ul class="pits"><li v-for="(t, k) in why" :key="k">{{ t }}</li></ul>
-      <button type="button" class="btn small" @click="advance">知道了，继续</button>
-    </div>
-    <div v-if="phase === 'end'" class="row">
-      <button type="button" class="btn small primary" @click="fresh">换个迷宫</button>
-    </div>
-  </div>
+    </template>
+    <template #board>
+      <Maze :maze="maze" :tones="tones" :labels="labels" :mouse="maze.start" coords :clickable="phase === 'ask'" @pick="toggle" />
+      <QueueRow :maze="maze" :queue="cur.queue" :dist="cur.dist" />
+    </template>
+    <template #answers>
+      <div v-if="phase === 'ask'" class="answers">
+        <button type="button" class="btn small primary" @click="judge(false)">就这些（{{ picked.size }} 个）</button>
+        <button type="button" class="btn small" @click="judge(true)">🧀 它是终点，return</button>
+      </div>
+    </template>
+  </PredictFrame>
 </template>
-
-<style scoped>
-.win { border-color: var(--accent); color: var(--accent); }
-.oops-box { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; border-left: 3px solid var(--warn); padding-left: 12px; }
-</style>

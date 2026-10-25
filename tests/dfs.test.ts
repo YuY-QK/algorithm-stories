@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BACK, BUGS, CODE, DIRS, ISLAND_MAPS, KID_MAZES, L, PLAY_MAZES, STACK_LIMIT, TRACE_MAZES,
-  around, bestSteps, buildTrace, challengeK, countIslands, expectedChoice, floodFill, genMaze, islandChoices, islands,
+  around, bestSteps, bugVerdict, buildTrace, challengeK, genChallenge, genPredict, lookFrames, PREDICT_ROOMS, countIslands, expectedChoice, floodFill, genMaze, islandChoices, islands,
   isLand, isWall, judgeChoice, judgeIslandTap, neighbors, openCount, parseIslands, parseMaze, reachable, rounds,
   routeOf, runBug, seeded, shortestRoute, tour, visitOrder, walkedSteps, type Choice, type Maze,
 } from '../src/engine/dfs';
@@ -288,7 +288,46 @@ describe('DFS 做：逐步执行', () => {
   });
 });
 
+describe('DFS 看：绘本', () => {
+  it('lookFrames：台词在引擎里，最后两页是走出来的路和最短路的对比', () => {
+    for (const g of [...KID_MAZES, ...GRIDS.slice(0, 300).filter((x) => reachable(parseMaze(x)))]) {
+      const m = parseMaze(g);
+      const frames = lookFrames(m);
+      expect(frames.length).toBeGreaterThanOrEqual(5);
+      for (const f of frames) {
+        expect(f.say.length).toBeGreaterThan(0);
+      }
+      for (const f of frames.slice(1)) expect(f.tones[m.start]).toBeDefined();
+      expect(frames[0].hero).toBe(m.start);
+      expect(frames.at(-1)!.hero).toBe(m.end);
+      expect(frames.at(-1)!.say).toContain('只要 ' + bestSteps(m) + ' 步');
+      // 倒数第二页：路上的格子数 = 走出来的路 + 1
+      const walked = Object.values(frames.at(-2)!.tones).filter((t) => t === 'path').length;
+      expect(walked).toBe(routeOf(m).length);
+      expect(frames.at(-2)!.say).toContain('留在路上的 ' + (routeOf(m).length - 1) + ' 步');
+      // 最后一页亮出的最短路正好是 shortestRoute
+      const best = Object.entries(frames.at(-1)!.tones).filter(([, t]) => t === 'best').map(([id]) => Number(id));
+      expect(best.sort((a, b) => a - b)).toEqual([...shortestRoute(m)].sort((a, b) => a - b));
+    }
+  });
+});
+
 describe('DFS 做：猜下一步', () => {
+  it('rounds 每题带解释：宝藏一行，其他以顺序提示开头、死路讲回溯', () => {
+    for (let i = 0; i < 100; i++) {
+      const m = parseMaze(genPredict(seeded(i)));
+      for (const q of rounds(m)) {
+        expect(q.why.startsWith('不对，')).toBe(true);
+        if (q.answer.kind === 'end') expect(q.why).toContain('宝藏');
+        else {
+          expect(q.why).toContain('上、右、下、左');
+          if (q.answer.kind === 'back') expect(q.why).toContain('return false');
+          if (q.answer.kind === 'go') expect(q.why).toContain('新格子，进去');
+        }
+      }
+    }
+  });
+
   it('rounds 的答案和 tour 一致：前进去哪、回溯退到哪个路口', () => {
     for (let i = 0; i < 300; i++) {
       const m = parseMaze(i % 2 ? genMaze(4, 0.3, rand) : GRIDS[i]);
@@ -352,6 +391,37 @@ describe('DFS 做：找 bug', () => {
     const tr = runBug(BUGS.find((b) => b.id === 'no-mark')!);
     const tops = new Set(tr.slice(-20).map((s) => s.cur));
     expect(tops.size).toBeLessThanOrEqual(3);
+  });
+});
+
+describe('DFS 找 bug：判定文字', () => {
+  it('bugVerdict：没跑完是空，跑完按结果说话', () => {
+    for (const b of BUGS) {
+      const tr = runBug(b);
+      for (const s of tr.slice(0, -1)) expect(bugVerdict(s, b)).toBe('');
+      const v = bugVerdict(tr.at(-1)!, b);
+      if (b.id === 'no-mark') expect(v).toContain('StackOverflowError');
+      if (b.id === 'bounds') expect(v).toContain('越界');
+      if (b.id === 'ignore') expect(v).toBe('❌ 返回了 false，可是宝藏明明走得到，应该返回 true');
+    }
+  });
+});
+
+describe('DFS 出题：固定种子可复现', () => {
+  it('genChallenge / genPredict 用 rand 参数，同种子同结果', () => {
+    for (let k = 0; k < 50; k++) {
+      const a = genChallenge(seeded(k));
+      expect(a).toEqual(genChallenge(seeded(k)));
+      const m = parseMaze(a.maze);
+      expect([m.w, m.h]).toEqual([9, 9]);
+      expect(a.k).toBeGreaterThanOrEqual(5);
+      expect(a.k).toBeLessThanOrEqual(14);
+      expect(reachable(m)).toBe(true);
+      expect(genPredict(seeded(k))).toEqual(genPredict(seeded(k)));
+      const p = parseMaze(genPredict(seeded(k)));
+      expect([p.w, p.h]).toEqual([2 * PREDICT_ROOMS - 1, 2 * PREDICT_ROOMS - 1]);
+    }
+    expect(genChallenge(seeded(1)).maze).not.toEqual(genChallenge(seeded(2)).maze);
   });
 });
 

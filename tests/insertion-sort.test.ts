@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BUGS, CODE, RACE_N, STORY_HAND, buildTrace, countChoices, dealHand, genArray, insertPos, inversions,
-  isSorted, isStable, judgeGap, nearlySorted, nextAction, raceLanes, rounds, runBug, simulate, stars, storyFrames,
+  BUGS, CHALLENGE_N, CODE, PREDICT_MAX, PREDICT_N, STORY_HAND, bugVerdict, buildTrace, countChoices, dealHand, genArray,
+  genChallenge, genPredict, insertPos, inversions, isSorted, isStable, judgeGap, lookFrames, nearlySorted, nextAction,
+  rounds, runBug, showCards, simulate, stars,
 } from '../src/engine/insertion-sort';
+import { seeded } from './helpers/seeded';
 
 const sortNum = (a: number[]) => [...a].sort((x, y) => x - y);
 
@@ -10,7 +12,7 @@ describe('插入排序 看：小熊理纸牌', () => {
   it('绘本最后一页是排好的牌，挪动次数等于逆序对数', () => {
     for (let k = 0; k < 500; k++) {
       const values = k === 0 ? STORY_HAND : dealHand(2 + (k % 6));
-      const frames = storyFrames(values);
+      const frames = lookFrames(values);
       const last = frames.at(-1)!;
       expect(last.slots.map((id) => values[id!])).toEqual(sortNum(values));
       expect(last.say).toContain('挪了 ' + inversions(values) + ' 次');
@@ -33,7 +35,7 @@ describe('插入排序 看：小熊理纸牌', () => {
 
   it('故事用的那手牌：17 页，挪 6 次', () => {
     expect(STORY_HAND).toEqual([4, 2, 5, 1, 3]);
-    expect(storyFrames(STORY_HAND)).toHaveLength(17);
+    expect(lookFrames(STORY_HAND)).toHaveLength(17);
     expect(inversions(STORY_HAND)).toBe(6);
   });
 });
@@ -218,16 +220,16 @@ describe('插入排序 做：找 bug', () => {
 describe('插入排序 做：挑战', () => {
   it('四组：几乎有序最快，倒序最慢，挪动次数等于逆序对数', () => {
     for (let k = 0; k < 300; k++) {
-      const lanes = raceLanes();
+      const lanes = genChallenge();
       expect(lanes.map((l) => l.kind).sort()).toEqual(['nearly', 'random', 'reversed', 'tail']);
       const moves = Object.fromEntries(lanes.map((l) => [l.kind, buildTrace(l.values).at(-1)!.moves]));
       for (const l of lanes) {
-        expect(sortNum(l.values)).toEqual(Array.from({ length: RACE_N }, (_, x) => x + 1));
+        expect(sortNum(l.values)).toEqual(Array.from({ length: CHALLENGE_N }, (_, x) => x + 1));
         expect(moves[l.kind]).toBe(inversions(l.values));
       }
       expect(moves.nearly).toBe(2);
-      expect(moves.tail).toBe(RACE_N - 1);
-      expect(moves.reversed).toBe((RACE_N * (RACE_N - 1)) / 2);
+      expect(moves.tail).toBe(CHALLENGE_N - 1);
+      expect(moves.reversed).toBe((CHALLENGE_N * (CHALLENGE_N - 1)) / 2);
       expect(moves.random).toBeGreaterThan(moves.tail);
       expect(moves.random).toBeLessThan(moves.reversed);
       // 比赛按步数排名：几乎有序 < 最后一个最小 < 随机 < 倒序，没有并列
@@ -236,5 +238,59 @@ describe('插入排序 做：挑战', () => {
       expect(len.tail).toBeLessThan(len.random);
       expect(len.random).toBeLessThan(len.reversed);
     }
+  });
+});
+
+describe('插入排序 引擎：台词、解释和固定种子出题', () => {
+  it('lookFrames：每页有台词，固定种子发的牌最后一页排好', () => {
+    const r = seeded(31);
+    for (let k = 0; k < 100; k++) {
+      const hand = dealHand(5, r);
+      const fs = lookFrames(hand);
+      expect(fs.every((f) => f.say.length > 0)).toBe(true);
+      expect(fs.at(-1)!.slots.map((id) => hand[id!])).toEqual(sortNum(hand));
+    }
+  });
+
+  it('dealHand：固定种子可复现', () => {
+    expect(dealHand(6, seeded(2))).toEqual(dealHand(6, seeded(2)));
+    expect(dealHand(6, seeded(2))).not.toEqual(dealHand(6, seeded(3)));
+  });
+
+  it('genPredict：固定种子可复现，长度和范围对', () => {
+    expect(genPredict(seeded(5))).toEqual(genPredict(seeded(5)));
+    const r = seeded(6);
+    for (let k = 0; k < 100; k++) {
+      const a = genPredict(r);
+      expect(a).toHaveLength(PREDICT_N);
+      for (const v of a) expect(v >= 1 && v <= PREDICT_MAX).toBe(true);
+    }
+  });
+
+  it('rounds 的解释写着真实的下标和次数', () => {
+    const r = seeded(14);
+    for (let k = 0; k < 200; k++) {
+      for (const rd of rounds(genPredict(r))) {
+        expect(rd.whyPos).toContain('key 落在下标 ' + rd.pos);
+        expect(rd.why).toContain('一共 ' + rd.compares + ' 次');
+        expect(rd.why).toContain('挪了 ' + rd.moves + ' 次');
+      }
+    }
+  });
+
+  it('bugVerdict：没跑完是空，跑完按结果写', () => {
+    const text = Object.fromEntries(BUGS.map((b) => [b.id, bugVerdict(runBug(b).at(-1)!, b)]));
+    for (const b of BUGS) expect(bugVerdict(runBug(b)[0], b)).toBe('');
+    expect(text.gt0).toBe('❌ 结果 [4, 1, 2, 3, 5]，没排好');
+    expect(text.ge).toContain('不稳定');
+    expect(text.ge).toContain('3♥');
+    expect(text['write-j']).toBe('💥 下标越界，程序崩溃');
+    expect(bugVerdict(buildTrace([2, 1]).at(-1)!, BUGS[0])).toBe('✅ 排好了');
+    expect(showCards([3, 1], [0, 1], true)).toBe('[3♥, 1♠]');
+  });
+
+  it('genChallenge：固定种子可复现', () => {
+    expect(genChallenge(seeded(9))).toEqual(genChallenge(seeded(9)));
+    expect(genChallenge(seeded(9))[0].values).toHaveLength(CHALLENGE_N);
   });
 });

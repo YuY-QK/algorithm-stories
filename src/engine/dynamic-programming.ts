@@ -1,4 +1,4 @@
-import type { Step, Trace } from './types';
+import type { BugInfo, LookFrame, Step, Trace } from './types';
 
 /* ---------- 看、玩：小兔子爬楼梯 ---------- */
 
@@ -38,8 +38,7 @@ export function canHop(level: number, sofar: number[], hop: 1 | 2): boolean {
 }
 
 /** 看：绘本的一个画面 */
-export interface LookFrame {
-  say: string;
+export interface LookPage extends LookFrame {
   /** 小兔子站在第几级 */
   bunny: number;
   /** 每一级台阶上的便签，null 表示还没写 */
@@ -50,11 +49,11 @@ export interface LookFrame {
   ask: number | null;
 }
 
-export function lookFrames(n: number = KID_N): LookFrame[] {
+export function lookFrames(n: number = KID_N): LookPage[] {
   const t = waysTable(n);
   const blank = (): (number | null)[] => Array(n + 1).fill(null);
   const notes = blank();
-  const out: LookFrame[] = [];
+  const out: LookPage[] = [];
   const add = (say: string, bunny: number, from: number[], ask: number | null) =>
     out.push({ say, bunny, notes: [...notes], from, ask });
 
@@ -175,6 +174,8 @@ export interface DpStep extends Step {
   from: number[];
   /** 返回值，没返回前是 null */
   result: number | null;
+  /** 'running' 还在跑；'ok' 对；'wrong'（找 bug 时）跑完了但答案不对；'crash'（找 bug 时）下标越界 */
+  outcome: 'running' | 'ok' | 'wrong' | 'crash';
 }
 
 /** n ≥ 2。每一步对应 CODE 里的一行 */
@@ -183,7 +184,7 @@ export function buildTrace(n: number): Trace<DpStep> {
   const steps: DpStep[] = [];
   let i: number | null = null;
   const push = (line: number, note: string, extra: Partial<DpStep> = {}) => {
-    steps.push({ line, dp: [...dp], i, from: [], result: null, note, done: false, ...extra });
+    steps.push({ line, dp: [...dp], i, from: [], result: null, outcome: 'running', note, done: false, ...extra });
   };
 
   push(2, '建一张 dp 表，dp[i] 表示到第 i 级有几种跳法。先全空着（数组多开了一格，n 很小时 dp[1] 才不会越界）。');
@@ -200,7 +201,7 @@ export function buildTrace(n: number): Trace<DpStep> {
   }
   i = null;
   push(5, 'i 超过 ' + n + '，循环结束。');
-  push(8, '返回 dp[' + n + '] = ' + dp[n] + '。', { result: dp[n], done: true });
+  push(8, '返回 dp[' + n + '] = ' + dp[n] + '。', { result: dp[n], outcome: 'ok', done: true });
   return steps;
 }
 
@@ -214,6 +215,10 @@ export interface Round {
   value: number;
   /** 填之前的 dp 表 */
   dp: (number | null)[];
+  /** dp[i] 的四个选项 */
+  options: number[];
+  /** 选错值时的解释 */
+  why: string;
 }
 
 /** n ≥ 2，从 dp[2] 一格一格往后填 */
@@ -221,13 +226,31 @@ export function rounds(n: number): Round[] {
   const t = waysTable(n);
   const out: Round[] = [];
   for (let i = 2; i <= n; i++) {
-    out.push({ i, from: [i - 1, i - 2], value: t[i], dp: t.map((v, k) => (k < i ? v : null)) });
+    const dp = t.map((v, k) => (k < i ? v : null));
+    const r = {
+      i, from: [i - 1, i - 2] as [number, number], value: t[i], dp, options: [] as number[],
+      why: 'dp[' + i + '] = dp[' + (i - 1) + '] + dp[' + (i - 2) + '] = ' + t[i - 1] + ' + ' + t[i - 2] + ' = ' + t[i] + '。两格都要加上，一格也不能少。',
+    };
+    r.options = valueOptions(r);
+    out.push(r);
   }
   return out;
 }
 
+/** 点错格子时的解释：还空着，或者不是紧挨着的前两格 */
+export function whyFrom(r: Round, k: number): string {
+  return r.dp[k] === null
+    ? 'dp[' + k + '] 还空着，只能用已经填好的格子。'
+    : 'dp[' + r.i + '] 的最后一步，要么从第 ' + (r.i - 1) + ' 级跳 1 级上来，要么从第 ' + (r.i - 2) + ' 级跳 2 级上来，所以只看紧挨着的前两格：dp[' + (r.i - 1) + '] 和 dp[' + (r.i - 2) + ']。';
+}
+
+/** 猜下一步每次出一道新题：楼梯 6～10 级 */
+export function genPredict(rand: () => number = Math.random): number {
+  return 6 + Math.floor(rand() * 5);
+}
+
 /** dp[i] 的四个选项：正确答案，加上常见的错（只抄一格、少一、多一……） */
-export function valueOptions(r: Round): number[] {
+export function valueOptions(r: Pick<Round, 'i' | 'value' | 'dp'>): number[] {
   const left = r.dp[r.i - 1]!;
   const cand = [left, r.value + 1, r.value - 1, left * 2, r.value + 2];
   const set = new Set<number>([r.value]);
@@ -237,23 +260,16 @@ export function valueOptions(r: Round): number[] {
 
 /* ---------- 做：找 bug ---------- */
 
-export interface Bug {
+export interface Bug extends BugInfo {
   id: 'init' | 'from1' | 'size';
-  title: string;
-  /** 有 bug 的 Kotlin 代码，和 CODE 只差一行 */
-  code: string[];
-  wrongLine: number;
-  fixed: string;
   n: number;
-  expect: string;
-  explain: string;
 }
 
 function variant(line: number, text: string): string[] {
   return CODE.map((t, k) => (k + 1 === line ? text : t));
 }
 
-export const BUGS: Bug[] = [
+export const BUGS: readonly Bug[] = [
   {
     id: 'init',
     title: '数字总是少了',
@@ -286,24 +302,16 @@ export const BUGS: Bug[] = [
   },
 ];
 
-export interface BugStep extends Step {
-  dp: (number | null)[];
-  i: number | null;
-  /** ok 对；wrong 跑完了但答案不对；crash 下标越界 */
-  outcome: 'running' | 'ok' | 'wrong' | 'crash';
-  result: number | null;
-}
-
 /** 按 bug 版本的代码逐行执行，line 对应 bug.code 的行号 */
-export function runBug(bug: Bug): Trace<BugStep> {
+export function runBug(bug: Bug): Trace<DpStep> {
   const n = bug.n;
   const size = bug.id === 'size' ? n + 1 : n + 2;
   const dp: (number | null)[] = Array(size).fill(null);
   const val = (k: number) => dp[k] ?? 0; // Kotlin 的 LongArray 默认是 0
-  const steps: BugStep[] = [];
+  const steps: DpStep[] = [];
   let i: number | null = null;
-  const push = (line: number, note: string, extra: Partial<BugStep> = {}) => {
-    steps.push({ line, dp: [...dp], i, note, done: false, outcome: 'running', result: null, ...extra });
+  const push = (line: number, note: string, extra: Partial<DpStep> = {}) => {
+    steps.push({ line, dp: [...dp], i, from: [], note, done: false, outcome: 'running', result: null, ...extra });
   };
   const crash = (line: number, idx: number) =>
     push(line, '读写 dp[' + idx + ']：数组一共 ' + size + ' 格，下标 ' + idx + ' 越界，程序崩溃！', { outcome: 'crash', done: true });
@@ -332,6 +340,13 @@ export function runBug(bug: Bug): Trace<BugStep> {
   const result = val(n);
   push(8, '返回 dp[' + n + '] = ' + result + '。', { outcome: result === ways(n) ? 'ok' : 'wrong', result, done: true });
   return steps;
+}
+
+/** 找 bug 面板底部的判定：没跑完是空，跑完按结果说话 */
+export function bugVerdict(step: DpStep, _bug: Bug): string {
+  if (!step.done) return '';
+  if (step.outcome === 'crash') return '💥 下标越界，程序崩溃';
+  return '❌ 返回了 ' + step.result + '，不对';
 }
 
 /* ---------- 做：挑战（网格数路线） ---------- */
@@ -374,6 +389,11 @@ export function randomRocks(rand: () => number = Math.random, rows = GRID_ROWS, 
     }
     if (gridTable(rocks)[rows - 1][cols - 1] > 0) return rocks;
   }
+}
+
+/** 挑战每次出一张新地图 */
+export function genChallenge(rand: () => number = Math.random): Rocks {
+  return randomRocks(rand);
 }
 
 /** 需要玩家填的格子：中间的、不是石头的，按从上到下、从左到右 */

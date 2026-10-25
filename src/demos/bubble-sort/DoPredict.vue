@@ -1,33 +1,43 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
-import { bubbleRounds, distinctArray, passedOver, type Round } from '../../engine/bubble-sort';
+import { PREDICT_N, genPredict, passedOver, rounds, type Round } from '../../engine/bubble-sort';
+import PredictFrame from '../../components/shared/PredictFrame.vue';
+import { useStreak } from '../../components/shared/useStreak';
+import { PAUSE_START, PAUSE_TICK } from '../../components/shared/timing';
+import { useStageStop } from '../../components/shared/usePlayer';
 
 // 做：猜下一步。每一轮开始前猜两件事：这一轮结束后哪个数站到最右边（还没排好的部分），
 // 这一轮会交换几次。答完播放这一轮，验证你的猜测。连对 6 次过关。
 const GOAL = 6;
-const N = 6;
 
 const arr = ref<number[]>([]);
 const list = ref<Round<number>[]>([]);
 const r = ref(0);
 const view = ref<number[]>([]);
-const sortedFrom = ref(N);
+const sortedFrom = ref(PREDICT_N);
 const j = ref<number | null>(null);
 const phase = ref<'top' | 'count' | 'wrong' | 'anim' | 'end'>('top');
 const wrongOf = ref<'top' | 'count'>('top');
 const picked = ref<number | null>(null);
 const why = ref('');
-const streak = ref(0);
-const passed = ref(false);
+const { streak, passed, hit, miss: resetStreak } = useStreak(GOAL);
 let timer: ReturnType<typeof setTimeout> | null = null;
 
-function fresh() {
+function clearTimer() {
   if (timer) clearTimeout(timer);
-  arr.value = distinctArray(N, 30);
-  list.value = bubbleRounds(arr.value, (v) => v);
+  timer = null;
+}
+// 切标签时动画停下；停在半路的这一题作废，换一题，免得卡在「进行中」
+useStageStop(() => { if (phase.value === 'anim') fresh(); else clearTimer(); });
+onBeforeUnmount(clearTimer);
+
+function fresh() {
+  clearTimer();
+  arr.value = genPredict();
+  list.value = rounds(arr.value, (v) => v);
   r.value = 0;
   view.value = arr.value.slice();
-  sortedFrom.value = N;
+  sortedFrom.value = PREDICT_N;
   j.value = null;
   picked.value = null;
   phase.value = 'top';
@@ -37,12 +47,8 @@ fresh();
 const cur = computed(() => list.value[r.value]);
 const over = computed(() => (phase.value === 'wrong' && wrongOf.value === 'count' ? passedOver(cur.value.before, cur.value.end) : []));
 
-function hit() {
-  streak.value++;
-  if (streak.value >= GOAL) passed.value = true;
-}
 function miss(kind: 'top' | 'count', text: string) {
-  streak.value = 0;
+  resetStreak();
   wrongOf.value = kind;
   why.value = text;
   phase.value = 'wrong';
@@ -51,25 +57,21 @@ function miss(kind: 'top' | 'count', text: string) {
 function tapCell(k: number) {
   if (phase.value !== 'top' || k > cur.value.end) return;
   picked.value = k;
-  const { top, end } = cur.value;
-  if (view.value[k] === top) {
+  if (view.value[k] === cur.value.top) {
     hit();
     phase.value = 'count';
   } else {
-    miss('top', '这一轮要比的是下标 0 到 ' + end + '。每次比较都把较大的往右带，所以其中最大的 ' + top + ' 一旦被碰到，就会被一路带到下标 ' + end + '。');
+    miss('top', cur.value.whyTop);
   }
 }
 
 function chooseCount(c: number) {
   if (phase.value !== 'count') return;
-  const { swaps, before, end } = cur.value;
-  if (c === swaps) {
+  if (c === cur.value.swaps) {
     hit();
     animate();
   } else {
-    const ks = passedOver(before, end);
-    miss('count', '这一轮换了 ' + swaps + ' 次。从左往右，「目前最大的数」一路往右走，遇到比它小的就换一次。'
-      + (ks.length ? '左边出现过更大数的是 ' + ks.map((k) => before[k]).join('、') + '（标了红框），每个被越过一次。' : '每个数左边都没有比它大的，一次都不用换。'));
+    miss('count', cur.value.why);
   }
 }
 
@@ -89,7 +91,7 @@ function animate() {
       j.value = rd.compares[c].j;
       view.value = rd.compares[c].after;
       c++;
-      timer = setTimeout(tick, 320);
+      timer = setTimeout(tick, PAUSE_TICK);
       return;
     }
     j.value = null;
@@ -103,10 +105,8 @@ function animate() {
     r.value++;
     phase.value = 'top';
   };
-  timer = setTimeout(tick, 200);
+  timer = setTimeout(tick, PAUSE_START);
 }
-
-onBeforeUnmount(() => { if (timer) clearTimeout(timer); });
 
 const prompt = computed(() => {
   if (phase.value === 'end') {
@@ -123,44 +123,45 @@ const prompt = computed(() => {
 </script>
 
 <template>
-  <div class="stage">
-    <div class="vars">
-      <span class="chip"><small>连对</small>{{ Math.min(streak, GOAL) }} / {{ GOAL }}</span>
-      <span v-if="passed" class="chip win">🏅 过关</span>
-    </div>
-    <div class="arr">
-      <button
-        v-for="(v, k) in view"
-        :key="k"
-        type="button"
-        class="cell"
-        :class="{
-          cmp: j !== null && (k === j || k === j + 1),
-          done: k >= sortedFrom,
-          goal: (phase === 'top' || phase === 'count') && k === cur.end,
-          miss: phase === 'wrong' && wrongOf === 'top' && k === picked,
-          over: over.includes(k),
-        }"
-        :disabled="phase !== 'top' || k > cur.end"
-        :aria-label="'下标 ' + k + '，值 ' + v"
-        @click="tapCell(k)"
-      >
-        <span class="val">{{ v }}</span>
-        <span class="idx">{{ k }}</span>
-      </button>
-    </div>
-    <p class="note" aria-live="polite">{{ prompt }}</p>
-    <div v-if="phase === 'count'" class="answers">
-      <button v-for="c in cur.end + 1" :key="c" type="button" class="btn small mono" @click="chooseCount(c - 1)">{{ c - 1 }} 次</button>
-    </div>
-    <div v-if="phase === 'wrong'" class="oops-box">
-      <p>❌ {{ why }}</p>
-      <button type="button" class="btn small" @click="goOn">知道了，继续</button>
-    </div>
-    <div v-if="phase === 'end'" class="row">
-      <button type="button" class="btn small primary" @click="fresh">下一题</button>
-    </div>
-  </div>
+  <PredictFrame
+    :streak="streak"
+    :goal="GOAL"
+    :passed="passed"
+    :prompt="prompt"
+    :wrong="phase === 'wrong' ? why : null"
+    :ended="phase === 'end'"
+    @continue="goOn"
+    @next="fresh"
+  >
+    <template #board>
+      <div class="arr">
+        <button
+          v-for="(v, k) in view"
+          :key="k"
+          type="button"
+          class="cell"
+          :class="{
+            cmp: j !== null && (k === j || k === j + 1),
+            done: k >= sortedFrom,
+            goal: (phase === 'top' || phase === 'count') && k === cur.end,
+            miss: phase === 'wrong' && wrongOf === 'top' && k === picked,
+            over: over.includes(k),
+          }"
+          :disabled="phase !== 'top' || k > cur.end"
+          :aria-label="'下标 ' + k + '，值 ' + v"
+          @click="tapCell(k)"
+        >
+          <span class="val">{{ v }}</span>
+          <span class="idx">{{ k }}</span>
+        </button>
+      </div>
+    </template>
+    <template #answers>
+      <div v-if="phase === 'count'" class="answers">
+        <button v-for="c in cur.end + 1" :key="c" type="button" class="btn small mono" @click="chooseCount(c - 1)">{{ c - 1 }} 次</button>
+      </div>
+    </template>
+  </PredictFrame>
 </template>
 
 <style scoped>
@@ -181,6 +182,4 @@ const prompt = computed(() => {
 .cell.miss .val, .cell.over .val { border-color: var(--warn); border-width: 2.5px; color: var(--warn); }
 .answers .btn { flex: 0 1 auto; }
 .mono { font-family: var(--mono); }
-.win { border-color: var(--accent); color: var(--accent); }
-.oops-box { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; border-left: 3px solid var(--warn); padding-left: 12px; }
 </style>

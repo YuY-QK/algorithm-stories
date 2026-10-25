@@ -1,4 +1,4 @@
-import type { Step, Trace } from './types';
+import type { BugInfo, LookFrame, Step, Trace } from './types';
 
 /*
  * 深度优先搜索（DFS）：探险家走山洞。
@@ -226,6 +226,90 @@ export const KID_MAZES: string[][] = [
     '......E',
   ],
 ];
+
+/* ---------- 看：绘本 ---------- */
+
+/** 看里格子的色调：面包屑、现在这条路、最近的路（Grid.vue 的 Tone 包含这三个） */
+export type LookTone = 'crumb' | 'path' | 'best';
+
+export interface LookPage extends LookFrame {
+  tones: Record<number, LookTone>;
+  /** 探险家站在哪一格 */
+  hero: number;
+  /** 撒过面包屑的格子，没有就是空数组 */
+  crumbs: boolean[];
+}
+
+/** 一口气往前走最多这么多步就翻一页，免得一页走太长看不清 */
+export const LOOK_CHUNK = 5;
+
+/**
+ * 绘本的全部页，台词也在这里。每一页都从 tour（探险家的完整行程，和真实的 DFS 一致）里截一段：
+ * 一口气往前走几步，或者碰壁以后退回几步。最后和 BFS 的最短路比一比。
+ */
+export function lookFrames(m: Maze): LookPage[] {
+  const moves = tour(m);
+  const pathTones = (mv: TourMove, extra: Record<number, LookTone> = {}): Record<number, LookTone> => {
+    const t: Record<number, LookTone> = {};
+    mv.visited.forEach((v, id) => {
+      if (v) t[id] = 'crumb';
+    });
+    for (const id of mv.path) t[id] = 'path';
+    return { ...t, ...extra };
+  };
+  const at = (say: string, mv: TourMove, extra: Record<number, LookTone> = {}): LookPage => ({
+    say, tones: pathTones(mv, extra), hero: mv.cell, crumbs: mv.visited,
+  });
+
+  const out: LookPage[] = [];
+  const first = moves[0];
+  out.push({ say: '探险家 🧭 走进山洞，要找宝藏 💎', tones: {}, hero: m.start, crumbs: [] });
+  out.push({ say: '遇到岔路口，按顺序选：⬆️ ➡️ ⬇️ ⬅️', tones: { [m.start]: 'path' }, hero: m.start, crumbs: [] });
+  out.push(at('走过的地方撒面包屑 🍞，不走回头路', first));
+
+  // 把行程切成「一口气往前走」和「退回」的段，往前走的段太长就再切开
+  let k = 1;
+  let goRuns = 0;
+  let backRuns = 0;
+  let afterBack = false;
+  while (k < moves.length) {
+    const kind = moves[k].kind === 'found' ? 'go' : moves[k].kind;
+    let j = k;
+    let n = 0;
+    while (j < moves.length && (moves[j].kind === 'found' ? 'go' : moves[j].kind) === kind && !(kind === 'go' && n >= LOOK_CHUNK)) {
+      if (moves[j].kind !== 'found') n++;
+      j++;
+    }
+    const last = moves[j - 1];
+    if (kind === 'back') {
+      backRuns++;
+      out.push(at(backRuns === 1 ? '碰壁了，是死路！退回上一个路口' : '又是死路，再退回去', last));
+      afterBack = true;
+    } else {
+      goRuns++;
+      const found = last.kind === 'found';
+      const say = found
+        ? '💎 找到宝藏啦！'
+        : afterBack ? '回到路口，换下一个方向' : goRuns === 1 ? '一直往前走，走到底' : '继续往前走';
+      out.push(at(say, last));
+      afterBack = false;
+    }
+    k = j;
+  }
+
+  const end = moves[moves.length - 1];
+  const dfsSteps = end.path.length - 1;
+  out.push(at('留在路上的 ' + dfsSteps + ' 步，就是它走出来的路', end));
+  const bestTones: Record<number, LookTone> = {};
+  for (const id of shortestRoute(m)) bestTones[id] = 'best';
+  out.push({
+    say: '可是最近的路只要 ' + bestSteps(m) + ' 步，深度优先不保证最短',
+    tones: pathTones(end, bestTones),
+    hero: m.end,
+    crumbs: [],
+  });
+  return out;
+}
 
 /** 玩法一用的 5×5 山洞：短一点，孩子一步一步选方向，不会点到烦 */
 export const PLAY_MAZES: string[][] = [
@@ -595,6 +679,32 @@ export interface Round {
   checks: Check[];
   /** 答案：往前走去 to；或者回溯，退回到 to（null：退到起点也没有路了，搜索结束） */
   answer: { kind: 'go'; to: number } | { kind: 'back'; to: number | null } | { kind: 'end' };
+  /** 答错时的解释：按上右下左的顺序一个方向一行（用换行分隔） */
+  why: string;
+}
+
+/** 一道题的解释：到了宝藏直接 return true，否则四个方向逐个看，死路再讲回溯 */
+function explainRound(m: Maze, cur: number, checks: Check[], answer: Round['answer']): string {
+  if (answer.kind === 'end') return '不对，' + coord(m, cur) + ' 就是宝藏 E：第 ' + L.isEnd + ' 行直接 return true，不用再往下走。';
+  const out: string[] = ['不对，按 上、右、下、左 的顺序看：'];
+  for (const c of checks) {
+    const name = DIR_NAMES[c.dir] + '边' + (c.id === null ? '' : ' ' + coord(m, c.id));
+    if (c.why === 'out') out.push(name + '：出界，return false。');
+    else if (c.why === 'wall') out.push(name + '：岩石，return false。');
+    else if (c.why === 'seen') out.push(name + '：已经有面包屑，return false。');
+    else {
+      out.push(name + '：新格子，进去！' + (answer.kind === 'go' ? '后面的方向这一轮不用看了。' : ''));
+      break;
+    }
+  }
+  if (answer.kind === 'back') {
+    out.push(
+      answer.to === null
+        ? '四个方向都走不通，往回退，栈里每个路口也都没有新路了：一路退到起点，dfs 返回 false。'
+        : '四个方向都走不通，这一层 return false，退回上一层；一直退到 ' + coord(m, answer.to) + '，它还有没试过的方向，从那里继续。',
+    );
+  }
+  return out.join('\n');
 }
 
 export function rounds(m: Maze): Round[] {
@@ -618,23 +728,17 @@ export function rounds(m: Maze): Round[] {
       while (moves[j].kind === 'back') j++;
       answer = { kind: 'back', to: moves[j].kind === 'go' ? moves[j - 1].cell : null };
     }
-    out.push({ cur, path: mv.path, visited: mv.visited, isEnd: cur === m.end, checks, answer });
+    out.push({ cur, path: mv.path, visited: mv.visited, isEnd: cur === m.end, checks, answer, why: explainRound(m, cur, checks, answer) });
   });
   return out;
 }
 
 /* ---------- 做：找 bug ---------- */
 
-export interface Bug {
+export interface Bug extends BugInfo {
   id: 'no-mark' | 'bounds' | 'ignore';
-  title: string;
-  /** 有 bug 的 Kotlin 代码，和 CODE 只差一行 */
-  code: string[];
-  wrongLine: number;
-  fixed: string;
+  /** 输入：运行这段代码的山洞 */
   maze: string[];
-  expect: string;
-  explain: string;
 }
 
 function variant(line: number, text: string): string[] {
@@ -647,7 +751,7 @@ const FLAVORS: Record<Bug['id'], Flavor> = {
   ignore: { ...CORRECT, useReturn: false },
 };
 
-export const BUGS: Bug[] = [
+export const BUGS: readonly Bug[] = [
   {
     id: 'no-mark',
     title: '来回打转停不下来',
@@ -693,10 +797,16 @@ export const BUGS: Bug[] = [
   },
 ];
 
-export type BugStep = DfsStep;
-
-export function runBug(bug: Bug): Trace<BugStep> {
+export function runBug(bug: Bug): Trace<DfsStep> {
   return simulate(parseMaze(bug.maze), FLAVORS[bug.id]);
+}
+
+/** 找 bug 面板底部的判定文字：没跑完是空 */
+export function bugVerdict(step: DfsStep, _bug: Bug): string {
+  if (!step.done) return '';
+  if (step.outcome === 'overflow') return '💥 StackOverflowError：调用栈叠了 ' + step.stack.length + ' 层，还在涨';
+  if (step.outcome === 'crash') return '💥 下标越界，程序崩溃';
+  return '❌ 返回了 ' + step.result + '，可是宝藏明明走得到，应该返回 true';
 }
 
 /** 山洞里宝藏到底能不能走到（和 hasPath 的正确答案一致） */
@@ -756,8 +866,23 @@ export function genMaze(rooms: number, loops = 0.25, rand: () => number = Math.r
 
 /** 挑战用的山洞：9×9 */
 export const CHALLENGE_ROOMS = 5;
+export const CHALLENGE_LOOPS = 0.25;
+/** 猜下一步用的山洞：7×7，岔路多一点 */
+export const PREDICT_ROOMS = 4;
+export const PREDICT_LOOPS = 0.3;
+
+/** 猜下一步出题：一个新的 7×7 山洞 */
+export function genPredict(rand: () => number = Math.random): string[] {
+  return genMaze(PREDICT_ROOMS, PREDICT_LOOPS, rand);
+}
 
 /** 挑战的题目：问 DFS 的第 k 个格子，k 在 5 到 14 之间 */
 export function challengeK(rand: () => number = Math.random): number {
   return 5 + Math.floor(rand() * 10);
+}
+
+/** 挑战出题：一个新的 9×9 山洞，加上要问的 k（先生成山洞，再抽 k） */
+export function genChallenge(rand: () => number = Math.random): { maze: string[]; k: number } {
+  const maze = genMaze(CHALLENGE_ROOMS, CHALLENGE_LOOPS, rand);
+  return { maze, k: challengeK(rand) };
 }

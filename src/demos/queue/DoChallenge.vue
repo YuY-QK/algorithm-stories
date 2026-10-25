@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { CHALLENGE_CAP, challenge, opText, simulate, type Op } from '../../engine/queue';
+import { CHALLENGE_CAP, genChallenge, opText, simulate, type Op } from '../../engine/queue';
 import Segmented from '../../components/shared/Segmented.vue';
 import Cells from './Cells.vue';
 
 // 做：挑战。不看动画，在脑子里跑完一串操作，预测数组每一格最后是什么、head 和 tail 在哪，
 // 再和真正的循环队列比一比。关键：出队不会擦掉格子里的值。
-const ops = ref<Op[]>(challenge());
+const ops = ref<Op[]>(genChallenge());
 /** 每一格的猜测：'' 表示「从没写过」 */
 const guess = ref<string[]>([]);
 const head = ref(0);
@@ -14,7 +14,7 @@ const tail = ref(0);
 const shown = ref(false);
 
 function fresh() {
-  ops.value = challenge();
+  ops.value = genChallenge();
   guess.value = Array.from({ length: CHALLENGE_CAP }, () => '');
   head.value = 0;
   tail.value = 0;

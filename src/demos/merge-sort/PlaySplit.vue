@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { countChoices, judgeCut, kidOf, nextRow, splitRounds, stars, type Piece } from '../../engine/merge-sort';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { PAUSE_SHORT } from '../../components/shared/timing';
 
 // 玩法二「拆一拆」：一队小动物，孩子点 ✂️ 把每一队从正中间切开，一轮一轮切到每队只剩 1 个，再数一数切了几轮。
 // 切歪了不说错：左右两边的小动物分别亮起来，让孩子数一数是不是一样多；再歪一次，正中间的 ✂️ 透出光。
@@ -18,11 +20,20 @@ const hintNums = ref(false);
 const chosen = ref<number | null>(null);
 const rounds = computed(() => splitRounds(n.value));
 let timers: ReturnType<typeof setTimeout>[] = [];
-const later = (ms: number, fn: () => void) => timers.push(setTimeout(fn, ms));
-
-function fresh() {
+const later = (ms: number, fn: () => void) => {
+  const id = setTimeout(() => {
+    timers = timers.filter((x) => x !== id);
+    fn();
+  }, ms);
+  timers.push(id);
+};
+function stopTimers() {
   timers.forEach(clearTimeout);
   timers = [];
+}
+
+function fresh() {
+  stopTimers();
   n.value = games.value % 2 === 0 ? 8 : 4;
   games.value++;
   rows.value = [[{ start: 0, size: n.value }]];
@@ -57,7 +68,7 @@ function cut(p: Piece, at: number) {
   say.value = '✂️ 对半啦：' + j.left + ' 个和 ' + j.right + ' 个';
   const row = rows.value[live.value];
   if (row.every((q) => q.size <= 1 || isCut(live.value, q))) {
-    later(700, () => {
+    later(PAUSE_SHORT, () => {
       rows.value = [...rows.value, nextRow(row)];
       cutSets.value = [...cutSets.value, new Set()];
       if (rows.value[live.value].every((q) => q.size <= 1)) {
@@ -94,11 +105,16 @@ function side(r: number, p: Piece, x: number) {
   return x < pr.at ? 'sa' : 'sb';
 }
 
-onBeforeUnmount(() => timers.forEach(clearTimeout));
+// 切换标签时动画要停：切完这一刀还没翻到下一排就重新开一局
+useStageStop(() => {
+  if (phase.value === 'cut' && timers.length) fresh();
+});
+onBeforeUnmount(stopTimers);
 </script>
 
 <template>
   <div class="game">
+    <p class="small-note">目标：点两个小动物之间的 ✂️，把每一队从正中间切成一样多的两队。一轮一轮切到每队只剩 1 个，最后数一数一共切了几轮。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <div class="rows" :style="{ '--n': n }">
       <template v-for="(row, r) in rows" :key="r">

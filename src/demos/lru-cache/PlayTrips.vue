@@ -45,7 +45,7 @@ function guess(g: 'hit' | 'miss') {
       say.value = '🎉 借完啦！';
       if (cap.value === TRIP_CAP) small.value = count.value;
     } else {
-      say.value = (a.hit ? '对！桌上有 🙌' : '对！去了一趟书架 🚶') + ' 下一本：' + em(TRIP_SEQ[i.value]) + '，桌上有吗？';
+      say.value = '对！' + em(a.book) + (a.hit ? '桌上有 🙌' : '桌上没有，去了一趟书架 🚶') + ' 下一本：' + em(TRIP_SEQ[i.value]) + '，桌上有吗？';
     }
   } else {
     shaky.value = g;
@@ -65,6 +65,7 @@ const saved = computed(() => (small.value === null ? 0 : small.value - count.val
 
 <template>
   <div class="game">
+    <p class="small-note">目标：每借一本书，先猜它在不在桌上，一路数一共要跑几趟书架。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <div class="queue" aria-label="要借的书">
       <span v-for="(b, k) in TRIP_SEQ" :key="k" :class="{ done: k < i, now: k === i }">{{ BOOK_EMOJI[b] }}</span>

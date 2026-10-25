@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
+import { SHAKE_MS } from '../../components/shared/timing';
+import { useStageStop } from '../../components/shared/usePlayer';
 
 // 小熊的小卖部：上面是「还要找多少」，中间是钱盒里的硬币，下面是找零盘。
 // 看、玩法一、玩法二共用，只负责画，不管规则。
@@ -36,19 +38,28 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ pick: [coin: number] }>();
 
 const shaking = ref<number | null>(null);
+const plateShake = ref(false);
+let timers: ReturnType<typeof setTimeout>[] = [];
+function stopShake() {
+  timers.forEach(clearTimeout);
+  timers = [];
+  shaking.value = null;
+  plateShake.value = false;
+}
 watch(() => props.shake, (v) => {
   if (!v) return;
   shaking.value = null;
   requestAnimationFrame(() => (shaking.value = v[0]));
-  setTimeout(() => (shaking.value = null), 600);
+  timers.push(setTimeout(() => (shaking.value = null), SHAKE_MS));
 });
 
-const plateShake = ref(false);
 watch(() => props.shakePlate, () => {
   plateShake.value = false;
   requestAnimationFrame(() => (plateShake.value = true));
-  setTimeout(() => (plateShake.value = false), 600);
+  timers.push(setTimeout(() => (plateShake.value = false), SHAKE_MS));
 });
+useStageStop(stopShake);
+onBeforeUnmount(stopShake);
 </script>
 
 <template>

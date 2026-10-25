@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { KID_N, genCandies, minFrom, stars, swapAt } from '../../engine/selection-sort';
 import Candies from './Candies.vue';
 import CandyPair from './CandyPair.vue';
+import { PAUSE_SHORT } from '../../components/shared/timing';
+import { useStageStop } from '../../components/shared/usePlayer';
 
 // 玩法一「挑最小的」：每一轮孩子从还没排好的糖果里点出最小的，小熊把它换到最前面。
 // 点错了不说错：把点的那颗和真正最小的并排放大，让孩子自己比一比。
@@ -24,6 +26,20 @@ const say = ref('👆 哪颗糖果最小？点它');
 
 const earned = computed(() => stars(mistakes.value));
 const rounds = computed(() => a.value.length - 1);
+
+// 所有定时器都登记在这里，切换标签或卸载时一起清掉
+const timers = new Set<ReturnType<typeof setTimeout>>();
+function later(fn: () => void, ms: number) {
+  const t = setTimeout(() => {
+    timers.delete(t);
+    fn();
+  }, ms);
+  timers.add(t);
+}
+function clearTimers() {
+  timers.forEach(clearTimeout);
+  timers.clear();
+}
 
 function wiggle(k: number) {
   shake.value = [k, (shake.value?.[1] ?? 0) + 1];
@@ -54,13 +70,13 @@ function tap(k: number) {
   phase.value = 'moving';
   bear.value = k;
   glow.value = k;
-  say.value = k === i.value ? '👍 它已经在最前面啦' : '🐻 换到前面去 🔄';
-  setTimeout(() => {
+  say.value = k === i.value ? '👍 ' + a.value[k] + ' 号最小，已经在最前面啦，不用换' : '🐻 ' + a.value[k] + ' 号最小，换到最前面去 🔄';
+  later(() => {
     glow.value = null;
     a.value = swapAt(a.value, i.value, k);
     bear.value = i.value;
     i.value++;
-    setTimeout(() => {
+    later(() => {
       bear.value = null;
       if (i.value >= a.value.length - 1) {
         phase.value = 'last';
@@ -69,8 +85,8 @@ function tap(k: number) {
         phase.value = 'pick';
         say.value = '👆 剩下的里面，哪颗最小？';
       }
-    }, 700);
-  }, 700);
+    }, PAUSE_SHORT);
+  }, PAUSE_SHORT);
 }
 
 function pickInPair(side: 'l' | 'r') {
@@ -118,10 +134,18 @@ const pairVals = computed(() => {
   const r = p.left === 'tapped' ? p.min : p.tapped;
   return { l: a.value[l], r: a.value[r] };
 });
+function stopAll() {
+  clearTimers();
+  if (phase.value === 'moving') again();
+}
+// 切换标签或卸载时，定时器清掉，正在进行的状态复位到可再次操作
+useStageStop(stopAll);
+onBeforeUnmount(clearTimers);
 </script>
 
 <template>
   <div class="game">
+    <p class="small-note">目标：每一轮，点出还没排好的糖果里最小的那一颗，小熊会把它换到最前面。一直点到全部排好。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Candies
       :values="a" :sorted="i" :bear="bear" :glow="glow" :pulse="pulse" :shake="shake"

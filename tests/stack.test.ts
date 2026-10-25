@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BUGS, CLOSERS, CODE, LOOK_OPS, OPENERS, PERM_N, bracketAction, bracketEnd, bracketGame, bracketPuzzle, buildTrace,
-  canPop, clean, decisions, genBalanced, has312, isOpener, isValid, pairOf, permPuzzles, permTrace, plateGame,
-  predictString, runBug, runPlates, stars, topIndex, type PuzzleKind,
+  BUGS, CHALLENGE_COUNT, CHALLENGE_N, CHAR_MOVES, CLOSERS, CODE, END_MOVES, LOOK_OPS, OPENERS, TRACE_PRESETS, bracketAction, bracketEnd, bracketGame, bracketPuzzle, buildTrace,
+  bugVerdict, canPop, clean, genBalanced, genChallenge, genPredict, has312, isOpener, isValid, lookFrames, pairOf,
+  permPuzzles, permTrace, plateGame, presetString, rounds, runBug, runPlates, stars, topIndex, type PuzzleKind,
+  type Round,
 } from '../src/engine/stack';
+import { seeded } from './helpers/seeded';
 
 /** 笨办法判断括号串：反复删掉相邻的一对，最后删空就合法 */
 function slowValid(s: string): boolean {
@@ -103,21 +105,21 @@ describe('栈 玩二：拼积木', () => {
       for (const kind of ['good', 'cross', 'left', 'extra'] as PuzzleKind[]) {
         const pairs = 2 + (k % 4);
         const s = bracketPuzzle(kind, pairs);
-        const d = decisions(s);
+        const d = rounds(s);
         const last = d.at(-1)!;
         if (kind === 'good') {
           expect(s).toHaveLength(2 * pairs);
-          expect(last.move).toBe('true');
+          expect(last.correct).toBe('true');
         } else if (kind === 'cross') {
           expect(s).toHaveLength(2 * pairs);
-          expect(last.move).toBe('fail');
+          expect(last.correct).toBe('fail');
           expect(last.stack.length).toBeGreaterThan(0); // 卡在形状不对，不是栈空
         } else if (kind === 'left') {
           expect(s).toHaveLength(2 * pairs - 1);
-          expect(last.move).toBe('false');
+          expect(last.correct).toBe('false');
         } else {
           expect(s).toHaveLength(2 * pairs - 1);
-          expect(last.move).toBe('fail');
+          expect(last.correct).toBe('fail');
           expect(last.stack).toEqual([]); // 右括号来的时候栈是空的
         }
       }
@@ -188,18 +190,18 @@ describe('栈 做：逐步执行', () => {
 });
 
 describe('栈 做：猜下一步', () => {
-  it('decisions 和 buildTrace 一致', () => {
+  it('rounds 和 buildTrace 一致', () => {
     for (let k = 0; k < 3000; k++) {
-      const s = k % 2 ? randomBrackets(k % 12) : predictString();
-      const d = decisions(s);
+      const s = k % 2 ? randomBrackets(k % 12) : genPredict();
+      const d = rounds(s);
       const steps = buildTrace(s);
       const pushes = steps.filter((x) => x.line === 5).map((x) => x.i);
       const pops = steps.filter((x) => x.line === 8 && x.result === null).map((x) => x.i);
-      expect(d.filter((x) => x.move === 'push').map((x) => x.i)).toEqual(pushes);
-      expect(d.filter((x) => x.move === 'pop').map((x) => x.i)).toEqual(pops);
+      expect(d.filter((x) => x.correct === 'push').map((x) => x.i)).toEqual(pushes);
+      expect(d.filter((x) => x.correct === 'pop').map((x) => x.i)).toEqual(pops);
       const last = d.at(-1)!;
-      if (slowValid(s)) expect(last.move).toBe('true');
-      else expect(['false', 'fail']).toContain(last.move);
+      if (slowValid(s)) expect(last.correct).toBe('true');
+      else expect(['false', 'fail']).toContain(last.correct);
       // 每个决定前的栈就是 buildTrace 里取这个字符时的栈
       for (const x of d) {
         const at = steps.find((st) => (x.i < s.length ? st.line === 3 && st.i === x.i : st.line === 11));
@@ -273,12 +275,67 @@ describe('栈 做：挑战', () => {
       const ps = permPuzzles(5);
       expect(ps).toHaveLength(5);
       expect(new Set(ps.map((p) => p.join())).size).toBe(5);
-      expect(ps.filter((p) => canPop(PERM_N, p))).toHaveLength(3);
+      expect(ps.filter((p) => canPop(CHALLENGE_N, p))).toHaveLength(3);
       for (const p of ps) {
         expect([...p].sort()).toEqual([1, 2, 3, 4, 5]);
         expect(p.join()).not.toBe('1,2,3,4,5');
         expect(p.join()).not.toBe('5,4,3,2,1');
       }
     }
+  });
+});
+
+describe('栈 迁移后的引擎导出', () => {
+  it('lookFrames：每页有台词，盘子和 runPlates 一致，末页收尾', () => {
+    const fs = lookFrames();
+    const states = runPlates(LOOK_OPS);
+    expect(fs).toHaveLength(states.length + 1);
+    fs.forEach((f, k) => {
+      expect(f.say.length).toBeGreaterThan(0);
+      expect(f.stack).toEqual(states[Math.min(k, states.length - 1)].stack);
+    });
+    expect(fs[0].say).toContain('小熊');
+    expect(fs.at(-1)!.say).toContain('栈');
+    expect(fs.map((f) => f.say)).toEqual(lookFrames().map((f) => f.say));
+  });
+
+  it('rounds：选项分字符题和结束题，答错解释非空且点名字符', () => {
+    for (let k = 0; k < 500; k++) {
+      const s = genPredict(seeded(k));
+      const rs: Round[] = rounds(s);
+      rs.forEach((r) => {
+        expect(r.why.length).toBeGreaterThan(0);
+        expect(r.options).toBe(r.i < s.length ? CHAR_MOVES : END_MOVES);
+        expect(r.options.map((o) => o.move)).toContain(r.correct);
+        if (r.i < s.length) expect(r.why).toContain(s[r.i]);
+      });
+    }
+    expect(rounds('(]').at(-1)!.why).toContain('要配 )');
+    expect(rounds(')').at(-1)!.why).toContain('栈是空的');
+    expect(rounds('(').at(-1)!.why).toContain('还剩 1 个');
+  });
+
+  it('genPredict、presetString、genChallenge：固定种子可复现', () => {
+    for (const seed of [1, 7, 42]) {
+      expect(genPredict(seeded(seed))).toBe(genPredict(seeded(seed)));
+      expect(genChallenge(seeded(seed))).toEqual(genChallenge(seeded(seed)));
+      for (const b of TRACE_PRESETS) {
+        const a = presetString(b.kind, seeded(seed));
+        expect(a).toBe(presetString(b.kind, seeded(seed)));
+        expect(a.length).toBeLessThanOrEqual(2 * 5);
+        expect(slowValid(a)).toBe(b.kind === 'good');
+      }
+    }
+    const ps = genChallenge(seeded(3));
+    expect(ps).toHaveLength(CHALLENGE_COUNT);
+    for (const p of ps) expect([...p].sort()).toEqual(Array.from({ length: CHALLENGE_N }, (_, k) => k + 1));
+  });
+
+  it('bugVerdict：没跑完是空，崩溃和返回错误各有说法', () => {
+    for (const b of BUGS) expect(bugVerdict(runBug(b)[0], b)).toBe('');
+    const text = Object.fromEntries(BUGS.map((b) => [b.id, bugVerdict(runBug(b).at(-1)!, b)]));
+    expect(text['no-empty']).toContain('崩溃');
+    expect(text['no-final']).toBe('❌ 返回了 true，不对');
+    expect(text['no-type']).toBe('❌ 返回了 true，不对');
   });
 });

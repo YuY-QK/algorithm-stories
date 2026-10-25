@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
-import { bubbleRounds, randomKids, stars, type Kid } from '../../engine/bubble-sort';
+import { rounds, randomKids, stars, type Kid } from '../../engine/bubble-sort';
 import Lineup from './Lineup.vue';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { PAUSE_BEAT, PAUSE_HOLD, PAUSE_SHORT } from '../../components/shared/timing';
 
 // 玩法二「谁会冒到最右边」：每一轮开始前，孩子先猜这一轮谁会站到最右边（还没站好的部分），
 // 猜对了摄影师才走这一轮，看猜的那个一路冒过去。队伍和答案一开始就算好了，改不了。
 // 点错的会摇一摇；同一轮第二次还点错，答案透一点光。学到的是「这一轮最高的那个一定冒到最右边」。
 const kids = ref<Kid[]>(randomKids());
-const rounds = computed(() => bubbleRounds(kids.value, (k) => k.h));
+const rs = computed(() => rounds(kids.value, (k) => k.h));
 
 const r = ref(0);
 const line = ref<Kid[]>(kids.value.slice());
@@ -21,7 +23,7 @@ const shake = ref<[string, number] | null>(null);
 const say = ref('');
 let timer: ReturnType<typeof setTimeout> | null = null;
 
-const cur = computed(() => rounds.value[r.value]);
+const cur = computed(() => rs.value[r.value]);
 const earned = computed(() => stars(mistakes.value));
 
 function ask() {
@@ -51,7 +53,7 @@ function tap(k: number, kid: Kid) {
     return;
   }
   glow.value = null;
-  say.value = '👀 看看是不是 ' + kid.face + '……';
+  say.value = '👀 你选了 ' + kid.face + '，看摄影师走完这一轮，他是不是冒到最右边……';
   run();
 }
 
@@ -64,7 +66,7 @@ function run() {
       pair.value = rd.compares[c].j;
       line.value = rd.compares[c].after;
       c++;
-      timer = setTimeout(tick, 700);
+      timer = setTimeout(tick, PAUSE_SHORT);
       return;
     }
     pair.value = null;
@@ -79,9 +81,9 @@ function run() {
     timer = setTimeout(() => {
       r.value++;
       ask();
-    }, 1500);
+    }, PAUSE_HOLD);
   };
-  timer = setTimeout(tick, 500);
+  timer = setTimeout(tick, PAUSE_BEAT);
 }
 
 function again() {
@@ -95,11 +97,19 @@ function again() {
   ask();
 }
 
+function stopAll() {
+  if (timer) clearTimeout(timer);
+  timer = null;
+  if (phase.value === 'run') again();
+}
+// 切换标签或卸载时，定时器清掉，正在进行的状态复位到可再次操作
+useStageStop(stopAll);
 onBeforeUnmount(() => { if (timer) clearTimeout(timer); });
 </script>
 
 <template>
   <div class="game">
+    <p class="small-note">目标：猜一猜，摄影师走完这一轮，谁会站到最右边（⭐ 的左边）？点那个小伙伴；猜对了他才开始走。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Lineup
       :line="line" :pair="pair" :fixed-from="fixedFrom" :glow="glow" :shake="shake"
