@@ -46,5 +46,5 @@ const emit = defineEmits<{ continue: []; next: [] }>();
 <style scoped>
 .win { border-color: var(--accent); color: var(--accent); }
 .oops-box.right { border-left-color: var(--accent); }
-.oops-box p { overflow-wrap: anywhere; }
+.oops-box p { overflow-wrap: anywhere; white-space: pre-line; }
 </style>

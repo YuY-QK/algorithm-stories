@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { CHALLENGE_ROOMS, applyDrawTap, genMaze, judgeDrawTap, parseMaze, pathTo, waves } from '../../engine/bfs';
+import { applyDrawTap, genChallenge, judgeDrawTap, parseMaze, pathTo, waves } from '../../engine/bfs';
 import Maze, { type Tone } from './Maze.vue';
 
 // 做：挑战。11×11 的迷宫，不看水波，自己点出一条路；步数和 BFS 的最短路一样就过关。
-const maze = ref(parseMaze(genMaze(CHALLENGE_ROOMS)));
+const maze = ref(parseMaze(genChallenge()));
 const wv = computed(() => waves(maze.value));
 const best = computed(() => wv.value.dist[maze.value.end]);
 const path = ref<number[]>([maze.value.start]);
@@ -16,7 +16,7 @@ const wins = ref(0);
 const steps = computed(() => path.value.length - 1);
 
 function fresh() {
-  maze.value = parseMaze(genMaze(CHALLENGE_ROOMS));
+  maze.value = parseMaze(genChallenge());
   path.value = [maze.value.start];
   state.value = 'play';
   msg.value = '';

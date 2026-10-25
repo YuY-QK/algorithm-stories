@@ -65,7 +65,7 @@ function onSwitch() { msg.value = ''; }
     <slot name="board" :step="s" :bug="bug" />
     <VarChips :vars="varList" />
     <p class="note" aria-live="polite">第 {{ p.idx.value + 1 }}/{{ p.total.value }} 步：{{ s.note }}</p>
-    <Transport :player="p" />
+    <Transport :player="p"><slot name="transport" :player="p" /></Transport>
     <p v-if="verdictText" class="summary verdict">{{ verdictText }}</p>
   </div>
 

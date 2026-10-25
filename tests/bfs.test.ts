@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BUGS, CHALLENGE_ROOMS, CODE, EXPLODE_AT, KID_MAZES, L, TRACE_MAZES,
-  applyDrawTap, around, bestSteps, buildTrace, genMaze, isNeighbor, isWall, judgeDrawTap, judgeRingTap,
+  BUGS, CHALLENGE_ROOMS, CODE, PREDICT_ROOMS, EXPLODE_AT, KID_MAZES, L, TRACE_MAZES,
+  applyDrawTap, around, bestSteps, bugVerdict, buildTrace, genChallenge, genMaze, genPredict, lookFrames, isNeighbor, isWall, judgeDrawTap, judgeRingTap,
   neighbors, openCount, parseMaze, pathTo, ringStars, rounds, routeStars, runBug, seeded, waves, type Maze,
 } from '../src/engine/bfs';
 
@@ -138,6 +138,28 @@ describe('BFS 看、玩：一圈一圈的水波', () => {
   });
 });
 
+describe('BFS 看：绘本', () => {
+  it('lookFrames：台词在引擎里，圈数和 waves 一致，最后一页小老鼠到奶酪', () => {
+    for (const g of [...KID_MAZES, ...GRIDS.slice(0, 300)]) {
+      const m = parseMaze(g);
+      const wv = waves(m);
+      const frames = lookFrames(m);
+      // 开场 2 页 + 每圈 1 页 + 倒数 + 吃到
+      expect(frames).toHaveLength(2 + (wv.rings.length - 1) + 2);
+      for (const f of frames) expect(f.say.length).toBeGreaterThan(0);
+      expect(frames[0].mouse).toBe(m.start);
+      expect(frames.at(-1)!.mouse).toBe(m.end);
+      // 数字标签就是 waves 的 dist
+      for (const [id, d] of Object.entries(frames.at(-1)!.labels)) expect(wv.dist[Number(id)]).toBe(d);
+    }
+    for (const g of KID_MAZES) {
+      const f = lookFrames(parseMaze(g));
+      expect(f.at(-1)!.say).toContain('6 步');
+      expect(f.at(-2)!.say).toBe('从奶酪倒着数回去：6 → 5 → 4 → 3 → 2 → 1 → 0');
+    }
+  });
+});
+
 describe('BFS 做：逐步执行', () => {
   it('1500 个随机迷宫：返回值和笨办法一致，只有最后一步 done', () => {
     for (const g of GRIDS) {
@@ -217,6 +239,24 @@ describe('BFS 做：猜下一步', () => {
       if (bestSteps(m) >= 0) expect(rs.at(-1)!.isEnd).toBe(true);
     }
   });
+
+  it('rounds：每题都带解释，非终点题四个方向各一行', () => {
+    for (const g of [...KID_MAZES, ...GRIDS.slice(0, 300)]) {
+      const m = parseMaze(g);
+      for (const r of rounds(m)) {
+        expect(r.why.startsWith('不对，')).toBe(true);
+        if (r.isEnd) expect(r.why).toContain('终点');
+        else {
+          const lines = r.why.split('\n').slice(1);
+          expect(lines).toHaveLength(4);
+          r.checks.forEach((c, k) => {
+            expect(lines[k].startsWith(['上', '下', '左', '右'][c.dir])).toBe(true);
+            expect(lines[k].includes('入队')).toBe(c.why === 'new');
+          });
+        }
+      }
+    }
+  });
 });
 
 describe('BFS 做：找 bug', () => {
@@ -259,6 +299,33 @@ describe('BFS 做：找 bug', () => {
       if (res > best) worse++;
     }
     expect(worse).toBeGreaterThan(50);
+  });
+});
+
+describe('BFS 找 bug：判定文字', () => {
+  it('bugVerdict：没跑完是空，跑完按结果说话', () => {
+    for (const b of BUGS) {
+      const steps = runBug(b);
+      for (const s of steps.slice(0, -1)) expect(bugVerdict(s, b)).toBe('');
+      const v = bugVerdict(steps.at(-1)!, b);
+      if (b.id === 'no-visited') expect(v).toContain('队列爆炸');
+      if (b.id === 'range') expect(v).toContain('越界');
+      if (b.id === 'stack') expect(v).toMatch(/^❌ 返回了 \d+，可是最短只要 3 步$/);
+    }
+  });
+});
+
+describe('BFS 出题：固定种子可复现', () => {
+  it('genChallenge / genPredict 用 rand 参数，同种子同迷宫，大小固定', () => {
+    for (let k = 0; k < 50; k++) {
+      expect(genChallenge(seeded(k))).toEqual(genChallenge(seeded(k)));
+      expect(genChallenge(seeded(k))).toEqual(genMaze(CHALLENGE_ROOMS, 0.25, seeded(k)));
+      expect(genPredict(seeded(k))).toEqual(genPredict(seeded(k)));
+      const m = parseMaze(genPredict(seeded(k)));
+      expect([m.w, m.h]).toEqual([2 * PREDICT_ROOMS - 1, 2 * PREDICT_ROOMS - 1]);
+      expect(bestSteps(m)).toBeGreaterThan(0);
+    }
+    expect(genChallenge(seeded(1))).not.toEqual(genChallenge(seeded(2)));
   });
 });
 

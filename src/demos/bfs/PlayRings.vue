@@ -48,11 +48,11 @@ function tap(id: number) {
   if (j === 'wall' || j === 'painted' || j === 'far') {
     shake.value = [id, (shake.value?.[1] ?? 0) + 1];
     if (j === 'painted') {
-      say.value = '👀 这一格已经亮啦';
+      say.value = '👀 这一格已经亮过啦，找这一圈还没亮的格子';
       return;
     }
     misses.value++;
-    if (j === 'wall') say.value = '🧱 墙过不去哦';
+    if (j === 'wall') say.value = '🧱 这格是墙，小老鼠过不去，换一格';
     else {
       say.value = '🤔 太远啦！要挨着亮着 ' + (ring.value - 1) + ' 的格子';
       glowKey.value++;
@@ -70,7 +70,7 @@ function tap(id: number) {
     painted.value = new Set();
     say.value = '🌊 第 ' + (ring.value - 1) + ' 圈涂好啦！再走 1 步能到哪？';
   } else {
-    say.value = '✨ 还有呢？';
+    say.value = '✨ 亮了 ' + painted.value.size + ' 格，这一圈一共 ' + cells.value.length + ' 格，还有呢？';
   }
 }
 
@@ -89,6 +89,7 @@ function again() {
 
 <template>
   <div class="game">
+    <p class="small-note">目标：小老鼠 🐭 像水波一样一圈一圈往外找奶酪。先点亮走 1 步能到的格子，再点亮走 2 步能到的……下面的小圆点是这一圈一共有几格，碰到奶酪就成功。点错了格子会摇头，太远了会提示要挨着上一圈。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <div v-if="!done" class="left" :aria-label="'这一圈有 ' + cells.length + ' 格，还剩 ' + (cells.length - painted.size) + ' 格'">
       <span class="wave" aria-hidden="true">🌊 {{ ring }}</span>

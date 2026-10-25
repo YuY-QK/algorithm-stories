@@ -1,4 +1,4 @@
-import type { Step, Trace } from './types';
+import type { BugInfo, LookFrame, Step, Trace } from './types';
 
 /*
  * 广度优先搜索（BFS）：小老鼠走迷宫。
@@ -147,6 +147,52 @@ export const KID_MAZES: string[][] = [
   ],
 ];
 
+/* ---------- 看：绘本 ---------- */
+
+/** 看里格子的色调：走过的、这一圈、最短路（Maze.vue 的 Tone 包含这三个） */
+export type LookTone = 'old' | 'ring' | 'path';
+
+export interface LookPage extends LookFrame {
+  tones: Record<number, LookTone>;
+  /** 格子里写的数字：离起点几步 */
+  labels: Record<number, number>;
+  /** 小老鼠站在哪一格 */
+  mouse: number;
+}
+
+/** 绘本的全部页：每一圈水波都由 waves（按层的 BFS）生成，和真实的搜索过程一致，台词也在这里 */
+export function lookFrames(m: Maze): LookPage[] {
+  const wv = waves(m);
+  const best = wv.dist[m.end];
+  const out: LookPage[] = [];
+  out.push({ say: '小老鼠 🐭 闻到了奶酪 🧀 的香味，可是迷宫弯弯绕绕', tones: {}, labels: {}, mouse: m.start });
+  out.push({ say: '它的秘诀：像水波 🌊 一样，一圈一圈往外找', tones: { [m.start]: 'ring' }, labels: { [m.start]: 0 }, mouse: m.start });
+  const tones: Record<number, LookTone> = { [m.start]: 'old' };
+  const labels: Record<number, number> = { [m.start]: 0 };
+  for (let k = 1; k < wv.rings.length; k++) {
+    const ring = wv.rings[k];
+    const now = { ...tones };
+    for (const id of ring) {
+      now[id] = 'ring';
+      labels[id] = k;
+    }
+    const hit = ring.includes(m.end);
+    out.push({
+      say: hit ? '第 ' + k + ' 圈碰到奶酪啦 🧀！' : k === 1 ? '走 1 步能到这 ' + ring.length + ' 格' : '再走 1 步：第 ' + k + ' 圈有 ' + ring.length + ' 格',
+      tones: now,
+      labels: { ...labels },
+      mouse: m.start,
+    });
+    for (const id of ring) tones[id] = 'old';
+  }
+  const path = pathTo(wv, m.end);
+  const pathTones: Record<number, LookTone> = { ...tones };
+  for (const id of path) pathTones[id] = 'path';
+  out.push({ say: '从奶酪倒着数回去：' + Array.from({ length: best + 1 }, (_, k) => best - k).join(' → '), tones: pathTones, labels: { ...labels }, mouse: m.start });
+  out.push({ say: '沿着这条路，' + best + ' 步就吃到奶酪 🎉 没有更近的路了', tones: pathTones, labels: { ...labels }, mouse: m.end });
+  return out;
+}
+
 /* ---------- 玩法一「下一圈」 ---------- */
 
 /** 'ok' 涂对了；'cheese' 涂对了而且是奶酪；'wall' 是墙；'painted' 已经涂过；'far' 这一圈还到不了 */
@@ -243,6 +289,21 @@ export function genMaze(rooms: number, loops = 0.25, rand: () => number = Math.r
 
 /** 挑战用的迷宫：11×11，保证「顺着墙随便走」通常不是最短 */
 export const CHALLENGE_ROOMS = 6;
+export const CHALLENGE_LOOPS = 0.25;
+
+/** 挑战出题：一个新的 11×11 迷宫 */
+export function genChallenge(rand: () => number = Math.random): string[] {
+  return genMaze(CHALLENGE_ROOMS, CHALLENGE_LOOPS, rand);
+}
+
+/** 猜下一步用的迷宫：7×7，岔路多一点 */
+export const PREDICT_ROOMS = 4;
+export const PREDICT_LOOPS = 0.3;
+
+/** 猜下一步出题：一个新的 7×7 迷宫 */
+export function genPredict(rand: () => number = Math.random): string[] {
+  return genMaze(PREDICT_ROOMS, PREDICT_LOOPS, rand);
+}
 
 /* ---------- 做：逐步执行 ---------- */
 
@@ -450,6 +511,21 @@ export interface Round {
   /** 会入队的格子，按入队顺序 */
   pushed: number[];
   checks: Check[];
+  /** 答错时的解释：四个方向逐个讲，一行一个方向（用换行分隔） */
+  why: string;
+}
+
+/** 一次出队的解释：终点直接返回，否则四个方向逐个看 */
+function explainRound(m: Maze, cur: number, isEnd: boolean, dist: number[], checks: Check[]): string {
+  if (isEnd) return '不对，' + coord(m, cur) + ' 就是终点 E：第 ' + L.isEnd + ' 行直接返回 dist = ' + dist[cur] + '，不再看邻居。';
+  const lines = checks.map((c) => {
+    const name = DIR_NAMES[c.dir] + '边' + (c.id === null ? '' : ' ' + coord(m, c.id));
+    if (c.why === 'out') return name + '：出界，跳过。';
+    if (c.why === 'wall') return name + '：墙，跳过。';
+    if (c.why === 'seen') return name + '：已经 visited（它在队列里或者早就出过队），跳过。';
+    return name + '：新格子，入队，dist = ' + (dist[cur] + 1) + '。';
+  });
+  return '不对，四个方向逐个看：\n' + lines.join('\n');
 }
 
 export function rounds(m: Maze): Round[] {
@@ -469,6 +545,7 @@ export function rounds(m: Maze): Round[] {
       cur, queue: before.queue, visited: s.visited, dist: s.dist, isEnd,
       pushed: isEnd ? [] : checks.filter((x) => x.why === 'new').map((x) => x.id!),
       checks,
+      why: explainRound(m, cur, isEnd, s.dist, checks),
     });
   });
   return out;
@@ -476,16 +553,10 @@ export function rounds(m: Maze): Round[] {
 
 /* ---------- 做：找 bug ---------- */
 
-export interface Bug {
+export interface Bug extends BugInfo {
   id: 'no-visited' | 'stack' | 'range';
-  title: string;
-  /** 有 bug 的 Kotlin 代码，和 CODE 只差一行 */
-  code: string[];
-  wrongLine: number;
-  fixed: string;
+  /** 输入：运行这段代码的迷宫 */
   maze: string[];
-  expect: string;
-  explain: string;
 }
 
 function variant(line: number, text: string): string[] {
@@ -498,7 +569,7 @@ const FLAVORS: Record<Bug['id'], Flavor> = {
   range: { ...CORRECT, range: 'inclusive' },
 };
 
-export const BUGS: Bug[] = [
+export const BUGS: readonly Bug[] = [
   {
     id: 'no-visited',
     title: '队列越排越长',
@@ -547,8 +618,14 @@ export const BUGS: Bug[] = [
   },
 ];
 
-export interface BugStep extends BfsStep {}
-
-export function runBug(bug: Bug): Trace<BugStep> {
+export function runBug(bug: Bug): Trace<BfsStep> {
   return simulate(parseMaze(bug.maze), FLAVORS[bug.id]);
+}
+
+/** 找 bug 面板底部的判定文字：没跑完是空 */
+export function bugVerdict(step: BfsStep, bug: Bug): string {
+  if (!step.done) return '';
+  if (step.outcome === 'explode') return '💥 队列爆炸：' + step.queue.length + ' 个格子在排队，入队了 ' + step.pushes + ' 次，还在涨';
+  if (step.outcome === 'crash') return '💥 下标越界，程序崩溃';
+  return '❌ 返回了 ' + step.result + '，可是最短只要 ' + bestSteps(parseMaze(bug.maze)) + ' 步';
 }
