@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { PUZZLES, bestPicks, canTake, desc, greedyPicks, judgePuzzle } from '../../engine/greedy';
 import { PAUSE_LONG, PAUSE_MID, PAUSE_RETRY } from '../../components/shared/timing';
 import { useStageStop } from '../../components/shared/usePlayer';
+import { play } from '../../components/shared/sound';
 import Shop from './Shop.vue';
 
 // 玩法二「打败贪心机器人」：每关的面值和金额是固定的，机器人 🤖 先用贪心找一遍，
@@ -39,6 +40,7 @@ function start() {
   fails.value = 0;
   say.value = '🤖 机器人先找 ' + p.value.amount + '：每次拿最大的';
   const picks = greedyPicks(p.value.coins, p.value.amount);
+  play('tick');
   const step = (k: number) => {
     if (k >= picks.length) {
       phase.value = 'me';
@@ -46,6 +48,8 @@ function start() {
       return;
     }
     robot.value = [...robot.value, picks[k]];
+    play('tick');
+    say.value = '🤖 拿了最大的 ' + picks[k] + '，还要找 ' + robotLeft.value;
     timer = setTimeout(() => step(k + 1), PAUSE_MID);
   };
   timer = setTimeout(() => step(0), PAUSE_LONG);
@@ -55,21 +59,25 @@ function tap(c: number) {
   if (phase.value !== 'me') return;
   if (!canTake(left.value, c)) {
     shake.value = [c, (shake.value?.[1] ?? 0) + 1];
+    play('wrong');
     say.value = '🙅 ' + c + ' 比还要找的 ' + left.value + ' 大，放不进去';
     return;
   }
   plate.value = [...plate.value, c];
   if (left.value > 0) {
+    play('right');
     say.value = '放进 ' + c + '，还要找 ' + left.value;
     return;
   }
   if (judgePuzzle(p.value, plate.value) === 'beat') {
     phase.value = 'win';
+    play('win');
     won.value = won.value.map((w, k) => w || k === level.value);
     say.value = '🏅 你用了 ' + plate.value.length + ' 枚，比 🤖 的 ' + robot.value.length + ' 枚少，你赢了 🤖';
     return;
   }
   fails.value++;
+  play('wrong');
   shakePlate.value++;
   say.value = '🤔 你用了 ' + plate.value.length + ' 枚，没比 🤖 的 ' + robot.value.length + ' 枚少……还能更少吗？';
   phase.value = 'oops';
@@ -92,6 +100,7 @@ function undo() {
 function nextLevel() {
   if (level.value >= PUZZLES.length - 1) {
     phase.value = 'all';
+    play('win');
     say.value = '🎉 你打败了贪心机器人 ' + PUZZLES.length + ' 次！';
     return;
   }

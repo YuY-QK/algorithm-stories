@@ -5,6 +5,7 @@ import { FILL_END, FILL_STEP, SHAKE_MS } from '../../components/shared/timing';
 import {
   ISLAND_MAPS, exploreStars, floodFill, islandChoices, islands, isLand, judgeIslandTap, parseIslands,
 } from '../../engine/dfs';
+import { play } from '../../components/shared/sound';
 import Grid, { type Tone } from './Grid.vue';
 
 // 玩法二「数一数小岛」：孩子点一块陆地，探险家用 DFS 把整座岛涂上颜色（洪水填充），
@@ -72,11 +73,13 @@ function tap(id: number) {
   const j = judgeIslandTap(map.value, coloredSet.value, id);
   if (j === 'sea') {
     misses.value++;
+    play('wrong');
     shake.value = [id, (shake.value?.[1] ?? 0) + 1];
     say.value = '🌊 这格是海，探险家走不了，点灰色的陆地 🏝️';
     return;
   }
   if (j === 'done') {
+    play('wrong');
     glow.value = painted.value.find((isl) => isl.includes(id))!;
     glowKey.value++;
     say.value = '👀 这座岛已经涂过颜色啦（在发光），数过的不用再数，去找灰色的陆地';
@@ -84,6 +87,7 @@ function tap(id: number) {
   }
   const cells = floodFill(map.value, id);
   say.value = '🧭 探险家从你点的这一格出发，一格一格走，把连着的 ' + cells.length + ' 格陆地都涂上';
+  play('tap');
   filling.value = { cells, lit: 0 };
   cells.forEach((_, k) => {
     timers.push(setTimeout(() => {
@@ -93,6 +97,7 @@ function tap(id: number) {
   timers.push(setTimeout(() => {
     painted.value = [...painted.value, cells];
     filling.value = null;
+    play('right');
     if (painted.value.length === all.value.length) {
       phase.value = 'count';
       say.value = '🏝️ 所有的岛都涂好啦！一共有几座岛？';
@@ -108,10 +113,12 @@ function answer(n: number) {
   if (phase.value !== 'count') return;
   if (n === all.value.length) {
     phase.value = 'won';
+    play('win');
     say.value = '🎉 对啦！一共 ' + n + ' 座岛';
     return;
   }
   misses.value++;
+  play('wrong');
   wrongNum.value = null;
   requestAnimationFrame(() => (wrongNum.value = n));
   timers.push(setTimeout(() => (wrongNum.value = null), SHAKE_MS));

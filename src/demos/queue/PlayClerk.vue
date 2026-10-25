@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { applyCard, cardAnswer, clerkGame, SEATS, stars, type Card } from '../../engine/queue';
+import { play } from '../../components/shared/sound';
 import Seats from './Seats.vue';
 
 // 玩法二「我是店员」：椅子围成一圈，按指令卡干活。
@@ -38,6 +39,7 @@ function tap(i: number) {
   const right = cardAnswer(ring.value, c);
   if (i !== right) {
     mistakes.value++;
+    play('wrong');
     shake.value = [i, (shake.value?.[1] ?? 0) + 1];
     if ('arrive' in c) {
       glow.value = [];
@@ -51,6 +53,7 @@ function tap(i: number) {
   }
   glow.value = [];
   raise.value = null;
+  play('right');
   let done: string;
   if ('sell' in c) {
     const who = ring.value.cells[i] as string;
@@ -61,6 +64,7 @@ function tap(i: number) {
   }
   ring.value = applyCard(ring.value, c);
   at.value++;
+  if (!card.value) play('win');
   prompt(done);
 }
 

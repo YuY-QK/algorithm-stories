@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { BIG, lineAt, lineScript, nextUp, stars, type LineEvent } from '../../engine/queue';
 import { useStageStop } from '../../components/shared/usePlayer';
+import { play } from '../../components/shared/sound';
 import { PAUSE_MID, PAUSE_SHORT } from '../../components/shared/timing';
 
 // 玩法一「谁先买到？」：顾客一个个来排队，店员问「下一个是谁」，孩子点出来。
@@ -43,6 +44,7 @@ function step() {
   const e = script.value[at.value];
   if ('arrive' in e) {
     line.value = [...line.value, e.arrive];
+    play('tick');
     say.value = e.arrive + ' 来了，排在队伍最后面，现在队里有 ' + line.value.length + ' 位';
     at.value++;
     later(step, PAUSE_SHORT);
@@ -58,6 +60,7 @@ function tap(a: string) {
   const right = nextUp(lineAt(script.value, at.value));
   if (a !== right) {
     mistakes.value++;
+    play('wrong');
     shaking.value = null;
     requestAnimationFrame(() => (shaking.value = a));
     raise.value = right;
@@ -65,6 +68,7 @@ function tap(a: string) {
     return;
   }
   raise.value = null;
+  play('right');
   phase.value = 'serve';
   leaving.value = a;
   say.value = '🎉 ' + a + ' 排在最前面，先买到 🧋，离开队伍';
@@ -81,10 +85,12 @@ function tap(a: string) {
 function answer(c: 'first' | 'last' | 'big') {
   if (c === 'first') {
     quiz.value = 'right';
+    play('win');
     phase.value = 'done';
     say.value = '🏅 先来的先买！这就叫「队列」';
   } else {
     quiz.value = 'wrong';
+    play('wrong');
     say.value = '🤔 看看买到 🧋 的顺序，和来的顺序一样吗？';
   }
 }

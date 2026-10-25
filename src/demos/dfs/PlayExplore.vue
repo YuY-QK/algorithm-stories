@@ -5,6 +5,7 @@ import { FLASH_MS, SHAKE_MS } from '../../components/shared/timing';
 import {
   BACK, DIR_ARROWS, DIR_NAMES, DIRS, PLAY_MAZES, around, exploreStars, expectedChoice, judgeChoice, parseMaze, type Choice,
 } from '../../engine/dfs';
+import { play } from '../../components/shared/sound';
 import Grid, { type Tone } from './Grid.vue';
 import { emojisOf, wallsOf } from './view';
 
@@ -80,6 +81,7 @@ function choose(c: Choice) {
   const nb = c === BACK ? null : around(m, cur.value)[c];
   if (v.kind !== 'ok') {
     misses.value++;
+    play('wrong');
     if (v.kind === 'wall') {
       say.value = nb === null ? '🧱 ' + DIR_NAMES[c] + '边已经是洞外啦，探险家出不去，换个方向' : '🧱 ' + DIR_NAMES[c] + '边是岩石，探险家过不去，换个方向';
       flash('shake', c);
@@ -104,6 +106,7 @@ function choose(c: Choice) {
     return;
   }
   steps.value++;
+  if (!(c !== BACK && nb === m.end)) play('right');
   if (c === BACK) {
     backs.value++;
     path.value = path.value.slice(0, -1);
@@ -116,6 +119,7 @@ function choose(c: Choice) {
   path.value = [...path.value, to];
   if (to === m.end) {
     done.value = true;
+    play('win');
     say.value = '🎉 找到宝藏啦！';
     return;
   }

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { rounds, randomKids, stars, type Kid } from '../../engine/bubble-sort';
 import Lineup from './Lineup.vue';
+import { play } from '../../components/shared/sound';
 import { useStageStop } from '../../components/shared/usePlayer';
 import { PAUSE_BEAT, PAUSE_HOLD, PAUSE_SHORT } from '../../components/shared/timing';
 
@@ -38,12 +39,14 @@ function tap(k: number, kid: Kid) {
   if (phase.value !== 'ask') return;
   if (k >= fixedFrom.value) {
     shake.value = [kid.id, (shake.value?.[1] ?? 0) + 1];
+    play('wrong');
     say.value = '⭐ 他已经站好啦，看看还没站好的';
     return;
   }
   if (kid.id !== cur.value.top.id) {
     mistakes.value++;
     roundMiss.value++;
+    play('wrong');
     shake.value = [kid.id, (shake.value?.[1] ?? 0) + 1];
     if (roundMiss.value >= 2) {
       glow.value = null;
@@ -53,12 +56,14 @@ function tap(k: number, kid: Kid) {
     return;
   }
   glow.value = null;
+  play('right');
   say.value = '👀 你选了 ' + kid.face + '，看摄影师走完这一轮，他是不是冒到最右边……';
   run();
 }
 
 function run() {
   phase.value = 'run';
+  play('tick');
   const rd = cur.value;
   let c = 0;
   const tick = () => {
@@ -73,6 +78,7 @@ function run() {
     if (rd.quiet || rd.end <= 1) {
       fixedFrom.value = 0;
       phase.value = 'done';
+      play('win');
       say.value = rd.quiet ? '🤫 这一轮谁也没换 📸 咔嚓！排好啦 🎉' : '📸 咔嚓！排好啦 🎉';
       return;
     }

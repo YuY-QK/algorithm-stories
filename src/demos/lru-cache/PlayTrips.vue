@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { BOOK_EMOJI, TRIP_BIG_CAP, TRIP_BOOKS, TRIP_CAP, TRIP_SEQ, simulate } from '../../engine/lru-cache';
+import { play } from '../../components/shared/sound';
 import Desk from './Desk.vue';
 
 // 玩法二「猜猜去几趟书架」：每借一本，先猜桌上有没有，猜对了才继续，一路数跑了几趟书架。
@@ -41,6 +42,7 @@ function guess(g: 'hit' | 'miss') {
     if (!a.hit) count.value++;
     desk.value = a.desk;
     i.value++;
+    play(done.value ? 'win' : 'right');
     if (done.value) {
       say.value = '🎉 借完啦！';
       if (cap.value === TRIP_CAP) small.value = count.value;
@@ -49,6 +51,7 @@ function guess(g: 'hit' | 'miss') {
     }
   } else {
     shaky.value = g;
+    play('wrong');
     tick.value++;
     if (a.hit) {
       pulse.value = a.book;

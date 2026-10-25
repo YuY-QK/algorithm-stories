@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { countChoices, judgeCut, kidOf, nextRow, splitRounds, stars, type Piece } from '../../engine/merge-sort';
 import { useStageStop } from '../../components/shared/usePlayer';
 import { PAUSE_SHORT } from '../../components/shared/timing';
+import { play } from '../../components/shared/sound';
 
 // 玩法二「拆一拆」：一队小动物，孩子点 ✂️ 把每一队从正中间切开，一轮一轮切到每队只剩 1 个，再数一数切了几轮。
 // 切歪了不说错：左右两边的小动物分别亮起来，让孩子数一数是不是一样多；再歪一次，正中间的 ✂️ 透出光。
@@ -57,18 +58,21 @@ function cut(p: Piece, at: number) {
   const j = judgeCut(p.size, at);
   if (!j.ok) {
     mistakes.value++;
+    play('wrong');
     const prev = probe.value && probe.value.start === p.start ? probe.value.misses : 0;
     probe.value = { start: p.start, at, misses: prev + 1 };
     say.value = '🤔 左边 ' + j.left + ' 个，右边 ' + j.right + ' 个，一样多吗？';
     return;
   }
   probe.value = null;
+  play('right');
   cutSets.value[live.value].add(p.start + at);
   cutSets.value = [...cutSets.value];
   say.value = '✂️ 对半啦：' + j.left + ' 个和 ' + j.right + ' 个';
   const row = rows.value[live.value];
   if (row.every((q) => q.size <= 1 || isCut(live.value, q))) {
     later(PAUSE_SHORT, () => {
+      play('tick');
       rows.value = [...rows.value, nextRow(row)];
       cutSets.value = [...cutSets.value, new Set()];
       if (rows.value[live.value].every((q) => q.size <= 1)) {
@@ -85,6 +89,7 @@ function answer(c: number) {
   chosen.value = c;
   if (c !== rounds.value) {
     mistakes.value++;
+    play('wrong');
     askWrong.value = false;
     requestAnimationFrame(() => (askWrong.value = true));
     hintNums.value = true;
@@ -93,6 +98,7 @@ function answer(c: number) {
   }
   hintNums.value = true;
   phase.value = 'done';
+  play('win');
   say.value = '🎉 ' + n.value + ' 个，对半分了 ' + rounds.value + ' 轮！';
 }
 

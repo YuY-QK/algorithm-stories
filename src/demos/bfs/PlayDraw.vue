@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { KID_MAZES, applyDrawTap, judgeDrawTap, parseMaze, pathTo, routeStars, waves } from '../../engine/bfs';
+import { play } from '../../components/shared/sound';
 import Maze, { type Tone } from './Maze.vue';
 
 // 玩法二「抄近路」：孩子一格一格点出小老鼠的路，到奶酪后和水波找到的最短路比一比。
@@ -48,22 +49,26 @@ function tap(id: number) {
   if (done.value) return;
   const j = judgeDrawTap(maze.value, path.value, id);
   if (j === 'wall' || j === 'far') {
+    play('wrong');
     shake.value = [id, (shake.value?.[1] ?? 0) + 1];
     say.value = j === 'wall' ? '🧱 这格是墙，小老鼠过不去，换一格' : '👣 一次只能走一格，只能点挨着 🐭 的格子';
     return;
   }
   path.value = applyDrawTap(maze.value, path.value, id);
   if (j === 'back') {
+    play('tap');
     say.value = '↩️ 小老鼠退回到你点的这一格，后面的路取消了';
     return;
   }
   if (id === maze.value.end) {
     done.value = true;
+    play('win');
     say.value = steps.value <= best.value
       ? '🎉 ' + steps.value + ' 步！和水波一样近，这就是最短的路'
       : '🧀 吃到啦！你走了 ' + steps.value + ' 步，水波 🌊 只要 ' + best.value + ' 步';
     return;
   }
+  play('right');
   say.value = '👣 走了 ' + steps.value + ' 步，继续往奶酪 🧀 走';
 }
 

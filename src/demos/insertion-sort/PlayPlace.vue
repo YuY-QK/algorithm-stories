@@ -4,6 +4,7 @@ import { dealHand, judgeGap, stars, toCards } from '../../engine/insertion-sort'
 import { useStageStop } from '../../components/shared/usePlayer';
 import { MOVE_NEXT, MOVE_SETTLE, MOVE_STEP } from '../../components/shared/timing';
 import Hand from './Hand.vue';
+import { play } from '../../components/shared/sound';
 
 // 玩法一「找位置」：小熊摸到一张新牌，孩子点出它该插在哪两张牌中间。
 // 牌一开始就发好了，插错时左右两张牌晃一晃，和新牌比一比大小，让孩子自己再看一眼。
@@ -53,6 +54,7 @@ function pickGap(g: number) {
   const j = judgeGap(hand.value, key.value, g);
   if (!j.ok) {
     mistakes.value++;
+    play('wrong');
     const tell: string[] = [];
     if (j.leftBig) {
       const id = slots.value[g - 1]!;
@@ -71,6 +73,7 @@ function pickGap(g: number) {
   }
   glow.value = null;
   phase.value = 'moving';
+  play('right');
   say.value = g === i.value ? '👍 左边的牌都比 ' + key.value + ' 小，' + key.value + ' 就放这儿' : '➡️ 比 ' + key.value + ' 大的牌往右挪一格，给 ' + key.value + ' 让位……';
   // 比 key 大的牌从右往左一张张挪，空位跟着往左走
   let t = 0;
@@ -90,11 +93,13 @@ function pickGap(g: number) {
     slots.value = next;
     phase.value = 'moving';
     heldAt.value = g;
+    play('tick');
     say.value = '✨ 放好啦';
   });
   later(t + MOVE_NEXT, () => {
     if (i.value + 1 >= N) {
       phase.value = 'done';
+      play('win');
       say.value = '🎉 理好啦！';
       return;
     }

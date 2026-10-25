@@ -5,6 +5,7 @@ import { WIGGLE_MS } from '../../components/shared/timing';
 import { useStageStop } from '../../components/shared/usePlayer';
 import { animalOf } from './animals';
 import KidBar from './KidBar.vue';
+import { play } from '../../components/shared/sound';
 
 // 玩法一「站两边」：老师选好了标杆，七位同学排队，孩子一位一位告诉他站标杆的哪一边。
 // 队伍和标杆都是预先发好的；点错了不说「错了」，而是拉出一条和标杆一样高的线，让孩子自己比一比。
@@ -64,6 +65,7 @@ function choose(side: 'left' | 'right') {
   const id = cur.value;
   if (sideOf(heights.value[id], game.value.pivot) !== side) {
     mistakes.value++;
+    play('wrong');
     ruler.value = true;
     wiggle();
     say.value = '🤔 看看那条线：' + animalOf(id) + ' 和 🚩 谁高？';
@@ -72,6 +74,7 @@ function choose(side: 'left' | 'right') {
   ruler.value = false;
   (side === 'left' ? left : right).value.push(id);
   qi.value++;
+  play(phase.value === 'done' ? 'win' : 'right');
   const did = animalOf(id) + ' 比 🚩 ' + (side === 'left' ? '矮' : '高') + '，站' + (side === 'left' ? '左' : '右') + '边了 ✅ ';
   say.value = phase.value === 'done' ? did + '🎉 都站好啦！' : did + '轮到 ' + animalOf(cur.value) + ' 了：他该站 🚩 的哪一边？';
 

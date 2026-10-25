@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { PLATE_ICONS, plateGame, runPlates, stars, topIndex, type PlateOp } from '../../engine/stack';
 import { useStageStop } from '../../components/shared/usePlayer';
 import { PAUSE_LONG } from '../../components/shared/timing';
+import { play } from '../../components/shared/sound';
 import Plates from './Plates.vue';
 
 // 玩法一「拿盘子」：小熊一个个叠盘子，要拿的时候孩子点出会拿到哪一个。
@@ -42,6 +43,7 @@ function step() {
   const op = ops.value[at.value];
   if (op.kind === 'push') {
     at.value++;
+    play('tick');
     say.value = putText(op.plate, cur.value.stack.length);
     later(step, PAUSE_LONG);
   } else {
@@ -55,6 +57,7 @@ function tap(p: number) {
   const st = cur.value.stack;
   if (p !== st[topIndex(st)]) {
     misses.value++;
+    play('wrong');
     shake.value = [p, (shake.value?.[1] ?? 0) + 1];
     glow.value = false;
     requestAnimationFrame(() => (glow.value = true));
@@ -62,6 +65,7 @@ function tap(p: number) {
     return;
   }
   glow.value = false;
+  play('right');
   at.value++;
   phase.value = 'moving';
   const left = cur.value.stack.length;
@@ -71,6 +75,7 @@ function tap(p: number) {
 
 function finish() {
   phase.value = 'done';
+  play('win');
   say.value = '🎉 盘子全拿完啦！';
   if (!asked) {
     asked = true;
@@ -79,6 +84,7 @@ function finish() {
 }
 
 function answerQuiz(when: 'first' | 'last') {
+  play(when === 'last' ? 'right' : 'wrong');
   quiz.value = when === 'last' ? 'right' : 'wrong';
 }
 

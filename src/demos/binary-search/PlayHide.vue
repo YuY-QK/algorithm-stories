@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { KID_N, middle, narrow, pointTo, type Dir } from '../../engine/binary-search';
 import Street from './Street.vue';
+import { play } from '../../components/shared/sound';
 import { PAUSE_LONG, PAUSE_MID, PAUSE_SHORT } from '../../components/shared/timing';
 import { useStageStop } from '../../components/shared/usePlayer';
 
@@ -39,11 +40,13 @@ function clearTimers() {
 function hide(i: number) {
   if (phase.value !== 'hide') return;
   secret.value = i;
+  play('tap');
   phase.value = 'hiding';
   say.value = '✉️ 藏好啦，盖上叶子 🍃';
   later(() => {
     phase.value = 'walking';
     at.value = middle(lo.value, hi.value);
+    play('tick');
     say.value = '🐰 小邮差来啦……';
     later(ask, PAUSE_SHORT);
   }, PAUSE_LONG);
@@ -60,13 +63,16 @@ function answer(d: Dir) {
   const right = pointTo(secret.value, at.value);
   if (d !== right) {
     glow.value = null;
+    play('wrong');
     requestAnimationFrame(() => (glow.value = secret.value));
     say.value = '🤔 看看叶子 🍃 在哪边？';
     return;
   }
   glow.value = null;
+  play('right');
   if (d === 'hit') {
     phase.value = 'done';
+    play('win');
     doors.value = { ...doors.value, [at.value]: 'hit' };
     say.value = '🎉 找到啦！小邮差看了 ' + tries.value + ' 次';
     return;
@@ -77,6 +83,8 @@ function answer(d: Dir) {
   say.value = (d === 'left' ? '👋 右' : '👋 左') + '边都不用看啦';
   later(() => {
     at.value = middle(lo.value, hi.value);
+    play('tick');
+    say.value = '🐰 小邮差走到中间的信箱前……';
     later(ask, PAUSE_SHORT);
   }, PAUSE_MID);
 }

@@ -4,6 +4,7 @@ import { dealQueues, judgeHeads, stars } from '../../engine/merge-sort';
 import { useStageStop } from '../../components/shared/usePlayer';
 import { FOLLOW_END, FOLLOW_STEP } from '../../components/shared/timing';
 import Queue from './Queue.vue';
+import { play } from '../../components/shared/sound';
 
 // 玩法一「合并两队」：两队已经排好的小动物，孩子每次点两个队头里更矮的那个，让它走进新队伍。
 // 点错了不说错：被点的摇一摇，更矮的那个透出光，让孩子自己再比一比。一队走光后，另一队剩下的自动跟上。
@@ -50,6 +51,7 @@ function pick(side: 'L' | 'R') {
   const otherId = side === 'L' ? right.value[0] : left.value[0];
   if (!j.ok) {
     mistakes.value++;
+    play('wrong');
     shake.value = [pickedId, (shake.value?.[1] ?? 0) + 1];
     glow.value = null;
     requestAnimationFrame(() => (glow.value = otherId));
@@ -59,7 +61,10 @@ function pick(side: 'L' | 'R') {
   glow.value = null;
   go(side);
   if (!left.value.length || !right.value.length) finishTail();
-  else say.value = '👍 ' + j.picked + ' 比 ' + j.other + ' 矮，先走。下一个！';
+  else {
+    play('right');
+    say.value = '👍 ' + j.picked + ' 比 ' + j.other + ' 矮，先走。下一个！';
+  }
 }
 
 function go(side: 'L' | 'R') {
@@ -73,6 +78,7 @@ function go(side: 'L' | 'R') {
 function finishTail() {
   const rest = left.value.length ? 'L' : right.value.length ? 'R' : null;
   if (!rest) return end();
+  play('right');
   phase.value = 'tail';
   say.value = (rest === 'L' ? '右' : '左') + '队走光啦，剩下的直接跟上 ➡️';
   let t = 0;
@@ -83,6 +89,7 @@ function finishTail() {
 
 function end() {
   phase.value = 'done';
+  play('win');
   moved.value = null;
   say.value = '🎉 合成一队啦！';
 }
