@@ -10,13 +10,15 @@ class RingQueue(capacity: Int) {
     private val items = IntArray(capacity)
     private var head = 0 // 下一个出队的格子
     private var tail = 0 // 下一个入队的格子
-    private var count = 0 // 用人数区分空和满：head == tail 时，count 是 0 就是空，是容量就是满
+    // 用人数区分空和满：head == tail 时，size 是 0 就是空，是容量就是满
+    var size = 0
+        private set
 
     fun offer(x: Int): Boolean {
         if (isFull()) return false
         items[tail] = x
         tail = (tail + 1) % items.size
-        count++
+        size++
         return true
     }
 
@@ -24,16 +26,13 @@ class RingQueue(capacity: Int) {
         if (isEmpty()) return null
         val x = items[head]
         head = (head + 1) % items.size
-        count--
+        size--
         return x
     }
 
     fun peek(): Int? = if (isEmpty()) null else items[head]
 
-    val size: Int
-        get() = count
+    fun isEmpty(): Boolean = size == 0
 
-    fun isEmpty(): Boolean = count == 0
-
-    fun isFull(): Boolean = count == items.size
+    fun isFull(): Boolean = size == items.size
 }

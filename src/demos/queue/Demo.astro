@@ -78,7 +78,7 @@ const rows = [
     <p class="story">空的时候 head == tail，满的时候 tail 绕一圈追上 head，也是 head == tail。常见的三种办法：</p>
     <ul class="pits">
       <li>另记一个 <code>size</code>：本关的写法。Java 的 <code>ArrayBlockingQueue</code> 也是这样，字段叫 <code>items</code>、<code>takeIndex</code>、<code>putIndex</code>、<code>count</code>。</li>
-      <li>故意空出一格不用：满的条件是 <code>(tail + 1) % 容量 == head</code>。Java 的 <code>ArrayDeque</code> 就这样做，源码注释写着数组在 tail 处至少留一个空格。</li>
+      <li>故意空出一格不用：满的条件是 <code>(tail + 1) % 容量 == head</code>。Java 的 <code>ArrayDeque</code> 就这样做，源码注释写着数组在 tail 处至少留一个空格（它是会扩容的，本关是固定容量）。</li>
       <li>下标一直往上加、不取模，用 <code>tail - head</code> 算个数，读写时再取模。容量取 2 的幂时，取模可以换成更快的位与。</li>
     </ul>
 

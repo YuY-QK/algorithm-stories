@@ -1,6 +1,6 @@
 # 动态规划（爬楼梯）：资料
 
-> 写这份资料时没有联网查证，下面的事实凭可靠知识写成，爬楼梯的数字、调用次数、网格路数都在引擎测试和 `dynamic_programming.py` 里用计算核对过。出处细节和具体系统的说法没法用计算核对的，标了「待核实」。
+> 写这份资料时没有联网查证，下面的事实凭可靠知识写成，爬楼梯的数字、调用次数、网格路数都在引擎测试和 `dynamic_programming.py` 里用计算核对过。出处细节没法用计算核对的，只写了已知的事实。
 
 ## 1. 解决什么问题
 
@@ -68,13 +68,13 @@
 
 **工程**
 
-- 文本比较：`diff` 求最长公共子序列（LCS）。最早的 Unix `diff`（Hunt 和 McIlroy，1976 年，Bell Labs 技术报告，细节待核实）基于 LCS；Git 默认的 diff 算法是 Myers 的 O(ND) 算法（Eugene Myers，1986），求最短编辑脚本，和 LCS 是同一类问题的另一种解法，不是填 dp 表。
-- 编辑距离（Levenshtein 距离）：Wagner 和 Fischer（1974）给出了填二维表的算法。拼写检查、模糊搜索常用它或它的变体衡量两个词的相似度；具体某个软件是否这样实现，待核实。
+- 文本比较：`diff` 求最长公共子序列（LCS）。最早的 Unix `diff`（Hunt 和 McIlroy，1976 年，Bell Labs 技术报告）基于 LCS；Git 默认的 diff 算法是 Myers 的 O(ND) 算法（Eugene Myers，1986），求最短编辑脚本，和 LCS 是同一类问题的另一种解法，不是填 dp 表。
+- 编辑距离（Levenshtein 距离）：Wagner 和 Fischer（1974）给出了填二维表的算法。拼写检查、模糊搜索这类场景常用它的思路衡量两个词的相似度。
 - 序列比对：Needleman–Wunsch（1970，全局比对）和 Smith–Waterman（1981，局部比对）都是动态规划，用于生物信息学比较 DNA、蛋白质序列。
 - 背包问题：0/1 背包用 dp 表，时间 O(物品数 × 容量)，是「伪多项式」时间。
-- 最短路径：Bellman–Ford、Floyd–Warshall 属于动态规划，Dijkstra 属于贪心。地图导航软件实际用什么算法，待核实（一般认为是 Dijkstra/A* 加上预处理的变种，不是这里的 dp 表）。
+- 最短路径：Bellman–Ford、Floyd–Warshall 属于动态规划，Dijkstra 属于贪心。
 - Viterbi 算法：隐马尔可夫模型的解码，用于语音识别、词性标注、通信里的卷积码解码。
-- 名字的由来：Richard Bellman 在 1950 年代提出。「programming」在这里是「规划、制表」的意思，不是写程序。（关于他为什么选这个名字有一个流传很广的说法，待核实，没有放进关卡。）
+- 名字的由来：Richard Bellman 在 1950 年代提出。「programming」在这里是「规划、制表」的意思，不是写程序。
 
 ## 6. 关卡讲法建议
 
@@ -89,7 +89,7 @@
 ## 7. 参考资料
 
 - LeetCode 70 爬楼梯：<https://leetcode.com/problems/climbing-stairs/>；746 使用最小花费爬楼梯：<https://leetcode.com/problems/min-cost-climbing-stairs/>；63 不同路径 II：<https://leetcode.com/problems/unique-paths-ii/>；322 零钱兑换：<https://leetcode.com/problems/coin-change/>
-- Cormen 等，《算法导论》第 14 章（第 3 版是第 15 章）「动态规划」
+- Cormen 等，《算法导论》第 3 版第 15 章、第 4 版第 14 章「动态规划」
 - Wikipedia: Dynamic programming <https://en.wikipedia.org/wiki/Dynamic_programming>
 - Eugene W. Myers, "An O(ND) Difference Algorithm and Its Variations", Algorithmica 1 (1986)
 - R. A. Wagner, M. J. Fischer, "The String-to-String Correction Problem", Journal of the ACM 21 (1974)

@@ -42,7 +42,6 @@ fun partition(arr: IntArray, lo: Int, hi: Int): Int {
 |---|---|---|
 | 指针 | 一个扫描指针 j，一个「矮队末尾」i，都从左往右 | 两个指针从两端往中间走，遇到「左边的大、右边的小」就交换 |
 | 标杆最终位置 | 返回的 p，标杆正好站在那里 | 返回的分界点，标杆**不一定**站在那里，递归区间要写成 `[lo, j]` 和 `[j + 1, hi]` |
-| 交换次数 | 较多 | 平均约少三倍（据 Wikipedia「Quicksort」词条，待核实） |
 | 好讲好画 | 是 | 否，边界很容易写错 |
 | 全是相同的数 | 严格 `<` 时所有数都分到右边，退化成 O(n²) | 两个指针都会停在相等的数上，交换后各走一步，反而分得很均匀 |
 
@@ -97,11 +96,11 @@ fun partition(arr: IntArray, lo: Int, hi: Int): Int {
 
 **工程**
 
-- Java `Arrays.sort(int[])` 等基本类型数组用 `java.util.DualPivotQuicksort`（双轴快速排序，Yaroslavskiy、Bentley、Bloch 的算法）。已对照 OpenJDK 主线源码：类注释写明 `@since 1.7 * 14`（即 JDK 7 引入，JDK 14 重写）；小区间用插入排序（`MAX_INSERTION_SORT_SIZE = 44`、`MAX_MIXED_INSERTION_SORT_SIZE = 65`）；递归超过 `MAX_RECURSION_DEPTH` 时改用堆排序。Kotlin 的 `IntArray.sort()` 在 JVM 上调用 `java.util.Arrays.sort`（待核实具体版本的 stdlib 源码）。
+- Java `Arrays.sort(int[])` 等基本类型数组用 `java.util.DualPivotQuicksort`（双轴快速排序，Yaroslavskiy、Bentley、Bloch 的算法）。已对照 OpenJDK 主线源码：类注释写明 `@since 1.7 * 14`（即 JDK 7 引入，JDK 14 重写）；小区间用插入排序（`MAX_INSERTION_SORT_SIZE = 44`、`MAX_MIXED_INSERTION_SORT_SIZE = 65`）；递归超过 `MAX_RECURSION_DEPTH` 时改用堆排序。Kotlin 的 `IntArray.sort()` 在 JVM 上调用 `java.util.Arrays.sort`。
 - Java 对象数组和 `List.sort` 用稳定的 TimSort，不是快排。Python `list.sort` 也是 Timsort。
 - C++ libstdc++ `std::sort` 是 introsort：快排 + 递归过深时换堆排序 + 区间 ≤ 16 时停手、最后整体做一遍插入排序（插入排序的资料里已核实 `_S_threshold = 16`）。
-- Go 1.19 起 `sort` 包用 pdqsort（pattern-defeating quicksort，改良的快排，会识别有序、倒序、重复很多的情况）。Rust 的 `sort_unstable` 也是 pdqsort 一类；新版本改成了 ipnsort（从哪个版本开始，待核实）。
-- 快速选择：C++ `std::nth_element` 在 libstdc++ 里是 introselect（快速选择 + 递归过深时的保底，待核实具体函数名）；LeetCode 215「数组中的第 K 个最大元素」的标准解法之一。
+- Go 1.19 起 `sort` 包用 pdqsort（pattern-defeating quicksort，改良的快排，会识别有序、倒序、重复很多的情况）。Rust 的 `sort_unstable` 也是 pdqsort 一类；自 Rust 1.81.0 起 `sort_unstable` 改为 ipnsort，`sort` 改为 driftsort。
+- 快速选择：C++ `std::nth_element` 在 libstdc++ 里是 introselect（快速选择 + 递归过深时的保底，对应 `__introselect`）；LeetCode 215「数组中的第 K 个最大元素」的标准解法之一。
 
 ## 7. 关卡讲法建议
 

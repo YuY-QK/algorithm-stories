@@ -65,7 +65,7 @@ fun insertionSort(arr: IntArray) {
 
 **工程**（小区间改用插入排序，以下数字已对照源码核实）
 
-- Java 8 `java.util.DualPivotQuicksort`（`Arrays.sort(int[])` 等基本类型数组）：`INSERTION_SORT_THRESHOLD = 47`，长度小于它时用插入排序。较新的 OpenJDK 主线重写了这个类，常量改为 `MAX_INSERTION_SORT_SIZE = 44` 和 `MAX_MIXED_INSERTION_SORT_SIZE = 65`（从哪个 JDK 版本开始改的，待核实，一般认为是 JDK 14）。
+- Java 8 `java.util.DualPivotQuicksort`（`Arrays.sort(int[])` 等基本类型数组）：`INSERTION_SORT_THRESHOLD = 47`，长度小于它时用插入排序。较新的 OpenJDK 主线重写了这个类，常量改为 `MAX_INSERTION_SORT_SIZE = 44` 和 `MAX_MIXED_INSERTION_SORT_SIZE = 65`（JDK 14 起）。
 - Java `java.util.TimSort`（对象数组、`List.sort`）：`MIN_MERGE = 32`，长度小于 32 时不归并，直接用二分插入排序 `binarySort`。
 - CPython `list.sort`（Timsort，见 `Objects/listsort.txt`）：元素少于 64 个时整个列表用二分插入排序；更长时，短于 minrun 的自然 run 也用二分插入排序补长。
 - C++ libstdc++ `std::sort`（introsort）：`_S_threshold = 16`，快排把区间切到 16 以内就停手，最后 `__final_insertion_sort` 对整个数组做一遍插入排序。

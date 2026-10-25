@@ -681,6 +681,14 @@ export interface Round {
   answer: { kind: 'go'; to: number } | { kind: 'back'; to: number | null } | { kind: 'end' };
   /** 答错时的解释：按上右下左的顺序一个方向一行（用换行分隔） */
   why: string;
+  /** 提问：探险家刚站稳时的提示 */
+  ask: string;
+  /** 选了「回溯」以后的提示（要点哪个路口） */
+  askBack: string;
+  /** 答对时的反馈 */
+  right: string;
+  /** 这一题答完、搜索结束时的收尾提示（只有最后一题会用到） */
+  endNote: string;
 }
 
 /** 一道题的解释：到了宝藏直接 return true，否则四个方向逐个看，死路再讲回溯 */
@@ -728,7 +736,27 @@ export function rounds(m: Maze): Round[] {
       while (moves[j].kind === 'back') j++;
       answer = { kind: 'back', to: moves[j].kind === 'go' ? moves[j - 1].cell : null };
     }
-    out.push({ cur, path: mv.path, visited: mv.visited, isEnd: cur === m.end, checks, answer, why: explainRound(m, cur, checks, answer) });
+    const right =
+      answer.kind === 'go'
+        ? '走进 ' + coord(m, answer.to) + '，撒面包屑。'
+        : answer.kind === 'end'
+          ? '到宝藏了，return true。'
+          : answer.to === null
+            ? '死路，而且所有路口都没新路了：搜索结束，返回 false。'
+            : '退回 ' + coord(m, answer.to) + '，从它没试过的方向继续。';
+    out.push({
+      cur,
+      path: mv.path,
+      visited: mv.visited,
+      isEnd: cur === m.end,
+      checks,
+      answer,
+      why: explainRound(m, cur, checks, answer),
+      ask: '探险家刚走进 ' + coord(m, cur) + '，撒了面包屑。接下来呢？往前走就点它要去的格子；四边都走不通就点「回溯」。',
+      askBack: '回溯：要一直退到哪个路口，那里还有没试过的方向？点那一格。',
+      right,
+      endNote: cur === m.end ? '走到宝藏，return true，一层层往回报喜讯。' : '搜索结束，返回 false。',
+    });
   });
   return out;
 }

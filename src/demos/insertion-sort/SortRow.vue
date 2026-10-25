@@ -42,7 +42,7 @@ function tags(s: SortStep, k: number) {
 }
 .keybox.on {
   color: var(--accent-ink); background: var(--accent); transform: rotate(-4deg);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--fg) 22%, transparent);
 }
 .val {
   width: 100%; height: 40px; display: grid; place-items: center; box-sizing: border-box;

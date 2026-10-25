@@ -41,10 +41,9 @@
 
 - [ ] 合并 PR，网站上线 13 关（Yumor）
 - [x] 阶段 B：做架构（2026-10-25 完成）。13 关全部迁到共享组件（BookPager、useStreak+PredictFrame、BugHunt、timing.ts、useStageStop），引擎命名对齐，台词和答错解释进引擎，组件不再直接 Math.random，计时器全部接 useStageStop。Python 对拍测试本机无 Python 没跑，交给 CI；Yumor 还没试玩迁移后的页面
-- [ ] 各关 `notes.md` 里的「待核实」条目统一核对一次（阶段 C 第一批之前）
+- [x] 各关 `notes.md` 的「待核实」条目已按审校结论清理（无法核实的说法已删除）。剩余需人工核实的零星条目：greedy 资料里的 Wikipedia 引用表述、《算法导论》习题 16-1，selection-sort 的《算法导论》练习 2.2-2 编号，greedy/dp 资料开头的免责说明
 - [ ] 13 关统一审校一次（content-reviewer；迁移已完成，可以开始）
 - [ ] `project-plan.md` 的路线图（第 7 节 P0～P4）还是按四个等级写的，阶段 A 之后按「看、玩、做」重排；`overview.md` 4c、4d 同步更新
-- [ ] 冒泡排序故事稿里「嵌入式或图形程序会用冒泡的思路」找不到出处，`notes.md` 已标「待核实」
 - [ ] `project-plan.md` 第 9 节的待定问题：网站域名、博客首发平台、初级年龄段、是否做英文版
 - [ ] 应用名最终确认（推荐「算法小镇 AlgoTown」，博客系列名「算法小故事」），商标和域名还没查
 - [ ] 小邮差角色形象（暂用 🐰），等试玩后定

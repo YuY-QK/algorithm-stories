@@ -86,6 +86,7 @@ function useHint() {
 
 <template>
   <div class="game">
+    <p class="small-note">目标：信藏在某个信箱里，你来找。每点一次，就会知道信在左边还是右边，用最少的次数找到它。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Street
       :n="KID_N" :lo="lo" :hi="hi" :postman="at" :doors="doors"

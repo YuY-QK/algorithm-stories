@@ -103,6 +103,7 @@ onBeforeUnmount(clearTimers);
 
 <template>
   <div class="game">
+    <p class="small-note">目标：你来藏信，邮递员猜在哪个信箱。他每问一次，你就告诉他信在左边、右边，还是就是这里。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Street
       :n="KID_N" :lo="lo" :hi="hi" :postman="at" :doors="doors"

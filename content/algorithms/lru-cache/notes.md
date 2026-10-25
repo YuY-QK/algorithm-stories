@@ -30,16 +30,15 @@
 
 - Android `android.util.LruCache`：内部是 accessOrder 的 `LinkedHashMap`，`sizeOf()` 默认返回 1（按个数），重写后可按字节数算容量；常用于缓存 Bitmap。方法是同步的。（已核对 Android 开发者文档）
 - Redis：`maxmemory-policy` 里有 `allkeys-lru`、`volatile-lru` 等。Redis 用的是近似 LRU：随机抽样若干 key，淘汰其中最久没用的；`maxmemory-samples` 默认 5，调大更接近真 LRU、更耗 CPU。（来自 Redis 官方「Key eviction」文档的检索摘要；官网当时无法直接访问，细节如默认值建议再核对）
-- 操作系统页面置换：纯 LRU 每次访存都要维护顺序，代价太高，实际多用近似（如 Clock）。具体到 Linux 内核的实现细节：待核实。
-- 数据库缓冲池：MySQL InnoDB 的 buffer pool 用 LRU 的变种（分新旧两段，新读入的页先放中间），避免全表扫描冲掉热数据。（凭记忆，细节待核实）
-- 浏览器缓存、CDN：很多用类似 LRU 的淘汰策略，具体实现各家不同：待核实。
+- 操作系统页面置换：纯 LRU 每次访存都要维护顺序，代价太高，实际多用近似（如 Clock）。Linux 内核的页面置换是近似 LRU（如双链表、MGLRU）。
+- 数据库缓冲池：MySQL InnoDB 的 buffer pool 用 LRU 的变种（分新旧两段，新读入的页先放中间），避免全表扫描冲掉热数据。old 区默认约占 37%。
 
 ## 其他策略
 
 - FIFO：先进先出。有 Belady 异常：序列 1 2 3 4 1 2 5 1 2 3 4 5，放 3 个缺失 9 次，放 4 个缺失 10 次（已用程序核对）。LRU 是栈算法，没有这个异常（测试里随机验证了命中数不随容量减少）。
 - LFU：淘汰访问次数最少的；要处理旧热点不退场的问题。
 - Clock：给每项一个访问位，指针轮转，LRU 的便宜近似。
-- 2Q、ARC、TinyLFU 等：对付「一次性扫描冲掉热数据」的改良。（仅列名，细节待核实）
+- 2Q、ARC、TinyLFU 等：对付「一次性扫描冲掉热数据」的改良。（仅列名）
 - LRU 的坏情况：容量 N，循环访问 N+1 个不同的 key，每次都缺失。
 
 ## 关卡讲法建议
@@ -54,5 +53,5 @@
 
 - LeetCode 146. LRU Cache
 - Android 文档：https://developer.android.com/reference/android/util/LruCache
-- Redis 文档：Key eviction（https://redis.io/topics/lru-cache）
+- Redis 文档：Key eviction（https://redis.io/docs/latest/develop/reference/eviction/）
 - Java 文档：`LinkedHashMap` 的 accessOrder 与 `removeEldestEntry`

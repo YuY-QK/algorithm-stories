@@ -60,7 +60,7 @@ fun bubbleSort(arr: IntArray) {
 
 1. 交换不用临时变量：写成 `arr[j] = arr[j + 1]; arr[j + 1] = arr[j]`，第二句读到的已经是新值，原来左边的数丢了，数组里出现重复的数。（关卡坑 1）
 2. 内层循环上界写成 `until n - i`：第一轮 j 走到 n − 1，读 `arr[j + 1]` 就是 `arr[n]`，JVM 上抛 `ArrayIndexOutOfBoundsException`。写成 `until n - 1` 不会出错，只是每轮都把已经站好的也比一遍，多做无用比较。（关卡坑 2）
-3. 比较写成 `>=`：相等时也交换，排序不再稳定；排整数看不出来，排对象时同值的元素先后顺序会乱。另外只要有相等的邻居，每轮都会「换过」，提前退出失效。（关卡坑 3）
+3. 比较写成 `>=`：相等时也交换，排序不再稳定；排整数看不出来，排对象时同值的元素先后顺序会乱。另外有相等邻居时往往每轮都换过，提前退出常常失效。（关卡坑 3）
 4. 比较写反成 `<`：排成了从大到小。
 5. `swapped = false` 放到外层循环外面（不在每一轮开头重置）：一旦换过就一直是 true，提前退出永远不生效，结果仍正确但最好情况退化成 O(n²)。这个错要改两行，不符合「只差一行」，没放进找 bug。
 6. 外层循环写成 `0 until n`：多走一轮，不出错但多余（有提前退出时通常影响不到）。
@@ -76,11 +76,9 @@ fun bubbleSort(arr: IntArray) {
 - 真正排序时几乎不用它。Kotlin 在 JVM 上：
   - `IntArray.sort()` 调用 `java.util.Arrays.sort(int[])`，JDK 文档写明是 Vladimir Yaroslavskiy、Jon Bentley、Joshua Bloch 的双轴快速排序（Dual-Pivot Quicksort）。
   - `MutableList.sort()` / `sortWith()` 调用 `java.util.Collections.sort`（只在 size > 1 时调用），Kotlin 标准库注释写明是稳定排序。`Arrays.sort(Object[])` 和 `Arrays.sort(T[], Comparator)` 的 JDK 文档写明是「稳定的、自适应的迭代归并排序」，改编自 Tim Peters 给 Python 写的 list.sort（TimSort）。
-  - `sorted()` / `sortedBy()` 对集合先 `toTypedArray()` 再排，走同一条对象排序的路。（Kotlin 标准库源码，待核实具体版本的实现细节）
-- 小片段用插入排序：TimSort 对短片段用二分插入排序，双轴快排对很短的区间也改用插入排序（阈值随 JDK 版本不同，待核实具体数值）。插入排序和冒泡一样只在相邻位置挪动、同样稳定，但比较次数少得多，所以工程里「小而几乎有序」的场景用的是插入排序，不是冒泡。
-- 计算机图形学里有「几乎有序的数组用冒泡排序修正一两处错位」的说法（如扫描线多边形填充时按 x 坐标排序边），出自维基百科英文条目，未找到原始出处，待核实。旧版故事稿里「嵌入式或图形程序会用冒泡思路」一句已删掉。
+  - `sorted()` / `sortedBy()` 对集合先 `toTypedArray()` 再排，走同一条对象排序的路。（Kotlin 标准库源码）
+- 小片段用插入排序：TimSort 对短片段用二分插入排序，双轴快排对很短的区间也改用插入排序（阈值随 JDK 版本不同；JDK 14 起的 `DualPivotQuicksort` 里常量是 44 和 65）。插入排序和冒泡一样只在相邻位置挪动、同样稳定，但比较次数少得多，所以工程里「小而几乎有序」的场景用的是插入排序，不是冒泡。
 - Knuth 在《计算机程序设计艺术》第 3 卷 5.2.2 节评价冒泡排序：除了一个好记的名字和它引出的一些有趣理论问题之外，没什么值得推荐的（大意，原文 "the bubble sort seems to have nothing to recommend it, except a catchy name and the fact that it leads to some interesting theoretical problems"，经 Astrachan 论文转引）。
-- 2007 年奥巴马在 Google 的活动上被问「怎样给一百万个 32 位整数排序」，回答「冒泡排序不是好办法」，常被当作趣闻引用（待核实原始视频出处）。
 
 ## 6. 关卡讲法建议
 
