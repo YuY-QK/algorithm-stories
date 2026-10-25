@@ -4,20 +4,24 @@
  */
 import type { Speed } from './usePlayer';
 
-/** 逐步执行、找 bug 的默认速度档（慢/中/快，毫秒/步） */
+/** 速度档里的「手动」：点一下走一步 */
+export const MANUAL = 0;
+
+/** 逐步执行、找 bug 的速度档（毫秒/步，默认「中」）。ms 为 0 表示「手动」：点一下走一步，不自动播放 */
 export const SPEEDS: Speed[] = [
-  { label: '慢', ms: 1300 },
-  { label: '中', ms: 800 },
-  { label: '快', ms: 350 },
+  { label: '慢', ms: 2200 },
+  { label: '中', ms: 1500 },
+  { label: '快', ms: 700 },
+  { label: '手动', ms: MANUAL },
 ];
 
 /** 绘本自动翻页的间隔（毫秒） */
-export const BOOK_INTERVAL = 2200;
+export const BOOK_INTERVAL = 3500;
 
 /** 「玩」里动画之间的停顿（毫秒） */
-export const PAUSE_SHORT = 700;
-export const PAUSE_MID = 800;
-export const PAUSE_LONG = 900;
+export const PAUSE_SHORT = 1000;
+export const PAUSE_MID = 1100;
+export const PAUSE_LONG = 1300;
 /** 「玩」「猜下一步」里逐个比较的动画节拍 */
 export const PAUSE_START = 200;
 export const PAUSE_TICK = 320;
@@ -25,7 +29,7 @@ export const PAUSE_BEAT = 500;
 export const PAUSE_HOLD = 1500;
 export const PAUSE_ROUND = 1800;
 /** 「玩」里一句提示读完再往下的停顿 */
-export const PAUSE_NOTE = 1100;
+export const PAUSE_NOTE = 1600;
 /** 「玩」里一张牌挪一格、放下、再摸下一张的节拍 */
 export const MOVE_STEP = 380;
 export const MOVE_SETTLE = 450;

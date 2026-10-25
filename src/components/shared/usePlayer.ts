@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue';
 import { play } from './sound';
-import { SPEEDS } from './timing';
+import { MANUAL, SPEEDS } from './timing';
 
 export interface Speed {
   label: string;
@@ -32,6 +32,7 @@ export function usePlayer<S>(steps: Ref<S[]>, speeds: Speed[] = SPEEDS, defaultS
   const total = computed(() => steps.value.length);
   const atStart = computed(() => idx.value === 0);
   const atEnd = computed(() => idx.value >= total.value - 1);
+  const manual = computed(() => speed.value === MANUAL);
   const playing = computed(() => timer.value !== null);
 
   function stop() {
@@ -47,7 +48,8 @@ export function usePlayer<S>(steps: Ref<S[]>, speeds: Speed[] = SPEEDS, defaultS
   function toggle() {
     if (playing.value) return stop();
     if (atEnd.value) idx.value = 0;
-    start();
+    else if (manual.value) return next();
+    if (!manual.value) start();
   }
   function next() {
     stop();
@@ -78,7 +80,7 @@ export function usePlayer<S>(steps: Ref<S[]>, speeds: Speed[] = SPEEDS, defaultS
   watch(speed, () => {
     if (playing.value) {
       stop();
-      start();
+      if (!manual.value) start();
     }
   });
 
@@ -88,7 +90,7 @@ export function usePlayer<S>(steps: Ref<S[]>, speeds: Speed[] = SPEEDS, defaultS
     window.removeEventListener(STAGE_CHANGE_EVENT, stop);
   });
 
-  return { idx, speed, speeds, step, total, atStart, atEnd, playing, toggle, next, prev, reset, jumpTo, stop };
+  return { idx, speed, speeds, step, total, atStart, atEnd, playing, manual, toggle, next, prev, reset, jumpTo, stop };
 }
 
 export type Player = ReturnType<typeof usePlayer>;
