@@ -245,6 +245,9 @@ select { width: auto; font-family: var(--body); }
 .foot { color: var(--muted); font-size: 13px; text-align: center; padding-top: 6px; }
 
 @media (max-width: 520px) {
+  /* 手机上卡片铺满屏宽，省出宽度给 15 个信箱这类一排很多按钮的画面（--bleed 是画面往两边伸出的距离） */
+  .block { margin-inline: -16px; padding: 14px 10px; gap: 12px; border-inline: 0; border-radius: 0; --bleed: 10px; }
+  .block .stage, .block .game { padding: 12px 10px; border-radius: 14px; --bleed: 20px; }
   .cmp-row { grid-template-columns: 1fr; }
   .transport .speed { margin-left: 0; }
 }
