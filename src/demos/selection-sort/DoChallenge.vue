@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { genPuzzle, inversions, isSorted, selectionSwaps, swapAt } from '../../engine/selection-sort';
+import { genChallenge, inversions, isSorted, selectionSwaps, swapAt } from '../../engine/selection-sort';
 
 // 做：挑战。点两格交换，用最少的交换次数排好，和选择排序比一比。
 // 元素互不相同时，选择排序的交换次数就是最少的（见引擎 fewestSwaps 的说明），所以打平就是满分。
@@ -11,7 +11,7 @@ const moves = ref(0);
 const lastSwap = ref<[number, number] | null>(null);
 
 function fresh() {
-  start.value = genPuzzle();
+  start.value = genChallenge();
   retry();
 }
 function retry() {

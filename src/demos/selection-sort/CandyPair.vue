@@ -43,7 +43,7 @@ const hue = (v: number) => 'hue-rotate(' + ((v * 47) % 360) + 'deg)';
       @click="emit('pick', side)"
     >
       <span class="tagline" aria-hidden="true">{{ side === 'l' ? leftTag : rightTag }}</span>
-      <span class="big" :style="{ '--s': scale(side === 'l' ? left : right), filter: hue(side === 'l' ? left : right) }">🍬</span>
+      <span class="candy" :style="{ '--s': scale(side === 'l' ? left : right), filter: hue(side === 'l' ? left : right) }">🍬</span>
       <span class="size">{{ side === 'l' ? left : right }}</span>
     </button>
   </div>
@@ -62,7 +62,7 @@ const hue = (v: number) => 'hue-rotate(' + ((v * 47) % 360) + 'deg)';
 .side:not(:disabled):hover { border-color: var(--accent); }
 .side:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 .tagline { font-size: 1.3rem; line-height: 1.2; margin-bottom: auto; }
-.big { font-size: calc(var(--u) * var(--s)); line-height: 1; }
+.candy { font-size: calc(var(--u) * var(--s)); line-height: 1; }
 .size { font: 600 14px var(--mono); color: var(--muted); }
 .side.glow { animation: glow 0.9s ease-in-out 2; }
 .side.shake { animation: shake 0.5s ease-in-out; }

@@ -6,6 +6,7 @@ import {
 } from '../../engine/selection-sort';
 import Candies from './Candies.vue';
 import CandyPair from './CandyPair.vue';
+import { PAUSE_NOTE } from '../../components/shared/timing';
 
 // 玩法二「小熊的手」：小熊手里拿着目前最小的那颗，一颗一颗看后面的。
 // 孩子决定「换成新的」还是「留着」。答案由引擎判定，答错时更小的那颗透光。
@@ -21,6 +22,8 @@ const asking = computed(() => !s.value.done && !handRoundOver(s.value) && !busy.
 
 function answer(c: HandChoice) {
   if (!asking.value) return;
+  const held = s.value.a[s.value.held];
+  const look = s.value.a[s.value.j];
   const n = handStep(s.value, c);
   if (!n) {
     mistakes.value++;
@@ -40,10 +43,10 @@ function answer(c: HandChoice) {
       setTimeout(() => {
         busy.value = false;
         if (!s.value.done) say.value = '👀 新的这颗，要换吗？';
-      }, 1100);
-    }, 1100);
+      }, PAUSE_NOTE);
+    }, PAUSE_NOTE);
   } else {
-    say.value = c === 'take' ? '🔄 换成小的啦。👀 下一颗呢？' : '✋ 留着。👀 下一颗呢？';
+    say.value = c === 'take' ? '🔄 ' + look + ' 号比 ' + held + ' 号小，小熊换成了 ' + look + ' 号。👀 下一颗呢？' : '✋ ' + look + ' 号没有 ' + held + ' 号小，小熊留着 ' + held + ' 号。👀 下一颗呢？';
   }
 }
 
@@ -58,6 +61,7 @@ function again() {
 
 <template>
   <div class="game">
+    <p class="small-note">目标：小熊手里拿着一颗糖果（🐻），看 👀 那颗新的：比手里的小就点 🔄 换成它，不比手里的小就点 ✋ 留着。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Candies
       :values="s.a" :sorted="s.done ? s.a.length : s.i"

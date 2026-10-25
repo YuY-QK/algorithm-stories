@@ -24,3 +24,5 @@ export const PAUSE_TICK = 320;
 export const PAUSE_BEAT = 500;
 export const PAUSE_HOLD = 1500;
 export const PAUSE_ROUND = 1800;
+/** 「玩」里一句提示读完再往下的停顿 */
+export const PAUSE_NOTE = 1100;

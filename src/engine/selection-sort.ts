@@ -1,4 +1,4 @@
-import type { Step, Trace } from './types';
+import type { BugInfo, LookFrame, Step, Trace } from './types';
 
 /* ---------- 看、玩：小熊排糖果 ---------- */
 
@@ -47,6 +47,33 @@ export function selectRounds(input: number[]): Pick[] {
     out.push({ i, min, before: a, after });
     a = after;
   }
+  return out;
+}
+
+/** 绘本的一页：台词加画面（一排糖果、已排好几颗、小熊指着谁、谁在发光） */
+export interface LookPage extends LookFrame {
+  values: number[];
+  sorted: number;
+  bear: number | null;
+  glow: number | null;
+}
+
+/** 「看」的全部页，由 selectRounds 生成，和真实的选择排序一致 */
+export function lookFrames(a: number[]): LookPage[] {
+  const rs = selectRounds(a);
+  const out: LookPage[] = [];
+  out.push({ say: '小熊 🐻 想把糖果从小到大排好 🍬', values: a, sorted: 0, bear: null, glow: null });
+  out.push({ say: '小熊的办法：每次挑出最小的那颗 👀', values: a, sorted: 0, bear: null, glow: null });
+  for (const r of rs) {
+    out.push({ say: (r.i === 0 ? '这一排里' : '剩下的里面') + '，最小的是它 👆', values: r.before, sorted: r.i, bear: r.min, glow: r.min });
+    if (r.min !== r.i) {
+      out.push({ say: '和最前面的换个位置 🔄 放上盘子', values: r.after, sorted: r.i + 1, bear: r.i, glow: null });
+    } else {
+      out.push({ say: '它已经在最前面，不用换 👍', values: r.after, sorted: r.i + 1, bear: r.i, glow: null });
+    }
+  }
+  const end = rs.length ? rs[rs.length - 1].after : a;
+  out.push({ say: '最后一颗不用挑，排好啦 🎉 挑了 ' + rs.length + ' 轮', values: end, sorted: end.length, bear: null, glow: null });
   return out;
 }
 
@@ -134,7 +161,7 @@ export const CODE = [
   '}',
 ];
 
-export interface SelStep extends Step {
+export interface SelectionStep extends Step {
   a: number[];
   i: number | null;
   j: number | null;
@@ -160,13 +187,13 @@ export function genArray(n: number, shape: Shape = 'random', rand: () => number 
   return a;
 }
 
-export function buildTrace(input: number[]): Trace<SelStep> {
+export function buildTrace(input: number[]): Trace<SelectionStep> {
   const a = input.slice();
   const n = a.length;
-  const steps: SelStep[] = [];
+  const steps: SelectionStep[] = [];
   let i: number | null = null, j: number | null = null, minIdx: number | null = null;
   let sorted = 0, compares = 0, swaps = 0;
-  const push = (line: number, note: string, extra: Partial<SelStep> = {}) => {
+  const push = (line: number, note: string, extra: Partial<SelectionStep> = {}) => {
     steps.push({ line, a: a.slice(), i, j, minIdx, sorted, compares, swaps, note, cmp: false, swap: null, done: false, ...extra });
   };
 
@@ -225,6 +252,32 @@ export interface Round {
   minIdx: number;
   /** minIdx 被改了几次（第 7 行执行了几次） */
   updates: number;
+  /** 选错「minIdx 改了几次」时的解释 */
+  why: string;
+}
+
+/** minIdx 在这一轮里依次指过哪些下标 */
+function minPath(i: number, before: number[]): number[] {
+  const out = [i];
+  for (let j = i + 1; j < before.length; j++) if (before[j] < before[out[out.length - 1]]) out.push(j);
+  return out;
+}
+
+/** 点错「minIdx 最后停在哪」时的解释：点的是第 k 格 */
+export function whyMin(rd: Round, k: number): string {
+  const { i, minIdx, before } = rd;
+  const v = before[minIdx];
+  if (k > i && k !== minIdx && before[k] === v) {
+    return 'arr[' + k + '] 也是 ' + v + '，可是判断用的是 <：遇到一样小的不会改 minIdx，所以留在最前面的 ' + minIdx + '。';
+  }
+  if (k < i) return '下标 ' + k + ' 在 i 前面，已经排好了。这一轮只在 i = ' + i + ' 及以后找，最小的是 arr[' + minIdx + '] = ' + v + '。';
+  return '从 i = ' + i + ' 往后，最小的是 arr[' + minIdx + '] = ' + v + '，minIdx 停在 ' + minIdx + '。';
+}
+
+/** 猜下一步出一道题：6 到 8 颗，三成半有重复的 */
+export function genPredict(rand: () => number = Math.random): number[] {
+  const n = 6 + Math.floor(rand() * 3);
+  return genArray(n, rand() < 0.35 ? 'dups' : 'random', rand);
 }
 
 export function rounds(input: number[]): Round[] {
@@ -238,7 +291,12 @@ export function rounds(input: number[]): Round[] {
         updates++;
       }
     }
-    out.push({ i, before: a.slice(), minIdx: m, updates });
+    const before = a.slice();
+    const ps = minPath(i, before);
+    const why = ps.length === 1
+      ? '后面没有比 arr[' + i + '] = ' + before[i] + ' 更小的，minIdx 一次都没改。'
+      : 'minIdx 依次是 ' + ps.join(' → ') + '（值 ' + ps.map((x) => before[x]).join(' → ') + '），改了 ' + updates + ' 次。只有遇到比「目前最小的」还小的才改，不是比 arr[i] 小就改。';
+    out.push({ i, before, minIdx: m, updates, why });
     [a[i], a[m]] = [a[m], a[i]];
   }
   return out;
@@ -246,23 +304,16 @@ export function rounds(input: number[]): Round[] {
 
 /* ---------- 做：找 bug ---------- */
 
-export interface Bug {
+export interface Bug extends BugInfo {
   id: 'cmp-i' | 'j-zero' | 'no-tmp';
-  title: string;
-  /** 有 bug 的 Kotlin 代码，和 CODE 只差一行 */
-  code: string[];
-  wrongLine: number;
-  fixed: string;
   values: number[];
-  expect: string;
-  explain: string;
 }
 
 function variant(line: number, text: string): string[] {
   return CODE.map((t, k) => (k + 1 === line ? text : t));
 }
 
-export const BUGS: Bug[] = [
+export const BUGS: readonly Bug[] = [
   {
     id: 'cmp-i',
     title: '排完了，顺序还是不对',
@@ -349,6 +400,11 @@ export function runBug(bug: Bug): Trace<BugStep> {
   return steps;
 }
 
+/** 找 bug 面板底部的判定：动画跑完后结果是什么 */
+export function bugVerdict(step: BugStep, _bug?: Bug): string {
+  return step.done ? '❌ 结果是 [' + step.a.join(', ') + ']，没排好' : '';
+}
+
 /* ---------- 做：挑战 ---------- */
 
 /** 选择排序（minIdx ≠ i 才换）实际要交换几次 */
@@ -372,12 +428,12 @@ export function fewestSwaps(a: number[]): number {
   return a.length - cycles;
 }
 
-export const PUZZLE_N = 6;
+export const CHALLENGE_N = 6;
 
-/** 挑战题：PUZZLE_N 个互不相同的数，至少要换 3 次 */
-export function genPuzzle(rand: () => number = Math.random): number[] {
+/** 挑战题：CHALLENGE_N 个互不相同的数，至少要换 3 次 */
+export function genChallenge(rand: () => number = Math.random): number[] {
   for (;;) {
-    const a = genCandies(PUZZLE_N, rand);
+    const a = genCandies(CHALLENGE_N, rand);
     if (selectionSwaps(a) >= 3) return a;
   }
 }

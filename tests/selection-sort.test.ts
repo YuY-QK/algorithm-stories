@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BUGS, CANDY_MAX, CODE, HAND_N, KID_N, PUZZLE_N, STORY, buildTrace, comparesFor, fewestSwaps, genArray, genCandies,
-  genPuzzle, handInit, handNeed, handPlace, handRoundOver, handStep, inversions, isSorted, minFrom, rounds, runBug,
+  BUGS, CANDY_MAX, bugVerdict, genPredict, lookFrames, whyMin, CODE, HAND_N, KID_N, CHALLENGE_N, STORY, buildTrace, comparesFor, fewestSwaps, genArray, genCandies,
+  genChallenge, handInit, handNeed, handPlace, handRoundOver, handStep, inversions, isSorted, minFrom, rounds, runBug,
   selectRounds, selectionSwaps, stars, swapAt, type Shape,
 } from '../src/engine/selection-sort';
+import { seeded } from './helpers/seeded';
 
 const sortNum = (a: number[]) => a.slice().sort((x, y) => x - y);
 const SHAPES: Shape[] = ['random', 'dups', 'sorted', 'reversed'];
@@ -216,10 +217,69 @@ describe('选择排序 做：挑战', () => {
 
   it('挑战题至少要换 3 次', () => {
     for (let k = 0; k < 500; k++) {
-      const a = genPuzzle();
-      expect(a).toHaveLength(PUZZLE_N);
-      expect(new Set(a).size).toBe(PUZZLE_N);
+      const a = genChallenge();
+      expect(a).toHaveLength(CHALLENGE_N);
+      expect(new Set(a).size).toBe(CHALLENGE_N);
       expect(selectionSwaps(a)).toBeGreaterThanOrEqual(3);
     }
+  });
+});
+
+describe('选择排序 引擎：台词、解释和固定种子出题', () => {
+  it('lookFrames：每页有台词，页数 = 2 + 2 × 轮数 + 1，最后一页排好', () => {
+    const r = seeded(21);
+    for (let k = 0; k < 100; k++) {
+      const a = genCandies(KID_N, r);
+      const fs = lookFrames(a);
+      expect(fs.length).toBe(3 + 2 * (a.length - 1));
+      expect(fs.every((f) => f.say.length > 0)).toBe(true);
+      expect(fs.at(-1)!.values).toEqual(sortNum(a));
+      expect(fs.at(-1)!.sorted).toBe(a.length);
+    }
+  });
+
+  it('genPredict：固定种子可复现，6 到 8 颗，两种数据都出现', () => {
+    expect(genPredict(seeded(5))).toEqual(genPredict(seeded(5)));
+    const r = seeded(6);
+    let dups = 0, distinct = 0;
+    for (let k = 0; k < 300; k++) {
+      const a = genPredict(r);
+      expect(a.length).toBeGreaterThanOrEqual(6);
+      expect(a.length).toBeLessThanOrEqual(8);
+      if (new Set(a).size < a.length) dups++; else distinct++;
+    }
+    expect(dups).toBeGreaterThan(0);
+    expect(distinct).toBeGreaterThan(0);
+  });
+
+  it('rounds 的 why 写着真实的次数；whyMin 区分已排好、重复值和一般情况', () => {
+    const r = seeded(14);
+    for (let k = 0; k < 200; k++) {
+      for (const rd of rounds(genPredict(r))) {
+        expect(rd.why.length).toBeGreaterThan(0);
+        if (rd.updates > 0) expect(rd.why).toContain('改了 ' + rd.updates + ' 次');
+        else expect(rd.why).toContain('一次都没改');
+        for (let c = 0; c < rd.before.length; c++) {
+          if (c === rd.minIdx) continue;
+          expect(whyMin(rd, c)).toContain(String(rd.before[rd.minIdx]));
+        }
+      }
+    }
+    const rd = rounds([3, 1, 1, 2])[0];
+    expect(whyMin(rd, 2)).toContain('一样小');
+    expect(whyMin(rounds([3, 1, 2])[1], 0)).toContain('已经排好');
+  });
+
+  it('bugVerdict：没跑完是空，跑完写出结果', () => {
+    for (const b of BUGS) {
+      const tr = runBug(b);
+      expect(bugVerdict(tr[0], b)).toBe('');
+      const end = tr.at(-1)!;
+      expect(bugVerdict(end, b)).toBe('❌ 结果是 [' + end.a.join(', ') + ']，没排好');
+    }
+  });
+
+  it('genChallenge：固定种子可复现', () => {
+    expect(genChallenge(seeded(9))).toEqual(genChallenge(seeded(9)));
   });
 });

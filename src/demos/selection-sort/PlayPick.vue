@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { KID_N, genCandies, minFrom, stars, swapAt } from '../../engine/selection-sort';
 import Candies from './Candies.vue';
 import CandyPair from './CandyPair.vue';
+import { PAUSE_SHORT } from '../../components/shared/timing';
 
 // 玩法一「挑最小的」：每一轮孩子从还没排好的糖果里点出最小的，小熊把它换到最前面。
 // 点错了不说错：把点的那颗和真正最小的并排放大，让孩子自己比一比。
@@ -54,7 +55,7 @@ function tap(k: number) {
   phase.value = 'moving';
   bear.value = k;
   glow.value = k;
-  say.value = k === i.value ? '👍 它已经在最前面啦' : '🐻 换到前面去 🔄';
+  say.value = k === i.value ? '👍 ' + a.value[k] + ' 号最小，已经在最前面啦，不用换' : '🐻 ' + a.value[k] + ' 号最小，换到最前面去 🔄';
   setTimeout(() => {
     glow.value = null;
     a.value = swapAt(a.value, i.value, k);
@@ -69,8 +70,8 @@ function tap(k: number) {
         phase.value = 'pick';
         say.value = '👆 剩下的里面，哪颗最小？';
       }
-    }, 700);
-  }, 700);
+    }, PAUSE_SHORT);
+  }, PAUSE_SHORT);
 }
 
 function pickInPair(side: 'l' | 'r') {
@@ -122,6 +123,7 @@ const pairVals = computed(() => {
 
 <template>
   <div class="game">
+    <p class="small-note">目标：每一轮，点出还没排好的糖果里最小的那一颗，小熊会把它换到最前面。一直点到全部排好。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Candies
       :values="a" :sorted="i" :bear="bear" :glow="glow" :pulse="pulse" :shake="shake"

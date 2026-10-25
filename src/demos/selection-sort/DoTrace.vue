@@ -12,11 +12,7 @@ const size = ref(8);
 const shape = ref<Shape>('random');
 const arr = ref<number[]>(genArray(size.value, shape.value));
 const steps = computed(() => buildTrace(arr.value));
-const p = usePlayer(steps, [
-  { label: '慢', ms: 1100 },
-  { label: '中', ms: 600 },
-  { label: '快', ms: 250 },
-]);
+const p = usePlayer(steps);
 const s = computed(() => p.step.value);
 
 function fresh() { arr.value = genArray(size.value, shape.value); }
