@@ -1,4 +1,4 @@
-import type { Step, Trace } from './types';
+import type { BugInfo, LookFrame, Step, Trace } from './types';
 
 /* ---------- 看、玩：小邮差找信箱 ---------- */
 
@@ -45,6 +45,42 @@ export function postmanTrace(n: number, secret: number): Probe[] {
   }
 }
 
+/** 随机藏信：1 到 n 里挑一个信箱，可以指定不能和 except 一样 */
+export function pickSecret(rand: () => number = Math.random, except?: number, n: number = KID_N): number {
+  let s = 1 + Math.floor(rand() * n);
+  while (s === except) s = 1 + Math.floor(rand() * n);
+  return s;
+}
+
+/** 「看」的一页：台词加画面（范围、小邮差位置、已开的门、信） */
+export interface LookPage extends LookFrame {
+  lo: number;
+  hi: number;
+  postman: number;
+  doors: Record<number, Dir>;
+  letter: number | null;
+}
+
+/** 「看」的全部页：小邮差每次都去剩下范围的正中间，直到找到信。画面和 postmanTrace 一致 */
+export function lookFrames(secret: number): LookPage[] {
+  const probes = postmanTrace(KID_N, secret);
+  const out: LookPage[] = [];
+  let doors: Record<number, Dir> = {};
+  out.push({ say: '信藏在一个信箱里 ✉️ 小邮差 🐰 要找到它', lo: 1, hi: KID_N, postman: 0, doors, letter: null });
+  out.push({ say: '一个一个找？太慢啦 🐢 小邮差的秘诀：先去正中间！', lo: 1, hi: KID_N, postman: middle(1, KID_N), doors, letter: null });
+  for (const p of probes) {
+    doors = { ...doors, [p.at]: p.dir };
+    if (p.dir === 'hit') {
+      out.push({ say: '找到啦 🎉 只看了 ' + probes.length + ' 次！', lo: p.at, hi: p.at, postman: p.at, doors, letter: p.at });
+      break;
+    }
+    out.push({ say: '门上说：信在' + (p.dir === 'left' ? '左边 ⬅️' : '右边 ➡️'), lo: p.lo, hi: p.hi, postman: p.at, doors, letter: null });
+    const r = narrow(p.lo, p.hi, p.at, p.dir);
+    out.push({ say: (p.dir === 'left' ? '右' : '左') + '边一半都不用看了 👋 再去剩下的正中间', lo: r.lo, hi: r.hi, postman: middle(r.lo, r.hi), doors, letter: null });
+  }
+  return out;
+}
+
 /** 玩法二的星星：最多 4 次是三颗，6 次以内两颗，其余一颗 */
 export function stars(tries: number): 1 | 2 | 3 {
   return tries <= 4 ? 3 : tries <= 6 ? 2 : 1;
@@ -87,6 +123,11 @@ export function genArray(n: number, rand: () => number = Math.random): number[] 
     v += Math.floor(rand() * 9) + 1;
   }
   return a;
+}
+
+/** 在数组里随机挑一个值 */
+export function pickTarget(arr: number[], rand: () => number = Math.random): number {
+  return arr[Math.floor(rand() * arr.length)];
 }
 
 /** 找一个不在数组里的值 */
@@ -140,6 +181,18 @@ export interface Round {
   mid: number;
   /** 'found'：找到了；'right'：lo = mid + 1；'left'：hi = mid - 1 */
   move: 'found' | 'right' | 'left';
+  /** 点错 mid 时的解释 */
+  whyMid: string;
+  /** 选错下一步时的解释 */
+  why: string;
+}
+
+/** 猜下一步出一道题：长度 10～18 的数组，七成找得到、三成找不到 */
+export function genPredict(rand: () => number = Math.random): { arr: number[]; target: number } {
+  const n = 10 + Math.floor(rand() * 9);
+  const arr = genArray(n, rand);
+  const target = rand() < 0.7 ? pickTarget(arr, rand) : missingValue(arr);
+  return { arr, target };
 }
 
 export function rounds(arr: number[], target: number): Round[] {
@@ -149,7 +202,14 @@ export function rounds(arr: number[], target: number): Round[] {
   while (lo <= hi) {
     const mid = lo + Math.floor((hi - lo) / 2);
     const move = arr[mid] === target ? 'found' : arr[mid] < target ? 'right' : 'left';
-    out.push({ lo, hi, mid, move });
+    const v = arr[mid];
+    const whyMid = 'mid = lo + (hi - lo) / 2 = ' + lo + ' + (' + hi + ' - ' + lo + ') / 2 = ' + mid + '。整数除法向下取整。';
+    const why = move === 'found'
+      ? 'arr[' + mid + '] = ' + v + '，正好等于 ' + target + '，直接返回 mid。'
+      : move === 'right'
+        ? 'arr[' + mid + '] = ' + v + ' < ' + target + '，目标只可能在 mid 右边，mid 自己也不是，所以 lo = mid + 1。'
+        : 'arr[' + mid + '] = ' + v + ' > ' + target + '，目标只可能在 mid 左边，mid 自己也不是，所以 hi = mid - 1。';
+    out.push({ lo, hi, mid, move, whyMid, why });
     if (move === 'found') break;
     if (move === 'right') lo = mid + 1;
     else hi = mid - 1;
@@ -159,28 +219,19 @@ export function rounds(arr: number[], target: number): Round[] {
 
 /* ---------- 做：找 bug ---------- */
 
-export interface Bug {
+export interface Bug extends BugInfo {
   id: 'lt' | 'hi-mid' | 'overflow';
-  title: string;
-  /** 有 bug 的 Kotlin 代码，和 CODE 只差一行 */
-  code: string[];
-  /** 出错的那一行（从 1 开始） */
-  wrongLine: number;
-  /** 改对之后的那一行 */
-  fixed: string;
   /** 用来演示出错的输入。size 很大时 arr[i] = i，不真的建数组 */
   size: number;
   values?: number[];
   target: number;
-  expect: string;
-  explain: string;
 }
 
 function variant(line: number, text: string): string[] {
   return CODE.map((t, k) => (k + 1 === line ? text : t));
 }
 
-export const BUGS: Bug[] = [
+export const BUGS: readonly Bug[] = [
   {
     id: 'lt',
     title: '明明在数组里，却说找不到',
@@ -284,8 +335,21 @@ export function runBug(bug: Bug): Trace<BugStep> {
   return steps;
 }
 
+/** 找 bug 面板底部的判定：动画跑完后程序到底怎么错的 */
+export function bugVerdict(step: BugStep, _bug?: Bug): string {
+  if (!step.done) return '';
+  if (step.outcome === 'stuck') return '🔁 死循环，程序卡住了';
+  if (step.outcome === 'crash') return '💥 下标越界，程序崩溃';
+  return '❌ 返回了 ' + step.result + '，不对';
+}
+
 /* ---------- 做：挑战 ---------- */
 
 export const CHALLENGE_MAX = 1000;
 /** 1 到 1000 用二分最多要猜几次：⌊log₂1000⌋ + 1 = 10 */
 export const CHALLENGE_LIMIT = Math.floor(Math.log2(CHALLENGE_MAX)) + 1;
+
+/** 挑战出题：1 到 CHALLENGE_MAX 里藏一个数 */
+export function genChallenge(rand: () => number = Math.random): number {
+  return 1 + Math.floor(rand() * CHALLENGE_MAX);
+}

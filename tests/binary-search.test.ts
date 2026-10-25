@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BUGS, CHALLENGE_LIMIT, CHALLENGE_MAX, CODE, KID_N, buildTrace, genArray, middle, missingValue,
-  narrow, pointTo, postmanTrace, rounds, runBug, stars,
+  BUGS, CHALLENGE_LIMIT, CHALLENGE_MAX, CODE, KID_N, bugVerdict, buildTrace, genArray, genChallenge, genPredict,
+  lookFrames, middle, missingValue, narrow, pickSecret, pickTarget, pointTo, postmanTrace, rounds, runBug, stars,
 } from '../src/engine/binary-search';
 
 describe('二分查找 看、玩：小邮差', () => {
@@ -136,5 +136,107 @@ describe('二分查找 做：挑战', () => {
     for (let secret = 1; secret <= CHALLENGE_MAX; secret++) {
       expect(postmanTrace(CHALLENGE_MAX, secret).length).toBeLessThanOrEqual(CHALLENGE_LIMIT);
     }
+  });
+});
+
+/** 固定种子的随机源（mulberry32） */
+function seeded(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+describe('二分查找 引擎：看的台词和随机出题', () => {
+  it('lookFrames：每页有台词，最后一页是找到信，页数随信的位置变', () => {
+    for (let secret = 1; secret <= KID_N; secret++) {
+      const fs = lookFrames(secret);
+      const probes = postmanTrace(KID_N, secret);
+      expect(fs.length).toBe(2 + 2 * (probes.length - 1) + 1);
+      for (const f of fs) expect(f.say.length).toBeGreaterThan(0);
+      const last = fs.at(-1)!;
+      expect(last.letter).toBe(secret);
+      expect(last.postman).toBe(secret);
+      expect(last.say).toContain('只看了 ' + probes.length + ' 次');
+      // 小邮差每一页都在当前范围里（第一页还没出发）
+      for (const f of fs.slice(1)) expect(f.postman >= f.lo && f.postman <= f.hi).toBe(true);
+    }
+  });
+
+  it('pickSecret：固定种子可复现，范围正确，except 不会重复', () => {
+    const a = seeded(7), b = seeded(7);
+    for (let k = 0; k < 200; k++) expect(pickSecret(a)).toBe(pickSecret(b));
+    const r = seeded(3);
+    let prev = 11;
+    for (let k = 0; k < 500; k++) {
+      const s = pickSecret(r, prev);
+      expect(s).toBeGreaterThanOrEqual(1);
+      expect(s).toBeLessThanOrEqual(KID_N);
+      expect(s).not.toBe(prev);
+      prev = s;
+    }
+  });
+
+  it('genPredict：固定种子可复现，数组严格递增，目标在不在数组里都出现', () => {
+    expect(genPredict(seeded(5))).toEqual(genPredict(seeded(5)));
+    const r = seeded(11);
+    let inside = 0, outside = 0;
+    for (let k = 0; k < 500; k++) {
+      const { arr, target } = genPredict(r);
+      expect(arr.length).toBeGreaterThanOrEqual(10);
+      expect(arr.length).toBeLessThanOrEqual(18);
+      for (let i = 1; i < arr.length; i++) expect(arr[i]).toBeGreaterThan(arr[i - 1]);
+      if (arr.includes(target)) inside++; else outside++;
+    }
+    expect(inside).toBeGreaterThan(outside);
+    expect(outside).toBeGreaterThan(0);
+  });
+
+  it('pickTarget：挑出来的值在数组里', () => {
+    const r = seeded(2);
+    const arr = genArray(12, r);
+    for (let k = 0; k < 100; k++) expect(arr).toContain(pickTarget(arr, r));
+  });
+
+  it('genChallenge：1 到 CHALLENGE_MAX，固定种子可复现', () => {
+    expect(genChallenge(seeded(9))).toBe(genChallenge(seeded(9)));
+    const r = seeded(4);
+    for (let k = 0; k < 1000; k++) {
+      const s = genChallenge(r);
+      expect(s).toBeGreaterThanOrEqual(1);
+      expect(s).toBeLessThanOrEqual(CHALLENGE_MAX);
+    }
+  });
+
+  it('rounds 的 why：写出真实的比较和下一步', () => {
+    const arr = [2, 5, 8, 11, 14];
+    const rs = rounds(arr, 8);
+    expect(rs).toHaveLength(1);
+    expect(rs[0].move).toBe('found');
+    expect(rs[0].why).toBe('arr[2] = 8，正好等于 8，直接返回 mid。');
+    expect(rs[0].whyMid).toBe('mid = lo + (hi - lo) / 2 = 0 + (4 - 0) / 2 = 2。整数除法向下取整。');
+    const rs2 = rounds(arr, 14);
+    expect(rs2[0].why).toContain('< 14');
+    expect(rs2[0].why).toContain('lo = mid + 1');
+    const rs3 = rounds(arr, 2);
+    expect(rs3[0].why).toContain('> 2');
+    expect(rs3[0].why).toContain('hi = mid - 1');
+  });
+});
+
+describe('二分查找 引擎：bugVerdict', () => {
+  it('没跑完是空，跑完按结果给判定', () => {
+    const v = Object.fromEntries(BUGS.map((b) => {
+      const tr = runBug(b);
+      expect(bugVerdict(tr[0], b)).toBe('');
+      return [b.id, bugVerdict(tr.at(-1)!, b)];
+    }));
+    expect(v.lt).toBe('❌ 返回了 -1，不对');
+    expect(v['hi-mid']).toContain('死循环');
+    expect(v.overflow).toContain('越界');
   });
 });

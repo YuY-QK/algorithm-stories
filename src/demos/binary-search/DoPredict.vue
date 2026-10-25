@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { genArray, missingValue, rounds, type Round } from '../../engine/binary-search';
+import { genPredict, rounds, type Round } from '../../engine/binary-search';
+import PredictFrame from '../../components/shared/PredictFrame.vue';
+import { useStreak } from '../../components/shared/useStreak';
 
 // 做：猜下一步。每一轮循环先点出 mid，再选接下来怎么走。连对 5 次过关。
 const GOAL = 5;
@@ -18,13 +20,12 @@ const r = ref(0);
 const phase = ref<'mid' | 'move' | 'wrong' | 'end'>('mid');
 const picked = ref<number | null>(null);
 const why = ref('');
-const streak = ref(0);
-const passed = ref(false);
+const { streak, passed, hit, miss: resetStreak } = useStreak(GOAL);
 
 function fresh() {
-  const n = 10 + Math.floor(Math.random() * 9);
-  arr.value = genArray(n);
-  target.value = Math.random() < 0.7 ? arr.value[Math.floor(Math.random() * n)] : missingValue(arr.value);
+  const q = genPredict();
+  arr.value = q.arr;
+  target.value = q.target;
   list.value = rounds(arr.value, target.value);
   r.value = 0;
   phase.value = 'mid';
@@ -41,12 +42,8 @@ const endState = computed(() => {
 });
 const view = computed(() => (phase.value === 'end' ? { ...endState.value, mid: null } : { lo: cur.value.lo, hi: cur.value.hi, mid: phase.value === 'mid' ? null : cur.value.mid, found: -1 }));
 
-function hit() {
-  streak.value++;
-  if (streak.value >= GOAL) passed.value = true;
-}
 function miss(text: string) {
-  streak.value = 0;
+  resetStreak();
   why.value = text;
   phase.value = 'wrong';
 }
@@ -54,29 +51,21 @@ function miss(text: string) {
 function tapCell(k: number) {
   if (phase.value !== 'mid') return;
   picked.value = k;
-  const { lo, hi, mid } = cur.value;
-  if (k === mid) {
+  if (k === cur.value.mid) {
     hit();
     phase.value = 'move';
   } else {
-    miss('mid = lo + (hi - lo) / 2 = ' + lo + ' + (' + hi + ' - ' + lo + ') / 2 = ' + mid + '。整数除法向下取整。');
+    miss(cur.value.whyMid);
   }
 }
 
 function chooseMove(m: Move) {
   if (phase.value !== 'move') return;
-  const { mid, move } = cur.value;
-  const v = arr.value[mid];
-  if (m === move) {
+  if (m === cur.value.move) {
     hit();
     advance();
   } else {
-    const t = target.value;
-    miss(move === 'found'
-      ? 'arr[' + mid + '] = ' + v + '，正好等于 ' + t + '，直接返回 mid。'
-      : move === 'right'
-        ? 'arr[' + mid + '] = ' + v + ' < ' + t + '，目标只可能在 mid 右边，mid 自己也不是，所以 lo = mid + 1。'
-        : 'arr[' + mid + '] = ' + v + ' > ' + t + '，目标只可能在 mid 左边，mid 自己也不是，所以 hi = mid - 1。');
+    miss(cur.value.why);
   }
 }
 
@@ -109,45 +98,48 @@ const prompt = computed(() => {
 </script>
 
 <template>
-  <div class="stage">
-    <div class="vars">
+  <PredictFrame
+    :streak="streak"
+    :goal="GOAL"
+    :passed="passed"
+    :prompt="prompt"
+    :wrong="phase === 'wrong' ? why : null"
+    :ended="phase === 'end'"
+    @continue="goOn"
+    @next="fresh"
+  >
+    <template #chips>
       <span class="chip"><small>target</small>{{ target }}</span>
-      <span class="chip"><small>连对</small>{{ Math.min(streak, GOAL) }} / {{ GOAL }}</span>
-      <span v-if="passed" class="chip win">🏅 过关</span>
-    </div>
-    <div class="arr">
-      <button
-        v-for="(v, k) in arr"
-        :key="k"
-        type="button"
-        class="cell"
-        :class="{
-          out: k < view.lo || k > view.hi,
-          mid: k === view.mid,
-          found: k === view.found,
-          miss: phase === 'wrong' && k === picked && k !== cur.mid,
-        }"
-        :disabled="phase !== 'mid'"
-        :aria-label="'下标 ' + k + '，值 ' + v"
-        @click="tapCell(k)"
-      >
-        <span class="tag">{{ k === view.lo ? 'lo' : '' }}{{ k === view.lo && k === view.hi ? '·' : '' }}{{ k === view.hi ? 'hi' : '' }}</span>
-        <span class="val">{{ v }}</span>
-        <span class="idx">{{ k }}</span>
-      </button>
-    </div>
-    <p class="note" aria-live="polite">{{ prompt }}</p>
-    <div v-if="phase === 'move'" class="answers">
-      <button v-for="m in MOVES" :key="m.move" type="button" class="btn small mono" @click="chooseMove(m.move)">{{ m.text }}</button>
-    </div>
-    <div v-if="phase === 'wrong'" class="oops-box">
-      <p>❌ {{ why }}</p>
-      <button type="button" class="btn small" @click="goOn">知道了，继续</button>
-    </div>
-    <div v-if="phase === 'end'" class="row">
-      <button type="button" class="btn small primary" @click="fresh">下一题</button>
-    </div>
-  </div>
+    </template>
+    <template #board>
+      <div class="arr">
+        <button
+          v-for="(v, k) in arr"
+          :key="k"
+          type="button"
+          class="cell"
+          :class="{
+            out: k < view.lo || k > view.hi,
+            mid: k === view.mid,
+            found: k === view.found,
+            miss: phase === 'wrong' && k === picked && k !== cur.mid,
+          }"
+          :disabled="phase !== 'mid'"
+          :aria-label="'下标 ' + k + '，值 ' + v"
+          @click="tapCell(k)"
+        >
+          <span class="tag">{{ k === view.lo ? 'lo' : '' }}{{ k === view.lo && k === view.hi ? '·' : '' }}{{ k === view.hi ? 'hi' : '' }}</span>
+          <span class="val">{{ v }}</span>
+          <span class="idx">{{ k }}</span>
+        </button>
+      </div>
+    </template>
+    <template #answers>
+      <div v-if="phase === 'move'" class="answers">
+        <button v-for="m in MOVES" :key="m.move" type="button" class="btn small mono" @click="chooseMove(m.move)">{{ m.text }}</button>
+      </div>
+    </template>
+  </PredictFrame>
 </template>
 
 <style scoped>
@@ -167,6 +159,4 @@ const prompt = computed(() => {
 .cell.found .val { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .cell.miss .val { border-color: var(--warn); color: var(--warn); }
 .mono { font-family: var(--mono); }
-.win { border-color: var(--accent); color: var(--accent); }
-.oops-box { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; border-left: 3px solid var(--warn); padding-left: 12px; }
 </style>

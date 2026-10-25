@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { buildTrace, CODE, genArray, missingValue } from '../../engine/binary-search';
+import { buildTrace, CODE, genArray, missingValue, pickTarget } from '../../engine/binary-search';
 import CodePanel from '../../components/shared/CodePanel.vue';
 import Segmented from '../../components/shared/Segmented.vue';
 import Transport from '../../components/shared/Transport.vue';
@@ -18,7 +18,7 @@ const p = usePlayer(steps, [
   { label: '快', ms: 280 },
 ]);
 
-function pick() { return arr.value[Math.floor(Math.random() * arr.value.length)]; }
+function pick() { return pickTarget(arr.value); }
 function freshArray() {
   arr.value = genArray(size.value);
   target.value = pick();
