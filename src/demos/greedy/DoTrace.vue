@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { CODE, SYSTEMS, bestPicks, buildTrace } from '../../engine/greedy';
+import { CODE, SYSTEMS, bestPicks, buildTrace, randomAmount } from '../../engine/greedy';
 import CodePanel from '../../components/shared/CodePanel.vue';
 import Segmented from '../../components/shared/Segmented.vue';
 import Transport from '../../components/shared/Transport.vue';
@@ -14,18 +14,14 @@ const sys = ref(SYSTEMS[0].id);
 const coins = computed(() => SYSTEMS.find((s) => s.id === sys.value)!.coins);
 const amount = ref(46);
 const steps = computed(() => buildTrace(coins.value, amount.value));
-const p = usePlayer(steps, [
-  { label: '慢', ms: 1000 },
-  { label: '中', ms: 550 },
-  { label: '快', ms: 200 },
-]);
+const p = usePlayer(steps);
 const s = computed(() => p.step.value);
 
 function onAmount(e: Event) {
   const v = parseInt((e.target as HTMLInputElement).value, 10);
   if (!isNaN(v) && v >= 0 && v <= MAX) amount.value = v;
 }
-function randomAmount() { amount.value = 10 + Math.floor(Math.random() * 90); }
+function pickRandom() { amount.value = randomAmount(); }
 
 const vars = computed<[string, string | number][]>(() => [
   ['amount', amount.value], ['c', s.value.c ?? '—'], ['left', s.value.left ?? '—'], ['picked', s.value.picked.length + ' 枚'],
@@ -51,7 +47,7 @@ const summary = computed(() => {
     <div class="field">
       <span class="lab">快速设置</span>
       <div class="inline">
-        <button type="button" class="btn small" @click="randomAmount">随机金额</button>
+        <button type="button" class="btn small" @click="pickRandom">随机金额</button>
         <button type="button" class="btn small" @click="sys = 'odd'; amount = 6">1·3·4 找 6</button>
       </div>
     </div>

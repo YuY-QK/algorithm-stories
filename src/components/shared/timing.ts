@@ -43,3 +43,7 @@ export const FLASH_MS = 1900;
 /** 「玩」里涂一座岛：每格亮起的间隔，和涂完后的收尾停顿 */
 export const FILL_STEP = 160;
 export const FILL_END = 350;
+/** 「玩」里答错后，让孩子看一眼再自动重来的停顿 */
+export const PAUSE_RETRY = 1300;
+/** 「猜下一步」里一格填好后，稍停一下再进入下一格（答错后补填的那次更短） */
+export const PAUSE_BRIEF = 400;
