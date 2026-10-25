@@ -1,4 +1,4 @@
-import type { Step, Trace } from './types';
+import type { BugInfo, LookFrame, Step, Trace } from './types';
 
 /* ---------- 看、玩：小动物排队合并 ---------- */
 
@@ -18,8 +18,7 @@ export const halve = (size: number) => Math.floor(size / 2);
 
 const sortIds = (ids: number[], values: number[]) => [...ids].sort((a, b) => values[a] - values[b] || a - b);
 
-export interface StoryFrame {
-  say: string;
+export interface LookPage extends LookFrame {
   /** 上排：一队一队的小动物（id），队内从左到右就是队头到队尾 */
   queues: number[][];
   /** 下排：正在合成的新队伍；null 表示没有这一排 */
@@ -38,15 +37,15 @@ export interface StoryFrame {
  * 二、这两队是怎么排好的：一直对半分到每队一个，再两两合并回去。
  * 真的按归并排序的过程生成。
  */
-export function storyFrames(values: number[]): StoryFrame[] {
+export function lookFrames(values: number[]): LookPage[] {
   const n = values.length;
   const v = (id: number) => values[id];
   const ids = values.map((_, id) => id);
   const mid = halve(n);
   const left = sortIds(ids.slice(0, mid), values);
   const right = sortIds(ids.slice(mid), values);
-  const out: StoryFrame[] = [];
-  const push = (say: string, extra: Partial<StoryFrame>) =>
+  const out: LookPage[] = [];
+  const push = (say: string, extra: Partial<LookPage>) =>
     out.push({ say, queues: [], out: null, cmp: null, moved: null, fresh: [], ...extra });
 
   // 第一章：合并两队
@@ -97,6 +96,12 @@ export function storyFrames(values: number[]): StoryFrame[] {
     });
   }
   return out;
+}
+
+/** 「换一队再看一次」发的小动物：STORY_N 个，身高 1 到 STORY_N，顺序打乱 */
+export const STORY_N = 6;
+export function genStory(rand: () => number = Math.random): number[] {
+  return dealKids(STORY_N, rand, STORY_N);
 }
 
 /** 发牌：n 个身高各不相同的小动物（1 到 max），顺序打乱 */
@@ -425,7 +430,7 @@ export function genArray(n: number, max = 20, rand: () => number = Math.random):
 
 /* ---------- 做：猜下一步 ---------- */
 
-export interface Question {
+export interface Round {
   kind: 'side' | 'range';
   /** 题目画面停在 trace 的哪一步，答完再翻到 revealAt */
   at: number;
@@ -438,9 +443,28 @@ export interface Question {
 
 const rangeText = (r: [number, number]) => '[' + r[0] + ', ' + r[1] + ')';
 
-/** 从一条正确的轨迹里挑出所有能出的题：合并时下一个来自哪边、递归下一个处理哪个区间 */
-export function buildQuestions(steps: Trace<MergeStep>, rand: () => number = Math.random): Question[] {
-  const qs: Question[] = [];
+/** 猜下一步的数组：PREDICT_N 个数，值在 1 到 PREDICT_MAX，可能有重复 */
+export const PREDICT_N = 6;
+export const PREDICT_MAX = 9;
+
+export function genPredict(rand: () => number = Math.random): number[] {
+  return genArray(PREDICT_N, PREDICT_MAX, rand);
+}
+
+/**
+ * 从题库里随机挑一题，尽量不和上一题停在同一步（lastAt 是上一题的 at，没有就传 -1）。
+ * 返回下标；题库是空的返回 -1。
+ */
+export function pickRound(pool: Round[], lastAt: number, rand: () => number = Math.random): number {
+  if (!pool.length) return -1;
+  const ok = pool.map((r, k) => (r.at !== lastAt ? k : -1)).filter((k) => k >= 0);
+  const from = ok.length ? ok : pool.map((_, k) => k);
+  return from[Math.floor(rand() * from.length)];
+}
+
+/** 从一条正确的轨迹里挑出所有能出的题：合并时下一个来自哪边、递归下一个处理哪个区间。答错的解释在每题的 why */
+export function rounds(steps: Trace<MergeStep>, rand: () => number = Math.random): Round[] {
+  const qs: Round[] = [];
   const allRanges = new Map<string, [number, number]>();
   for (const s of steps) for (const r of s.stack) allRanges.set(rangeText(r), r);
 
@@ -495,25 +519,18 @@ export function buildQuestions(steps: Trace<MergeStep>, rand: () => number = Mat
 
 /* ---------- 做：找 bug ---------- */
 
-export interface Bug {
+export interface Bug extends BugInfo {
   id: Exclude<Variant, 'ok'>;
-  title: string;
-  /** 有 bug 的 Kotlin 代码，和 CODE 只差一行 */
-  code: string[];
-  wrongLine: number;
-  fixed: string;
   values: number[];
   /** 是否要显示花色（看稳定性时用） */
   suits: boolean;
-  expect: string;
-  explain: string;
 }
 
 function variant(line: number, text: string): string[] {
   return CODE.map((t, k) => (k + 1 === line ? text : t));
 }
 
-export const BUGS: Bug[] = [
+export const BUGS: readonly Bug[] = [
   {
     id: 'lt',
     title: '数字排对了，两个 3 却换了位置',
@@ -552,6 +569,20 @@ export const BUGS: Bug[] = [
 /** 按 bug 版本的代码执行 */
 export function runBug(bug: Bug): Trace<MergeStep> {
   return simulate(bug.values, bug.id);
+}
+
+/** 数组写成文字；suits 为真时点数后面带花色（id 是元素原来的位置） */
+export function showCards(arr: number[], ids: number[], suits: boolean): string {
+  return '[' + arr.map((v, k) => v + (suits ? suitOf(ids[k]) : '')).join(', ') + ']';
+}
+
+/** 找 bug 面板底部的判定：动画跑完后结果是什么 */
+export function bugVerdict(step: MergeStep, bug: Bug): string {
+  if (!step.done) return '';
+  if (step.outcome === 'stuck') return '🔁 区间永远分不完，递归停不下来，最后栈溢出（StackOverflowError）';
+  if (step.outcome === 'unstable') return '⚠️ 结果 ' + showCards(step.arr, step.ids, bug.suits) + '：数字排好了，但两个 3 换了先后顺序，不稳定';
+  if (step.outcome === 'wrong') return '❌ 结果 ' + showCards(step.arr, step.ids, bug.suits) + '，没排好，还丢了数';
+  return '✅ 排好了';
 }
 
 /* ---------- 做：挑战 ---------- */

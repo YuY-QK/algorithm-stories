@@ -35,3 +35,6 @@ export const SHAKE_MS = 600;
 /** 挑战赛跑动画的刷新间隔，和每次前进的步数 */
 export const RACE_TICK = 30;
 export const RACE_STRIDE = 2;
+/** 「玩」里一队走光后，剩下的一个个跟上的间隔和收尾停顿 */
+export const FOLLOW_STEP = 650;
+export const FOLLOW_END = 600;

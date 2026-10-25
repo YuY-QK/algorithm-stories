@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { dealQueues, judgeHeads, stars } from '../../engine/merge-sort';
+import { useStageStop } from '../../components/shared/usePlayer';
+import { FOLLOW_END, FOLLOW_STEP } from '../../components/shared/timing';
 import Queue from './Queue.vue';
 
 // 玩法一「合并两队」：两队已经排好的小动物，孩子每次点两个队头里更矮的那个，让它走进新队伍。
@@ -17,10 +19,13 @@ const glow = ref<number | null>(null);
 const shake = ref<[number, number] | null>(null);
 let timers: ReturnType<typeof setTimeout>[] = [];
 const later = (ms: number, fn: () => void) => timers.push(setTimeout(fn, ms));
-
-function fresh() {
+function stopTimers() {
   timers.forEach(clearTimeout);
   timers = [];
+}
+
+function fresh() {
+  stopTimers();
   const q = dealQueues();
   values.value = [...q.left, ...q.right];
   left.value = q.left.map((_, k) => k);
@@ -54,7 +59,7 @@ function pick(side: 'L' | 'R') {
   glow.value = null;
   go(side);
   if (!left.value.length || !right.value.length) finishTail();
-  else say.value = '👍 下一个！';
+  else say.value = '👍 ' + j.picked + ' 比 ' + j.other + ' 矮，先走。下一个！';
 }
 
 function go(side: 'L' | 'R') {
@@ -72,8 +77,8 @@ function finishTail() {
   say.value = (rest === 'L' ? '右' : '左') + '队走光啦，剩下的直接跟上 ➡️';
   let t = 0;
   const n = (rest === 'L' ? left : right).value.length;
-  for (let x = 0; x < n; x++) later((t += 650), () => go(rest));
-  later(t + 600, end);
+  for (let x = 0; x < n; x++) later((t += FOLLOW_STEP), () => go(rest));
+  later(t + FOLLOW_END, end);
 }
 
 function end() {
@@ -84,11 +89,16 @@ function end() {
 
 const earned = computed(() => stars(mistakes.value));
 const max = computed(() => Math.max(...values.value, 9));
-onBeforeUnmount(() => timers.forEach(clearTimeout));
+// 切换标签时动画要停：剩下的小动物还没跟完就重新开一局
+useStageStop(() => {
+  if (phase.value === 'tail') fresh();
+});
+onBeforeUnmount(stopTimers);
 </script>
 
 <template>
   <div class="game">
+    <p class="small-note">目标：一班、二班都已经排好了。每次点两个队头里更矮的那个，让它走进新队伍，一直点到合成一队。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <div class="two">
       <div class="slot">

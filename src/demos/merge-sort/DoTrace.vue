@@ -14,11 +14,7 @@ const size = ref(6);
 const kind = ref<Kind>('random');
 const values = ref<number[]>(make());
 const steps = computed(() => buildTrace(values.value));
-const p = usePlayer(steps, [
-  { label: '慢', ms: 1000 },
-  { label: '中', ms: 550 },
-  { label: '快', ms: 200 },
-]);
+const p = usePlayer(steps);
 
 function make(): number[] {
   const n = size.value;

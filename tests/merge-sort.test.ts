@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BUGS, CHALLENGE_N, CODE, STORY_KIDS, buildQuestions, buildTrace, compareBounds, countChoices, dealKids, dealQueues,
-  genArray, halve, isSorted, isStable, judgeCut, judgeHeads, mergeCompares, nextRow, pickOrder, runBug, simulate,
-  splitRounds, stars, storyFrames, type Piece,
+  BUGS, CHALLENGE_N, CODE, PREDICT_MAX, PREDICT_N, STORY_KIDS, STORY_N, bugVerdict, buildTrace, compareBounds,
+  countChoices, dealKids, dealQueues, genArray, genPredict, genStory, halve, isSorted, isStable, judgeCut, judgeHeads,
+  lookFrames, mergeCompares, nextRow, pickOrder, pickRound, rounds, runBug, showCards, simulate, splitRounds, stars,
+  type Piece,
 } from '../src/engine/merge-sort';
+import { seeded } from './helpers/seeded';
 
 const sortNum = (a: number[]) => [...a].sort((x, y) => x - y);
 
 describe('归并排序 看：小动物排队', () => {
   it('故事用的那队：6 个，前一半合并比 4 次', () => {
     expect(STORY_KIDS).toEqual([5, 2, 6, 1, 4, 3]);
-    const frames = storyFrames(STORY_KIDS);
+    const frames = lookFrames(STORY_KIDS);
     expect(frames.filter((f) => f.cmp !== null)).toHaveLength(4);
     expect(frames.some((f) => f.say.includes('只比了 4 次'))).toBe(true);
     // 16 页上下，别太长
@@ -22,7 +24,7 @@ describe('归并排序 看：小动物排队', () => {
     for (let k = 0; k < 600; k++) {
       const n = 2 + (k % 8);
       const values = k % 3 === 0 ? genArray(n, 4) : dealKids(n);
-      const frames = storyFrames(values);
+      const frames = lookFrames(values);
       const ids = values.map((_, id) => id);
       const mid = halve(n);
       let prev: number[] | null = null;
@@ -268,7 +270,7 @@ describe('归并排序 做：猜下一步', () => {
     for (let k = 0; k < 800; k++) {
       const values = genArray(2 + (k % 9), k % 2 ? 4 : 20);
       const steps = buildTrace(values);
-      const qs = buildQuestions(steps);
+      const qs = rounds(steps);
       expect(qs.some((q) => q.kind === 'range')).toBe(true);
       expect(qs.some((q) => q.kind === 'side')).toBe(true);
       for (const q of qs) {
@@ -361,5 +363,59 @@ describe('归并排序 做：找 bug', () => {
     // 空数组、单个元素：原来的写法可以，bug 版本也一样会卡住（单个元素时）
     expect(simulate([5], 'base').at(-1)!.outcome).toBe('stuck');
     expect(simulate([], 'base').at(-1)!.outcome).toBe('ok');
+  });
+});
+
+describe('归并排序 引擎：台词、出题和固定种子', () => {
+  it('genStory：固定种子可复现，STORY_N 个互不相同的身高', () => {
+    expect(genStory(seeded(4))).toEqual(genStory(seeded(4)));
+    const r = seeded(8);
+    for (let k = 0; k < 100; k++) {
+      const a = genStory(r);
+      expect(a).toHaveLength(STORY_N);
+      expect(sortNum(a)).toEqual(Array.from({ length: STORY_N }, (_, x) => x + 1));
+      const fs = lookFrames(a);
+      expect(fs.every((f) => f.say.length > 0)).toBe(true);
+      expect(fs.at(-1)!.queues.map((q) => q.map((id) => a[id]))).toEqual([sortNum(a)]);
+    }
+  });
+
+  it('genPredict：固定种子可复现，长度和范围对', () => {
+    expect(genPredict(seeded(5))).toEqual(genPredict(seeded(5)));
+    const r = seeded(6);
+    for (let k = 0; k < 100; k++) {
+      const a = genPredict(r);
+      expect(a).toHaveLength(PREDICT_N);
+      for (const v of a) expect(v >= 1 && v <= PREDICT_MAX).toBe(true);
+    }
+  });
+
+  it('rounds：固定种子下选项可复现', () => {
+    const steps = buildTrace(genPredict(seeded(3)));
+    expect(rounds(steps, seeded(1))).toEqual(rounds(steps, seeded(1)));
+  });
+
+  it('pickRound：固定种子可复现，尽量不和上一题停在同一步，题库空返回 -1', () => {
+    const pool = rounds(buildTrace(genPredict(seeded(7))), seeded(2));
+    expect(pickRound([], -1, seeded(1))).toBe(-1);
+    const r = seeded(11);
+    for (let k = 0; k < 200; k++) {
+      const last = pool[k % pool.length].at;
+      const i = pickRound(pool, last, r);
+      expect(i).toBeGreaterThanOrEqual(0);
+      expect(pool[i].at).not.toBe(last);
+    }
+    expect(pickRound(pool, -1, seeded(9))).toBe(pickRound(pool, -1, seeded(9)));
+    expect(pickRound([pool[0]], pool[0].at, seeded(1))).toBe(0);
+  });
+
+  it('bugVerdict：没跑完是空，跑完按结果写', () => {
+    for (const b of BUGS) expect(bugVerdict(runBug(b)[0], b)).toBe('');
+    const text = Object.fromEntries(BUGS.map((b) => [b.id, bugVerdict(runBug(b).at(-1)!, b)]));
+    expect(text.lt).toContain('不稳定');
+    expect(text.lt).toContain('3♥');
+    expect(text.copy0).toBe('❌ 结果 ' + showCards(runBug(BUGS[1]).at(-1)!.arr, [], false) + '，没排好，还丢了数');
+    expect(text.base).toContain('StackOverflowError');
+    expect(bugVerdict(buildTrace([2, 1]).at(-1)!, BUGS[0])).toBe('✅ 排好了');
   });
 });
