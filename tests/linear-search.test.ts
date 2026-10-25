@@ -86,7 +86,7 @@ describe('顺序查找：玩', () => {
     const rand = seeded(3);
     const seen = new Set<number>();
     for (let k = 0; k < 400; k++) {
-      const row = hideBear(rand);
+      const row = hideBear(undefined, rand);
       expect(row.ids).toHaveLength(KID_N);
       expect(row.ids.filter((x) => x === BEAR)).toHaveLength(1);
       expect(row.ids[row.bear]).toBe(BEAR);
@@ -153,7 +153,7 @@ describe('顺序查找：猜下一步', () => {
     const rand = seeded(4);
     for (let k = 0; k < 500; k++) {
       for (const kind of PUZZLE_KINDS) {
-        const { arr, target } = makePuzzle(kind, rand);
+        const { arr, target } = makePuzzle(kind, undefined, rand);
         expect(arr).toHaveLength(PREDICT_N);
         const idx = arr.indexOf(target);
         if (kind === 'first') expect(idx).toBe(0);
@@ -202,7 +202,7 @@ describe('顺序查找：猜下一步', () => {
   it('选项位置会随机，不总是对的在第一个', () => {
     const rand = seeded(6);
     const firsts = new Set<string>();
-    for (let k = 0; k < 100; k++) firsts.add(rounds(makePuzzle('last', rand), rand)[0].options[0].key);
+    for (let k = 0; k < 100; k++) firsts.add(rounds(makePuzzle('last', undefined, rand), rand)[0].options[0].key);
     expect(firsts.size).toBeGreaterThan(1);
   });
 });

@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { rounds, slotPiles, type Round } from '../../engine/hash-lookup';
+import { PREDICT_GOAL, rounds, slotPiles, type Round } from '../../engine/hash-lookup';
 import PredictFrame from '../../components/shared/PredictFrame.vue';
 import { useStreak } from '../../components/shared/useStreak';
 import Shelves from './Shelves.vue';
 
 // 做：猜下一步。三种题：算桶号（含负数）、撞了往后放（含回绕）、查到哪个桶能下结论。连对 5 次过关。
-const GOAL = 5;
 const list = ref<Round[]>(rounds());
 const r = ref(0);
 const phase = ref<'ask' | 'wrong' | 'end'>('ask');
 const picked = ref<number | null>(null);
-const { streak, passed, hit, miss } = useStreak(GOAL);
+const { streak, passed, hit, miss } = useStreak(PREDICT_GOAL);
 
 const cur = computed(() => list.value[r.value]);
 
@@ -44,7 +43,7 @@ const prompt = computed(() => (phase.value === 'end' ? (picked.value === cur.val
 <template>
   <PredictFrame
     :streak="streak"
-    :goal="GOAL"
+    :goal="PREDICT_GOAL"
     :passed="passed"
     :prompt="prompt"
     :wrong="phase === 'wrong' ? cur.why : null"

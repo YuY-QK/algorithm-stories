@@ -76,7 +76,6 @@
 **工程**
 
 - 各语言标准库里的 `indexOf`、`contains`、`find`：Java 的 `ArrayList.indexOf` / `contains`、Python 的 `x in list` 和 `list.index`、JavaScript 的 `Array.prototype.indexOf` / `find`、Kotlin 的 `indexOf` / `first { }`，对无序列表做的都是从头到尾的扫描，复杂度 O(n)。Python 的 `list.index` 找不到时抛 `ValueError`，JavaScript 的 `indexOf` 找不到返回 `-1`，两种「找不到」的约定都很常见。
-- C 标准库里的 `strchr`、`memchr` 在字符串、内存块里找某个字节，本质也是顺序扫描。
 - 数据库没有可用索引时的全表扫描：PostgreSQL 的 `EXPLAIN` 里显示为 `Seq Scan`，逐行检查条件。表很小时，规划器选顺序扫描也是常见的合理选择（官方文档的 Using EXPLAIN 一节有例子）。
 - `grep` 在文本里查找字符串，是逐行、逐字符地扫描（具体实现里有更快的字符串匹配算法，但没有索引时必须看完整个输入这一点和顺序查找一致）。
 

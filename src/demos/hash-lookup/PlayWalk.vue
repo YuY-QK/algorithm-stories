@@ -96,7 +96,7 @@ function tap(i: number) {
       say.value = '🤔 让我数给你看';
       walk();
     } else {
-      say.value = '🤔 这个架子不对。' + (useRest.value ? '点「余数」按钮看看' : '点「数给我看」试试');
+      say.value = '🤔 再数数看。' + (useRest.value ? '点「余数」按钮看看' : '点「数给我看」试试');
     }
   }
 }

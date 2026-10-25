@@ -272,7 +272,7 @@ export const CODE = [
 
 export type Op = 'get' | 'put' | 'remove';
 
-export interface HashStep extends Step {
+export interface HashLookupStep extends Step {
   slots: Slot[];
   /** 当前看的桶，还没算出来是 null */
   i: number | null;
@@ -283,13 +283,13 @@ export interface HashStep extends Step {
 }
 
 /** 逐步执行：在一张线性探测表上做一次 get（find）、put 或 remove。line 对应 CODE 的行号 */
-export function buildTrace(start: readonly Slot[], op: Op, key: number): Trace<HashStep> {
+export function buildTrace(start: readonly Slot[], op: Op, key: number): Trace<HashLookupStep> {
   const cap = start.length;
   const slots: Slot[] = [...start];
-  const steps: HashStep[] = [];
+  const steps: HashLookupStep[] = [];
   let looks = 0;
   const name = (s: Slot) => (s === null ? '空桶' : s === TOMB ? '墓碑' : String(s));
-  const push = (line: number, note: string, i: number | null, extra: Partial<HashStep> = {}) => {
+  const push = (line: number, note: string, i: number | null, extra: Partial<HashLookupStep> = {}) => {
     steps.push({ line, note, slots: [...slots], i, looks, result: null, done: false, ...extra });
   };
 
@@ -366,7 +366,7 @@ export function buildTrace(start: readonly Slot[], op: Op, key: number): Trace<H
 }
 
 /** 做逐步执行用的一张随机表：3 到 5 个键，有时留一个墓碑。保证至少两个空桶，查找总会停 */
-export function genTable(rand: () => number = Math.random, cap: number = KID_CAP): Slot[] {
+export function genTable(cap: number = KID_CAP, rand: () => number = Math.random): Slot[] {
   let slots = emptySlots(cap);
   const n = Math.max(1, Math.min(3 + Math.floor(rand() * 3), cap - 2));
   const keys: number[] = [];
@@ -435,7 +435,7 @@ function bucketRound(rand: () => number, cap: number): Round {
       ? key + ' 正好是 ' + cap + ' 的倍数，余 0，是 0 号桶。'
       : divText(key, cap) + '，余数就是桶号，是 ' + correct + ' 号桶。';
   return {
-    kind: 'bucket', key, slots: genTable(rand, cap),
+    kind: 'bucket', key, slots: genTable(cap, rand),
     prompt: '键 ' + key + '，它的目标桶是几号？点它。' + (neg ? '（负数也要落在 0 到 ' + (cap - 1) + ' 号里）' : ''),
     correct, why, ok: why,
   };
@@ -443,7 +443,7 @@ function bucketRound(rand: () => number, cap: number): Round {
 
 function placeRound(rand: () => number, cap: number): Round {
   for (let tries = 0; tries < 300; tries++) {
-    const slots = genTable(rand, cap);
+    const slots = genTable(cap, rand);
     const key = clashKey(slots, rand);
     const h = bucketOf(key, cap);
     if (typeof slots[h] !== 'number') continue;
@@ -457,7 +457,7 @@ function placeRound(rand: () => number, cap: number): Round {
 
 function findRound(rand: () => number, cap: number): Round {
   for (let tries = 0; tries < 300; tries++) {
-    const slots = genTable(rand, cap);
+    const slots = genTable(cap, rand);
     const present = rand() < 0.5;
     const key = present ? tableKey(slots, rand) : clashKey(slots, rand);
     const { path, at } = probeFind(slots, key);
@@ -482,7 +482,9 @@ function fixedRound(kind: 'place' | 'find'): Round {
 }
 
 /** 猜下一步的题：三种题型轮流随机出，负数键和回绕都会出现 */
-export function rounds(rand: () => number = Math.random, n = 12, cap: number = KID_CAP): Round[] {
+export const PREDICT_GOAL = 5;
+
+export function rounds(n = 12, cap: number = KID_CAP, rand: () => number = Math.random): Round[] {
   const out: Round[] = [];
   for (let k = 0; k < n; k++) {
     const kind = Math.floor(rand() * 3);

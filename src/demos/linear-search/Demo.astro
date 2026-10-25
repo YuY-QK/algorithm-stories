@@ -9,6 +9,9 @@ import DoTrace from './DoTrace.vue';
 import DoPredict from './DoPredict.vue';
 import DoBug from './DoBug.vue';
 import DoChallenge from './DoChallenge.vue';
+import { binaryWorst } from '../../engine/linear-search';
+
+const base = import.meta.env.BASE_URL;
 
 interface Props { slug: string; title: string; lede: string }
 
@@ -24,7 +27,7 @@ const rows = [
   unit: r.unit,
   bars: [
     { name: '顺序', value: r.n, tone: 'muted' as const },
-    { name: '二分', value: Math.floor(Math.log2(r.n)) + 1, tone: 'accent' as const },
+    { name: '二分', value: binaryWorst(r.n), tone: 'accent' as const },
   ],
 }));
 ---
@@ -101,11 +104,12 @@ const rows = [
         <li>翻玩具箱、抽屉，在没排序的名单或购物小票上从头往下找：一个个看，找到就停。</li>
         <li>各语言标准库里的 <code>indexOf</code>、<code>contains</code>、<code>find</code>：Kotlin 的 <code>indexOf</code> / <code>first {'{ }'}</code>、Java 的 <code>ArrayList.indexOf</code>、JavaScript 的 <code>Array.prototype.indexOf</code>，对无序列表都是从头到尾扫。找不到的约定不一样：JavaScript 返回 <code>-1</code>，Python 的 <code>list.index</code> 抛 <code>ValueError</code>。</li>
         <li>数据库没有可用的索引时只能全表扫描，PostgreSQL 的 <code>EXPLAIN</code> 里显示为 <code>Seq Scan</code>，一行一行检查条件。表很小时选它也是合理的。</li>
-        <li>C 标准库的 <code>strchr</code>、<code>memchr</code>：在字符串、内存块里找一个字节，也是顺序扫描。</li>
       </ul>
     </Block>
 
-    <Block icon="➡️" title="下一站" intro="想更快：先排序再二分，或者用哈希（以后的「哈希查找」关卡）。二分查找关卡里，信箱是排好序的，所以一次能排除一半。" />
+    <Block icon="➡️" title="下一站" intro="想更快：先排序再二分，或者用哈希。二分查找关卡里，信箱是排好序的，所以一次能排除一半。">
+      <p class="story">按键直接算出该去哪个桶，不用一个个翻：去玩<a href={base + 'algo/hash-lookup/'}>哈希查找</a>。</p>
+    </Block>
   </Fragment>
 </AlgoLayout>
 

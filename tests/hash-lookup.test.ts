@@ -188,7 +188,7 @@ describe('哈希查找 做：逐步执行', () => {
     const rand = seeded(3);
     for (let k = 0; k < 3000; k++) {
       const cap = 3 + Math.floor(rand() * 6);
-      const start = genTable(rand, cap);
+      const start = genTable(cap, rand);
       const op: Op = (['get', 'put', 'remove'] as const)[k % 3];
       const key = rand() < 0.5 ? tableKey(start, rand) : Math.floor(rand() * 60) - 10;
       const before = new Set(start.filter((s): s is number => typeof s === 'number'));
@@ -250,7 +250,7 @@ describe('哈希查找 做：猜下一步', () => {
     let wrapped = 0;
     let seenTomb = 0;
     for (let s = 0; s < 40; s++) {
-      for (const r of rounds(seeded(s), 50)) {
+      for (const r of rounds(50, undefined, seeded(s))) {
         expect(r.prompt.length).toBeGreaterThan(0);
         expect(r.why.length).toBeGreaterThan(0);
         expect(r.slots).toHaveLength(KID_CAP);
@@ -355,7 +355,7 @@ describe('clashKey', () => {
   it('给出的新键不在表里，而且目标桶被占', () => {
     const rand = seeded(9);
     for (let k = 0; k < 300; k++) {
-      const t = genTable(rand);
+      const t = genTable(undefined, rand);
       const key = clashKey(t, rand);
       expect(t.includes(key)).toBe(false);
     }

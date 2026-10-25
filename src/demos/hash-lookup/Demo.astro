@@ -14,7 +14,7 @@ interface Props { slug: string; title: string; lede: string }
 
 const repo = 'https://github.com/YuY-QK/algorithm-stories/tree/main/exercises';
 
-// 平均情况：顺序查找平均看 n/2 本；哈希查找（装得不满、分得匀）平均只看 1 到 2 个桶，这里按 2 画
+// 平均情况：顺序查找平均大约看一半；哈希查找（装得不满、分得匀）平均只看 1 到 2 个桶，这里按 2 画
 const rows = [10, 1000, 1000000].map((n) => ({
   label: n.toLocaleString('en-US'),
   unit: '本书',
@@ -88,7 +88,7 @@ const rows = [10, 1000, 1000000].map((n) => ({
 
     <Block icon="🌍" title="真实世界里的哈希表">
       <ul class="pits">
-        <li>Java 和 Kotlin 的 <code>HashMap</code>：默认容量 16、装到四分之三就扩容为 2 倍；链地址法，链太长时转成红黑树。</li>
+        <li>Java 和 Kotlin/JVM 的 <code>HashMap</code>：默认容量 16、装到四分之三就扩容为 2 倍；链地址法，链太长时转成红黑树。</li>
         <li>Redis 的键空间是一张哈希表，扩容时把搬家分散到后面的多次操作里（渐进式 rehash），免得一次卡住服务。</li>
         <li>数据库的哈希索引只适合「等于」查询；范围查询用 B 树。哈希连接把一张表建成哈希表，再逐行去查另一张表。</li>
         <li>缓存按键存取（LRU 缓存里的「键到节点」就是哈希表）；用 <code>HashSet</code> 去重；「两数之和」用 <code>HashMap</code> 记下见过的数，把 O(n²) 降到 O(n)。</li>

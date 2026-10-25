@@ -1,5 +1,8 @@
 package hashlookup
 
+import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
+import org.junit.jupiter.api.function.ThrowingSupplier
+import java.time.Duration
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -91,7 +94,7 @@ class HashLookupTest {
     // ---------- 线性探测 ----------
 
     @Test
-    fun `线性探测：1、8、15 同桶，依次落在 1、2、3 号，都能取到`() {
+    fun `线性探测：1、8、15 同桶，三个都能取到`() {
         val m = ProbedIntMap(7)
         for (k in listOf(1, 8, 15)) assertTrue(m.put(k, k * 10), "put($k)")
         for (k in listOf(1, 8, 15)) assertEquals(k * 10, m.get(k), "get($k)")
@@ -159,7 +162,12 @@ class HashLookupTest {
         assertTrue(m.put(1, 1))
         assertTrue(m.put(2, 2))
         assertFalse(m.put(9, 9), "表满了，put(9) 应该返回 false")
-        assertNull(m.get(9), "满表里 get(9)，一个空桶也没有，看过 3 个桶就该停")
+        val found = assertTimeoutPreemptively(
+            Duration.ofSeconds(2),
+            ThrowingSupplier<Int?> { m.get(9) },
+            "满表里 get(9) 超过 2 秒没返回，多半死循环了：一个空桶也没有，看过 3 个桶就该停",
+        )
+        assertNull(found, "满表里 get(9)，一个空桶也没有，看过 3 个桶就该停")
         assertEquals(2, m.get(2))
         assertTrue(m.put(2, 22), "满表里更新已有的键是可以的")
         assertEquals(22, m.get(2))

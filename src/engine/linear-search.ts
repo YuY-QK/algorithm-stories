@@ -14,7 +14,7 @@ export const CODE = [
   '}',
 ];
 
-export interface LinearStep extends Step {
+export interface LinearSearchStep extends Step {
   /** 当前看的下标；-1 还没开始，等于 arr.length 表示已经走出末尾 */
   i: number;
   /** 到这一步为止比较过几次 */
@@ -43,11 +43,11 @@ export function countChecks(arr: readonly number[], target: number): number {
   return n;
 }
 
-export function buildTrace(arr: readonly number[], target: number): Trace<LinearStep> {
-  const steps: LinearStep[] = [];
+export function buildTrace(arr: readonly number[], target: number): Trace<LinearSearchStep> {
+  const steps: LinearSearchStep[] = [];
   let i = -1;
   let checks = 0;
-  const add = (line: number, note: string, extra: Partial<LinearStep> = {}) => {
+  const add = (line: number, note: string, extra: Partial<LinearSearchStep> = {}) => {
     steps.push({ line, i, checks, result: null, hits: [], note, done: false, ...extra });
   };
   add(1, '在 ' + arr.length + ' 个数里找 ' + target + '：第一个相等的下标；一个也没有就返回 -1。');
@@ -85,7 +85,7 @@ function stateOf(k: number, i: number, hits: readonly number[]): CellState {
 }
 
 /** 数组版的格子：数字一直看得见，状态按当前这一步 */
-export function arrayCells(arr: readonly number[], step: Pick<LinearStep, 'i' | 'hits'>): Cell[] {
+export function arrayCells(arr: readonly number[], step: Pick<LinearSearchStep, 'i' | 'hits'>): Cell[] {
   return arr.map((v, k) => ({ label: String(v), state: stateOf(k, step.i, step.hits) }));
 }
 
@@ -98,7 +98,7 @@ export const BEAR = 4;
 export const KID_N = 8;
 
 /** 玩具版的格子：开过和正在开的看得见玩具，没开的盖着 */
-export function toyCells(ids: readonly number[], step: Pick<LinearStep, 'i' | 'hits'>): Cell[] {
+export function toyCells(ids: readonly number[], step: Pick<LinearSearchStep, 'i' | 'hits'>): Cell[] {
   return ids.map((id, k) => ({ label: k <= step.i ? TOYS[id] : '', state: stateOf(k, step.i, step.hits) }));
 }
 
@@ -168,7 +168,7 @@ function shuffled<T>(a: readonly T[], rand: () => number): T[] {
 }
 
 /** 把小熊藏好：位置随机，其余箱子放别的玩具（互不相同） */
-export function hideBear(rand: () => number = Math.random, n = KID_N): PlayRow {
+export function hideBear(n = KID_N, rand: () => number = Math.random): PlayRow {
   const bear = Math.floor(rand() * n);
   const others = shuffled(NON_BEAR, rand).slice(0, n - 1);
   const ids = [...others.slice(0, bear), BEAR, ...others.slice(bear)];
@@ -312,7 +312,7 @@ export const PREDICT_GOAL = 5;
 export const VALUE_MAX = 40;
 
 /** 出一道题：数组里的数各不相同，只有 dup 题里目标出现两次；数里可能有 0 */
-export function makePuzzle(kind: PuzzleKind, rand: () => number = Math.random, n = PREDICT_N): Puzzle {
+export function makePuzzle(kind: PuzzleKind, n = PREDICT_N, rand: () => number = Math.random): Puzzle {
   const pool = shuffled(Array.from({ length: VALUE_MAX + 1 }, (_, k) => k), rand);
   const arr = pool.slice(0, n);
   const spare = pool[n];
@@ -333,7 +333,7 @@ export function makePuzzle(kind: PuzzleKind, rand: () => number = Math.random, n
 }
 
 export function genPuzzle(rand: () => number = Math.random): Puzzle {
-  return makePuzzle(PUZZLE_KINDS[Math.floor(rand() * PUZZLE_KINDS.length)], rand);
+  return makePuzzle(PUZZLE_KINDS[Math.floor(rand() * PUZZLE_KINDS.length)], PREDICT_N, rand);
 }
 
 export interface Round {
@@ -459,7 +459,7 @@ export const BUGS: readonly Bug[] = [
   },
 ];
 
-export interface BugStep extends LinearStep {
+export interface BugStep extends LinearSearchStep {
   /** crash：崩溃；wrong：返回了错的值；ok：返回对了 */
   outcome: 'running' | 'ok' | 'wrong' | 'crash';
   /** 「记下下标」版里 found 变量的值，其他版本没有 */
