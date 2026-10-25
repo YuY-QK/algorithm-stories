@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { usePlayer } from './usePlayer';
+import { BOOK_INTERVAL } from './timing';
 
 // 看：会动的绘本。台词 say 由引擎生成，画面通过默认插槽放。
 const props = withDefaults(defineProps<{
   frames: { say: string }[];
   interval?: number;
   againLabel?: string;
-}>(), { interval: 2200, againLabel: '再看一次' });
+}>(), { interval: BOOK_INTERVAL, againLabel: '再看一次' });
 const emit = defineEmits<{ again: [] }>();
 
 const frames = computed(() => props.frames);

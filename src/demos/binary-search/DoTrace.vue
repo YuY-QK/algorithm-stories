@@ -12,11 +12,7 @@ const size = ref(16);
 const arr = ref<number[]>(genArray(size.value));
 const target = ref(pick());
 const steps = computed(() => buildTrace(arr.value, target.value));
-const p = usePlayer(steps, [
-  { label: '慢', ms: 1100 },
-  { label: '中', ms: 650 },
-  { label: '快', ms: 280 },
-]);
+const p = usePlayer(steps);
 
 function pick() { return pickTarget(arr.value); }
 function freshArray() {

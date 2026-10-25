@@ -8,19 +8,13 @@ import VarChips from './VarChips.vue';
 import { usePlayer, type Speed } from './usePlayer';
 
 // 找 bug 整个面板：选坑、播放有 bug 的代码怎么跑错、点出错的那一行、答对后的解释与修正。
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   bugs: readonly B[];
   run: (bug: B) => S[];
   vars: (step: S, bug: B) => [string, string | number][];
   verdict: (step: S, bug: B) => string;
   speeds?: Speed[];
-}>(), {
-  speeds: () => [
-    { label: '慢', ms: 1300 },
-    { label: '中', ms: 800 },
-    { label: '快', ms: 350 },
-  ],
-});
+}>();
 
 const which = ref<string>(props.bugs[0].id);
 const bug = computed(() => props.bugs.find((b) => b.id === which.value)!);

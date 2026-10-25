@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { KID_N, middle, narrow, pointTo, type Dir } from '../../engine/binary-search';
 import Street from './Street.vue';
+import { PAUSE_LONG, PAUSE_MID, PAUSE_SHORT } from '../../components/shared/timing';
 
 // 玩法一「藏信」：孩子先把信藏好盖上叶子，再给小邮差指路。
 // 答案一开始就固定了，指错方向时藏信的信箱会透光，提示孩子自己再看一眼。
@@ -29,8 +30,8 @@ function hide(i: number) {
     phase.value = 'walking';
     at.value = middle(lo.value, hi.value);
     say.value = '🐰 小邮差来啦……';
-    setTimeout(ask, 700);
-  }, 900);
+    setTimeout(ask, PAUSE_SHORT);
+  }, PAUSE_LONG);
 }
 
 function ask() {
@@ -61,8 +62,8 @@ function answer(d: Dir) {
   say.value = (d === 'left' ? '👋 右' : '👋 左') + '边都不用看啦';
   setTimeout(() => {
     at.value = middle(lo.value, hi.value);
-    setTimeout(ask, 700);
-  }, 800);
+    setTimeout(ask, PAUSE_SHORT);
+  }, PAUSE_MID);
 }
 
 function again() {

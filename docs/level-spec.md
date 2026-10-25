@@ -48,6 +48,7 @@
 | `PredictFrame.vue`（新） | 猜下一步的外框：`.stage`、连对和过关 chip、题干、答错提示、「下一题」 | props：`streak`、`goal`、`passed`、`prompt: string`、`wrong: string \| null`（非空时显示 `.oops-box` 和「知道了，继续」）、`ended: boolean`（显示「下一题」）；emit：`continue`、`next`；插槽：`chips`（本关额外 chip，如 target）、`board`（画面）、`answers`（按钮） |
 | `BugHunt.vue`（新） | 找 bug 整个面板：选坑、已找到 n/m、标题、播放、`CodePanel` 可点行、红绿标记、答对后的解释与修正 | props：`bugs: Bug[]`、`run: (bug) => Step[]`（即各关 `runBug`）、`vars: (step, bug) => [string, string \| number][]`、`verdict: (step, bug) => string`、`speeds?`；作用域插槽 `board`（`{ step, bug }`）放本关画面，插槽 `input` 放输入说明。`solved / tried / marks / pick / count` 全在里面 |
 | `usePlayer.ts`（扩） | 增加 `useStageStop(stop)`：挂载时监听 `STAGE_CHANGE_EVENT`，卸载时清理 | 任何自己开 `setTimeout` / `setInterval` 的组件（动画、赛跑）必须调用，切标签要停 |
+| `timing.ts`（新） | 集中的速度与停顿：`SPEEDS`（慢/中/快 = 1300/800/350 ms）、`BOOK_INTERVAL`（绘本翻页 2200）、`PAUSE_SHORT/MID/LONG`（「玩」动画停顿 700/800/900） | `usePlayer` 的 `speeds` 缺省用 `SPEEDS`，`BookPager` 的 `interval` 缺省用 `BOOK_INTERVAL`。**新关卡与迁移的关卡不许自己写速度数字，一律引用 `timing.ts`**；以后调快慢只改这一个文件 |
 | `theme.css`（扩） | 把重复 scoped 的类提到全局：`.oops-box`、`.dots`、`.nav`、`.big`（`.big.main`、`:disabled`、`:focus-visible`） | 各关删掉自己那份；`greedy` 的 `big-btn` 改回 `big` |
 
 不动：`usePlayer`、`Transport`、`CodePanel`、`VarChips`、`Segmented`、`LogCompare` 现有接口。
