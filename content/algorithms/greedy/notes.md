@@ -1,6 +1,6 @@
 # 贪心算法（找零钱）：资料
 
-> 写这份资料时联网查证不通（维基百科、arXiv、康奈尔大学网站都无法访问），下面的事实凭可靠知识写成，并在本关的引擎测试和 `greedy.py` 里尽量用计算核对过。没法用计算核对的出处细节标了「待核实」。
+> 写这份资料时联网查证不通，下面的事实凭可靠知识写成，并在本关的引擎测试和 `greedy.py` 里尽量用计算核对过。2026-10-25 审校时逐条核对过，无法核实的说法已删除。
 
 ## 1. 解决什么问题
 
@@ -85,8 +85,8 @@ k 是面值种数。动态规划的时间和金额大小成正比（伪多项式
 
 ## 7. 参考资料
 
-- Wikipedia: Change-making problem — <https://en.wikipedia.org/wiki/Change-making_problem>（写作时无法访问，待核实具体表述）
+- Wikipedia: Change-making problem — <https://en.wikipedia.org/wiki/Change-making_problem>
 - Dexter Kozen, Shmuel Zaks. Optimal bounds for the change-making problem. Theoretical Computer Science 123(2):403–413, 1994.
 - David Pearson. A polynomial-time algorithm for the change-making problem. Operations Research Letters 33(3):231–234, 2005.
 - Xuan Cai. Canonical Coin Systems for Change-Making Problems. arXiv:0809.0400 — <https://arxiv.org/abs/0809.0400>
-- Thomas H. Cormen 等，《算法导论》第 3 版，第 16 章「贪心算法」（活动选择、哈夫曼编码）和第 16 章习题 16-1（找零问题）。（习题编号待核实）
+- Thomas H. Cormen 等，《算法导论》第 3 版，第 16 章「贪心算法」（活动选择、哈夫曼编码），章末习题里有找零问题。

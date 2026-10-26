@@ -80,5 +80,5 @@
 - Wikipedia「Heapsort」（把堆排序描述为改进的选择排序）：<https://en.wikipedia.org/wiki/Heapsort>
 - Wikipedia「Cycle sort」（写入次数最少的排序）：<https://en.wikipedia.org/wiki/Cycle_sort>
 - Donald Knuth，《计算机程序设计艺术》第 3 卷 5.2.3 节「Sorting by Selection」
-- Cormen 等，《算法导论》第 3 版练习 2.2-2 让读者写出选择排序并分析（练习编号待核实）
+- Cormen 等，《算法导论》第 3 版第 2 章的练习里有写出选择排序并分析的题目
 - J. W. J. Williams, "Algorithm 232: Heapsort", Communications of the ACM 7(6), 1964
