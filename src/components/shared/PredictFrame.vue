@@ -15,7 +15,10 @@ withDefaults(defineProps<{
   continueLabel?: string;
   /** 答对说明里按钮的文字 */
   nextLabel?: string;
-}>(), { right: null, continueLabel: '知道了，继续', nextLabel: '下一题' });
+  /** 「连对」「过关」的文字，默认中文；新页面（ui/vue/widgets）按文案表传入 */
+  streakLabel?: string;
+  passedLabel?: string;
+}>(), { right: null, continueLabel: '知道了，继续', nextLabel: '下一题', streakLabel: '连对', passedLabel: '🏅 过关' });
 const emit = defineEmits<{ continue: []; next: [] }>();
 </script>
 
@@ -23,8 +26,8 @@ const emit = defineEmits<{ continue: []; next: [] }>();
   <div class="stage">
     <div class="vars">
       <slot name="chips" />
-      <span class="chip"><small>连对</small>{{ Math.min(streak, goal) }} / {{ goal }}</span>
-      <span v-if="passed" class="chip win">🏅 过关</span>
+      <span class="chip"><small>{{ streakLabel }}</small>{{ Math.min(streak, goal) }} / {{ goal }}</span>
+      <span v-if="passed" class="chip win">{{ passedLabel }}</span>
     </div>
     <slot name="board" />
     <p class="note" aria-live="polite">{{ prompt }}</p>
@@ -38,7 +41,7 @@ const emit = defineEmits<{ continue: []; next: [] }>();
       <button type="button" class="btn small primary" @click="emit('next')">{{ nextLabel }}</button>
     </div>
     <div v-if="ended" class="row">
-      <button type="button" class="btn small primary" @click="emit('next')">下一题</button>
+      <button type="button" class="btn small primary" @click="emit('next')">{{ nextLabel }}</button>
     </div>
   </div>
 </template>

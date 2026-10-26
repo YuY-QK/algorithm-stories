@@ -8,7 +8,12 @@ const props = withDefaults(defineProps<{
   frames: { say: string }[];
   interval?: number;
   againLabel?: string;
-}>(), { interval: BOOK_INTERVAL, againLabel: '再看一次' });
+  /** 翻页按钮文字，默认中文；新页面（ui/vue/widgets）按文案表传入 */
+  labels?: Record<'prev' | 'auto' | 'pause' | 'next' | 'goPlay', string>;
+}>(), {
+  interval: BOOK_INTERVAL, againLabel: '再看一次',
+  labels: () => ({ prev: '上一页', auto: '自动播放', pause: '暂停', next: '下一页', goPlay: '🎮 去玩' }),
+});
 const emit = defineEmits<{ again: [] }>();
 
 const frames = computed(() => props.frames);
@@ -29,13 +34,13 @@ function again() {
       <span v-for="(_, i) in frames" :key="i" :class="{ on: i === p.idx.value }" />
     </div>
     <div class="nav">
-      <button type="button" class="pager-btn" :disabled="p.atStart.value" aria-label="上一页" @click="p.prev()">◀</button>
-      <button type="button" class="pager-btn main" :aria-label="p.playing.value ? '暂停' : '自动播放'" @click="p.toggle()">{{ p.playing.value ? '⏸' : '▶️' }}</button>
-      <button type="button" class="pager-btn" :disabled="p.atEnd.value" aria-label="下一页" @click="p.next()">▶</button>
+      <button type="button" class="pager-btn" :disabled="p.atStart.value" :aria-label="labels.prev" @click="p.prev()">◀</button>
+      <button type="button" class="pager-btn main" :aria-label="p.playing.value ? labels.pause : labels.auto" @click="p.toggle()">{{ p.playing.value ? '⏸' : '▶️' }}</button>
+      <button type="button" class="pager-btn" :disabled="p.atEnd.value" :aria-label="labels.next" @click="p.next()">▶</button>
     </div>
     <div v-if="p.atEnd.value" class="row">
       <button type="button" class="btn" @click="again">{{ againLabel }}</button>
-      <button type="button" class="btn primary" data-goto="play">🎮 去玩</button>
+      <button type="button" class="btn primary" data-goto="play">{{ labels.goPlay }}</button>
     </div>
   </div>
 </template>

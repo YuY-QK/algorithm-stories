@@ -62,7 +62,12 @@ export type Control<A> =
       value?: number;
       /** 提交时生成的操作；输入不是整数时界面不提交 */
       submit: (n: number) => A;
+      /** 有它就画一个提交按钮；没有就每次输入合法就提交（实时修改，如逐步执行里的目标值） */
       submitLabel?: Msg;
+      /** 提交时输入不是整数就提交这个操作（让规则给出「请输入……」的提示）；不给就什么都不做 */
+      invalid?: A;
+      /** 这个数一变，输入框就清空（如接受了一次猜测） */
+      clearOn?: number;
     }
   | {
       type: 'segmented';
@@ -70,7 +75,9 @@ export type Control<A> =
       value: string | number;
       options: { value: string | number; label: Msg }[];
       choose: (v: string | number) => A;
-    };
+    }
+  /** 一组小按钮，带一个小标题（如「快速设置」） */
+  | { type: 'group'; legend: Msg; items: Control<A>[] };
 
 /* ---------- 看：绘本 ---------- */
 
@@ -126,6 +133,8 @@ export interface Ask<V, T = unknown> {
   why: Msg;
   /** 答对时也要讲一句的关卡用；有它时答对先停下显示，再点「下一题」 */
   right?: Msg;
+  /** 答错、看解释时画面和题干换成这个（如点错 mid 后把 mid 亮出来）；不给就保持原样 */
+  reveal?: { view: V; prompt: Msg };
 }
 
 /** 一道题：依次回答若干问，最后看结局 */
