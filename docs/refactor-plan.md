@@ -1,6 +1,6 @@
 # 阶段 R：架构重构方案
 
-版本：草案 v0.1（2026-10-26），等 Yumor 确认。确认后把定下来的部分并入 `level-spec.md`，本文件留作记录。
+版本：v1.0（2026-10-26），Yumor 已确认第 6 节四个问题，全部按推荐：接受三件的边界、JSON、二分查找试做、多语言只留结构不翻译。确认后把定下来的部分并入 `level-spec.md`，本文件留作记录。
 
 ## 1. 要解决什么
 
@@ -113,3 +113,66 @@ R2 是风险最大的一步：接口在这里定型。如果二分查找的两�
 2. **配置格式**：JSON（推荐：Astro、Kotlin、Swift 都原生能读，不加依赖）还是 YAML（手改更舒服）？
 3. **试做关**：二分查找（推荐：样板关，两个小游戏一个出题一个找，最能检验 `GameRules`）？
 4. **多语言**：现在只把文案结构做成支持多语言、不翻译（推荐），还是试做关顺手出一份英文？
+
+## 7. R2 细则（主线程定，2026-10-26）
+
+接口以 `src/core/types.ts` 和 `src/core/i18n.ts` 为准（主线程已写好，实现时只加不改；确实装不下时回报主线程，由主线程改）。
+
+### 7.1 目录
+
+| 新位置 | 内容 |
+|---|---|
+| `src/core/types.ts`、`i18n.ts` | 已写好 |
+| `src/core/flows/player.ts` | 逐步播放的纯状态机（idx、速度、自动播放），`usePlayer` 改成它的 Vue 包装，接口不变 |
+| `src/core/flows/predict.ts` | 按 `Puzzle` 走：当前第几问、答对答错、连对、过关、结局 |
+| `src/core/flows/bughunt.ts` | 当前坑、已解决、点错的行、提示 |
+| `src/core/flows/game.ts` | 执行 `GameRules`：保存 state、say，把 `after` 交给界面 |
+| `src/core/timing.ts` | 从 `components/shared/timing.ts` 移来，数值读 `src/theme/tokens.json`；旧文件改成转出 |
+| `src/core/copy.zh.json` | 共用文案：再看一次、去玩、下一题、知道了继续、连对、过关、找 bug 面板的固定字等 |
+| `src/theme/tokens.json` | 颜色（浅、深）、圆角、阴影、字体、速度。`scripts/gen-theme.cjs` 生成 `src/styles/tokens.css`，`theme.css` 不再自己定义这些变量；加一个测试检查生成结果和 tokens.json 一致 |
+| `src/ui/vue/widgets/` | `Book`、`Trace`、`Predict`、`BugHunt`、`Game`、`Controls`（画 `Control[]`），只认核心层接口，不认识任何具体算法 |
+| `src/ui/vue/scenes/<slug>/` | 每关的画面组件和 `index.ts`（名字 → 组件的注册表）。画面只收 props、emit `act`，不含流程 |
+| `src/ui/vue/LevelPage.astro` | 读 `level.json`，四个 slot 里按块挂控件，每块用现有的 `Block.astro` 包；控件一律 `client:only="vue"` |
+| `content/algorithms/<slug>/level.json`、`copy.zh.json`、`more.zh.md` | 见下 |
+
+`src/pages/algo/[slug].astro`：该关有 `level.json` 就用 `LevelPage`，否则仍用 `src/demos/<slug>/Demo.astro`。迁移期间两种并存。
+
+### 7.2 level.json
+
+```json
+{
+  "look": [{ "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "Street" }],
+  "play": [
+    { "id": "hide", "kind": "game", "icon": "🍃", "rules": "hide", "scene": "Street" },
+    { "id": "find", "kind": "game", "icon": "🐰", "rules": "find", "scene": "Street" }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceArray" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictArray" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugArray" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "BinarySearch.kt", "package": "binarysearch" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "GuessRange" }
+  ],
+  "more": [{ "kind": "markdown", "src": "more" }]
+}
+```
+
+- `rules` 指向引擎导出的 `LevelModule` 里对应分组的名字，`scene` 指向画面注册表
+- 块的标题、引导语不写在 level.json，按约定从文案表取：`<id>.title`、`<id>.intro`（可没有）、`<id>.goal`（「玩」开头的目标提示，可没有）
+- `exercise` 的正文是文案 `<id>.body`（Markdown），终端命令由 `package` 生成
+- `markdown` 块：把 `more.zh.md` 按 `## ` 切成若干块，标题第一个字符是图标；正文里单独一行 `<!-- compare -->` 换成 `LogCompare`，数据由引擎导出的 `compareRows()` 给（文字用 Msg）
+- level.json 的格式写成 `src/core/level.ts` 里的类型和校验，构建时校验，写错直接报错
+
+### 7.3 文案
+
+- `copy.zh.json` 平铺，键用 `点` 分组：`story.title`、`hide.say.start`、`trace.note.init`……
+- 页面用的文案表 = 共用 + 本关（本关覆盖共用），由 `LevelPage` 作为 prop 传给每个控件
+- 测试：每关一个文案测试，对各种随机输入跑遍引擎产生的 Msg（看的全部页、轨迹、题目、bug 轨迹、小游戏随机打法），`missingKeys` 必须为空；另外检查文案表里没有用不到的键
+
+### 7.4 二分查找怎么迁
+
+- 引擎 `src/engine/binary-search.ts` 原地改：现有导出的函数和类型名能保留就保留（测试和 `.py` 对拍要用），文字改成 Msg；新增 `export const level: LevelModule`
+- 两个小游戏和挑战改写成 `GameRules`，现有组件里的引导（点灰信箱摇头、第一次排除时追问、两局不到三颗星给秘诀、三颗星后问点哪里最快、透光提示）一条不少，并各写单元测试
+- 画面 `Street.vue` 移到 `src/ui/vue/scenes/binary-search/`，去掉里面的流程（如果有）
+- 改完删掉 `src/demos/binary-search/`
+- 验收：`npm test`、`npm run check`、`npm run build`；`node scripts/check-pages.cjs` 对二分查找每个标签、1100px 浅色和 375px 深色；新旧页面逐块对照，文字、按钮、引导一致（可以先在改之前把旧页面的 check-pages 报告存下来对比）
