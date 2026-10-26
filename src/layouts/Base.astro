@@ -1,23 +1,31 @@
 ---
 import '../styles/theme.css';
+import { loadDict, translator } from '../i18n/load';
+import { DICT_ELEMENT_ID } from '../i18n/runtime';
 
 interface Props {
   title: string;
   description?: string;
   /** 顶部导航高亮哪一项 */
   nav?: 'home' | 'stories';
+  /** 关卡页传入，页面里会带上这一关的文案 */
+  slug?: string;
 }
-const { title, description = '用小故事和小游戏学算法：先看懂，再在玩的过程中练会。', nav } = Astro.props;
+const { title, description, nav, slug } = Astro.props;
+const dict = loadDict(slug);
+const t = translator(dict);
+// 给浏览器里的组件用的字典；< 转义，防止文案里出现 </script>
+const dictJson = JSON.stringify(dict).replace(/</g, '\\u003c');
 const base = import.meta.env.BASE_URL;
 ---
 
 <!doctype html>
-<html lang="zh-CN">
+<html lang={t('site.lang')}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>{title === '算法小故事' ? title : title + ' - 算法小故事'}</title>
-    <meta name="description" content={description} />
+    <title>{title === t('site.name') ? title : t('site.titleSuffix', { title })}</title>
+    <meta name="description" content={description ?? t('site.description')} />
     <link rel="icon" type="image/svg+xml" href={base + 'favicon.svg'} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -25,12 +33,13 @@ const base = import.meta.env.BASE_URL;
   </head>
   <body>
     <div class="wrap">
-      <nav class="topnav" aria-label="网站导航">
-        <a class="home" href={base} aria-current={nav === 'home' ? 'page' : undefined}>算法小故事</a>
-        <a href={base + 'stories/'} aria-current={nav === 'stories' ? 'page' : undefined}>故事集</a>
-        <a href="https://github.com/YuY-QK/algorithm-stories">GitHub</a>
+      <nav class="topnav" aria-label={t('nav.label')}>
+        <a class="home" href={base} aria-current={nav === 'home' ? 'page' : undefined}>{t('site.name')}</a>
+        <a href={base + 'stories/'} aria-current={nav === 'stories' ? 'page' : undefined}>{t('nav.stories')}</a>
+        <a href="https://github.com/YuY-QK/algorithm-stories">{t('nav.github')}</a>
       </nav>
       <slot />
     </div>
+    <script type="application/json" id={DICT_ELEMENT_ID} set:html={dictJson} />
   </body>
 </html>

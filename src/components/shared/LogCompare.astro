@@ -1,4 +1,5 @@
 ---
+import { loadDict, translator } from '../../i18n/load';
 /**
  * 次数对比条形图，对数刻度。静态内容，不需要在浏览器里运行。
  * 每行一个数据规模，每个规模下若干条（比如「顺序」和「二分」）。
@@ -26,6 +27,7 @@ const { rows, max = Math.max(...rows.flatMap((r) => r.bars.map((b) => b.value)))
 const maxLog = Math.log10(1 + max);
 const width = (v: number) => ((Math.log10(1 + v) / maxLog) * 100).toFixed(1) + '%';
 const fmt = (v: number) => Math.round(v).toLocaleString('en-US');
+const t = translator(loadDict());
 ---
 
 <div class="cmp">
@@ -37,7 +39,7 @@ const fmt = (v: number) => Math.round(v).toLocaleString('en-US');
           <div class="bar-line">
             <span class="bar-name">{b.name}</span>
             <div class="track"><div class={'fill ' + b.tone} style={{ width: width(b.value) }} /></div>
-            <span class="num">{(b.approx ? '≈ ' : '') + fmt(b.value)} 次</span>
+            <span class="num">{t(b.approx ? 'log.approx' : 'log.times', { value: fmt(b.value) })}</span>
           </div>
         ))}
       </div>

@@ -5,30 +5,33 @@
  */
 import Base from './Base.astro';
 import { STAGES } from '../content.config';
-import { STAGE_INFO } from '../stages';
+import { STAGE_ICON } from '../stages';
+import { loadDict, translator } from '../i18n/load';
+import { toHtml } from '../i18n/format';
 import SoundToggle from '../components/shared/SoundToggle.vue';
 
 interface Props {
   slug: string;
-  title: string;
-  lede: string;
 }
-const { slug, title, lede } = Astro.props;
+const { slug } = Astro.props;
 const base = import.meta.env.BASE_URL;
+const t = translator(loadDict(slug));
+const title = t('meta.title');
+const lede = t('meta.lede');
 
 const stages = STAGES.filter((l) => Astro.slots.has(l));
 const first = stages[0];
 ---
 
-<Base title={title} description={lede}>
+<Base title={title} description={lede} slug={slug}>
   <header class="mast">
     <div class="sound-slot"><SoundToggle client:only="vue" /></div>
     <h1>{title}</h1>
     <p class="lede">{lede}</p>
-    <div class="stages" role="tablist" aria-label="选择步骤">
+    <div class="stages" role="tablist" aria-label={t('level.tabs')}>
       {stages.map((l, k) => (
         <button type="button" role="tab" id={'tab-' + l} data-stage={l} aria-selected={k === 0 ? 'true' : 'false'} aria-controls={'panel-' + l}>
-          <i aria-hidden="true">{STAGE_INFO[l].icon}</i>{STAGE_INFO[l].name}<span>{STAGE_INFO[l].who}</span>
+          <i aria-hidden="true">{STAGE_ICON[l]}</i>{t('stage.' + l + '.name')}<span>{t('stage.' + l + '.who')}</span>
         </button>
       ))}
     </div>
@@ -43,8 +46,8 @@ const first = stages[0];
   </main>
 
   <p class="foot">
-    想听完整的故事？读 <a href={base + 'stories/' + slug + '/'}>故事稿</a>。
-    {stages.length < STAGES.length && <>目前有{stages.map((l) => STAGE_INFO[l].name).join('、')}，其他步骤正在制作中。</>}
+    <Fragment set:html={toHtml(t('level.story', { href: base + 'stories/' + slug + '/' }))} />
+    {stages.length < STAGES.length && t('level.partial', { stages: stages.map((l) => t('stage.' + l + '.name')).join(t('level.listSep')) })}
   </p>
 </Base>
 

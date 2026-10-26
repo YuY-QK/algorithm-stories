@@ -2,39 +2,44 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import { STAGES } from '../content.config';
-import { STAGE_INFO } from '../stages';
+import { STAGE_ICON } from '../stages';
+import { loadDict, translator } from '../i18n/load';
+import { toHtml } from '../i18n/format';
 
 const algos = (await getCollection('algorithms')).sort((a, b) => a.data.order - b.data.order);
 // 按分类分组，分类的先后由组里最小的 order 决定
 const groups = [...new Set(algos.map((a) => a.data.category))].map((c) => ({ name: c, items: algos.filter((a) => a.data.category === c) }));
 const base = import.meta.env.BASE_URL;
+const t = translator(loadDict());
+/** 卡片上的文字在各关自己的语言文件里 */
+const tt = (slug: string, key: string) => translator(loadDict(slug))(key);
 ---
 
-<Base title="算法小故事" nav="home">
+<Base title={t('site.name')} nav="home">
   <header class="mast">
-    <h1>算法小故事</h1>
-    <p class="lede">每个算法是一个小关卡：先看懂，再在玩的过程中练会。孩子玩到懂规则就停，大人继续练到能亲手写出来。</p>
+    <h1>{t('site.name')}</h1>
+    <p class="lede">{t('home.lede')}</p>
   </header>
 
   <section class="panel">
-    <h2>每关四步</h2>
+    <h2>{t('home.stages')}</h2>
     <div class="tiers">
       {STAGES.map((l) => (
-        <div class="tier"><b>{STAGE_INFO[l].icon} {STAGE_INFO[l].name} · {STAGE_INFO[l].who}</b><span>{STAGE_INFO[l].how}</span></div>
+        <div class="tier"><b>{STAGE_ICON[l]} {t('stage.' + l + '.name')} · {t('stage.' + l + '.who')}</b><span>{t('stage.' + l + '.how')}</span></div>
       ))}
     </div>
   </section>
 
   {groups.map((g) => (
   <section class="panel">
-    <h2>{g.name}</h2>
+    <h2>{t('category.' + g.name)}</h2>
     <div class="cards">
       {g.items.map((a) => (
         <a class="card" href={base + 'algo/' + a.id + '/'}>
-          <span class="t">{a.data.title}</span>
-          <span class="s">{a.data.storyTitle}：{a.data.summary}</span>
+          <span class="t">{tt(a.id, 'meta.title')}</span>
+          <span class="s">{tt(a.id, 'meta.storyTitle')}：{tt(a.id, 'meta.summary')}</span>
           <span class="badges">
-            {STAGES.map((l) => <span class={'badge' + (a.data.stages.includes(l) ? ' on' : '')}>{STAGE_INFO[l].name}</span>)}
+            {STAGES.map((l) => <span class={'badge' + (a.data.stages.includes(l) ? ' on' : '')}>{t('stage.' + l + '.name')}</span>)}
           </span>
         </a>
       ))}
@@ -42,5 +47,5 @@ const base = import.meta.env.BASE_URL;
   </section>
   ))}
 
-  <p class="small-note">更多候选算法见 <a href="https://github.com/YuY-QK/algorithm-stories/blob/main/docs/algorithm-catalog.md">算法清单</a>。大人的「亲手写」练习在 <a href="https://github.com/YuY-QK/algorithm-stories/tree/main/exercises">exercises/</a>。</p>
+  <p class="small-note" set:html={toHtml(t('home.more'))} />
 </Base>

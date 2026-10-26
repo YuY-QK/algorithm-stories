@@ -1,9 +1,10 @@
 {
-  "title": "广度优先搜索",
-  "storyTitle": "小老鼠走迷宫",
-  "category": "搜索与图",
-  "stages": ["look", "play", "do", "more"],
-  "lede": "像水波一样，一圈一圈往外找，第一次碰到奶酪就是最近的路。孩子当水波涂格子，大人一路练到亲手写出队列版 BFS。",
-  "summary": "从小老鼠出发一圈圈往外扩：1 步能到的、2 步能到的……碰到奶酪时，倒着走回去就是最短路。",
+  "category": "graph",
+  "stages": [
+    "look",
+    "play",
+    "do",
+    "more"
+  ],
   "order": 20
 }

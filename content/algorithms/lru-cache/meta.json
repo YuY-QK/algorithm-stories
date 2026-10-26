@@ -1,9 +1,10 @@
 {
-  "title": "LRU 缓存",
-  "storyTitle": "书桌上的五本书",
-  "category": "工程常用",
-  "stages": ["look", "play", "do", "more"],
-  "lede": "书桌放不下了，就把最久没碰的那本放回书架。孩子帮管理员挑书，大人一路练到用哈希表加双向链表写出 O(1) 的 LRU。",
-  "summary": "书桌只放得下 4 本，满了就放回最久没碰的那一本。",
+  "category": "engineering",
+  "stages": [
+    "look",
+    "play",
+    "do",
+    "more"
+  ],
   "order": 60
 }

@@ -3,6 +3,7 @@ import { play } from './sound';
 import { MANUAL, SPEEDS } from './timing';
 
 export interface Speed {
+  /** 语言文件里的键，如 speed.slow */
   label: string;
   ms: number;
 }

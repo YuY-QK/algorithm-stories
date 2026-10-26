@@ -9,10 +9,10 @@ export const MANUAL = 0;
 
 /** 逐步执行、找 bug 的速度档（毫秒/步，默认「中」）。ms 为 0 表示「手动」：点一下走一步，不自动播放 */
 export const SPEEDS: Speed[] = [
-  { label: '慢', ms: 2200 },
-  { label: '中', ms: 1500 },
-  { label: '快', ms: 700 },
-  { label: '手动', ms: MANUAL },
+  { label: 'speed.slow', ms: 2200 },
+  { label: 'speed.mid', ms: 1500 },
+  { label: 'speed.fast', ms: 700 },
+  { label: 'speed.manual', ms: MANUAL },
 ];
 
 /** 绘本自动翻页的间隔（毫秒） */

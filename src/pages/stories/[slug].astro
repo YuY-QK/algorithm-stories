@@ -1,6 +1,7 @@
 ---
 import { getCollection, getEntry, render } from 'astro:content';
 import Base from '../../layouts/Base.astro';
+import { loadDict, translator } from '../../i18n/load';
 
 export async function getStaticPaths() {
   const all = await getCollection('stories');
@@ -11,12 +12,13 @@ const { story } = Astro.props;
 const meta = await getEntry('algorithms', story.id);
 const { Content } = await render(story);
 const base = import.meta.env.BASE_URL;
-const title = meta ? meta.data.title + '：' + meta.data.storyTitle : story.id;
+const t = translator(loadDict(story.id));
+const title = meta ? t('stories.title', { title: t('meta.title'), storyTitle: t('meta.storyTitle') }) : story.id;
 ---
 
-<Base title={title} description={meta?.data.summary} nav="stories">
+<Base title={title} description={meta ? t('meta.summary') : undefined} nav="stories" slug={story.id}>
   <article class="prose">
     <Content />
   </article>
-  <a class="btn primary cta" href={base + 'algo/' + story.id + '/'}>去玩一玩{meta ? meta.data.title : ''}演示</a>
+  <a class="btn primary cta" href={base + 'algo/' + story.id + '/'}>{t('stories.cta', { title: meta ? t('meta.title') : '' })}</a>
 </Base>

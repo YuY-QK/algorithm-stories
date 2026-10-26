@@ -1,14 +1,10 @@
 {
-  "title": "顺序查找",
-  "storyTitle": "一个个开箱子找小熊",
-  "category": "查找",
+  "category": "search",
   "stages": [
     "look",
     "play",
     "do",
     "more"
   ],
-  "lede": "从第一个开始，一个一个看，找到就停。孩子开箱子找小熊，大人一路练到亲手写出哨兵版。",
-  "summary": "8 个玩具箱，从第 1 个开始一个个开，最坏要开 8 次。",
   "order": 0
 }

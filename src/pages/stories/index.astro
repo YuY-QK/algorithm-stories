@@ -1,22 +1,26 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
+import { loadDict, translator } from '../../i18n/load';
 
 const algos = (await getCollection('algorithms')).sort((a, b) => a.data.order - b.data.order);
 const base = import.meta.env.BASE_URL;
+const t = translator(loadDict());
+/** 卡片上的文字在各关自己的语言文件里 */
+const tt = (slug: string, key: string) => translator(loadDict(slug))(key);
 ---
 
-<Base title="故事集" nav="stories">
+<Base title={t('nav.stories')} nav="stories">
   <header class="mast">
-    <h1>故事集</h1>
-    <p class="lede">每个算法一个小故事。读完故事，再去演示里亲手试一试。</p>
+    <h1>{t('nav.stories')}</h1>
+    <p class="lede">{t('stories.lede')}</p>
   </header>
   <div class="cards">
     {algos.map((a) => (
       <a class="card" href={base + 'stories/' + a.id + '/'}>
-        <span class="s">{a.data.title}</span>
-        <span class="t">{a.data.storyTitle}</span>
-        <span class="s">{a.data.summary}</span>
+        <span class="s">{tt(a.id, 'meta.title')}</span>
+        <span class="t">{tt(a.id, 'meta.storyTitle')}</span>
+        <span class="s">{tt(a.id, 'meta.summary')}</span>
       </a>
     ))}
   </div>

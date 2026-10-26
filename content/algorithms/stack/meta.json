@@ -1,9 +1,10 @@
 {
-  "title": "栈",
-  "storyTitle": "小熊叠盘子",
-  "category": "数据结构",
-  "stages": ["look", "play", "do", "more"],
-  "lede": "后放的先拿，先放的后拿。孩子帮小熊拿盘子、拼积木，大人一路练到用栈判断括号配对。",
-  "summary": "盘子一个个叠上去，只能从最上面拿：最后放的最先拿到。",
+  "category": "structure",
+  "stages": [
+    "look",
+    "play",
+    "do",
+    "more"
+  ],
   "order": 10
 }

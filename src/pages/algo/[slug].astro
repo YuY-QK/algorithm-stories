@@ -12,4 +12,4 @@ const Demo = DEMOS[algo.id];
 if (!Demo) throw new Error('content/algorithms/' + algo.id + ' 还没有在 src/demos/index.ts 登记演示页');
 ---
 
-<Demo slug={algo.id} title={algo.data.title} lede={algo.data.lede} />
+<Demo slug={algo.id} />
