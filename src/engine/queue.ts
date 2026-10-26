@@ -554,7 +554,7 @@ export const BUGS: readonly Bug[] = [
       { kind: 'poll' },
     ],
     expect: '第 5 个 offer 时已经满了，应该返回 false；之后的 poll 应该返回最早来的 11',
-    explain: 'size 永远不会超过容量，size > items.size 一直是假，满了也照样写。tail 绕回来正好落在 head 上，把还没出队的 11 盖掉了。满的条件是 size == items.size。',
+    explain: '装满时 size == 容量，size > items.size 仍是假，所以第 5 个人照样被写进去。tail 绕回来正好落在 head 上，把还没出队的 11 盖掉了。满的条件是 size == items.size。',
   },
 ];
 

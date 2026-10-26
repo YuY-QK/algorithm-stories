@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { PICK_N, dealLine, isBalanced, medianIdx, splitOf, stars, type Kind, type Split } from '../../engine/quick-sort';
 import Lineup from './Lineup.vue';
+import { play } from '../../components/shared/sound';
 
 // 玩法二「挑个好标杆」：九位同学，孩子点一位当标杆，立刻看到左右各站了几个人。
 // 一边挤、一边空就再换一位；试两次还没找到时，正中间那位会透出光。三回合，最后自己发现：标杆身高在中间，两边最均匀。
@@ -53,9 +54,11 @@ function pickKid(id: number) {
   split.value = s;
   if (isBalanced(s, PICK_N)) {
     phase.value = 'good';
+    play('right');
     say.value = '🎉 矮的 ' + s.left + ' 人在左边，高的 ' + s.right + ' 人在右边，分得真均匀！';
   } else {
     phase.value = 'bad';
+    play('wrong');
     bad.value++;
     tries.value++;
     say.value = Math.min(s.left, s.right) === 0
@@ -71,6 +74,7 @@ function retry() {
 function nextRound() {
   if (round.value >= ROUNDS) {
     phase.value = 'end';
+    play('win');
     say.value = '🏅 三回合都过关！';
     return;
   }

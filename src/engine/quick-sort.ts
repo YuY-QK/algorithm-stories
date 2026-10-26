@@ -71,7 +71,7 @@ export function lookFrames(values: number[]): StoryFrame[] {
     placed[p] = true;
     const done = values.map((_, k) => (k < lo || k > hi ? (placed[k] ? 'placed' : 'dim') : k === p ? 'placed' : k < p ? 'low' : 'high')) as Kind[];
     if (top) {
-      push('都问完啦！标杆换到中间：左边都比它矮，右边都比它高，它不用再动了 ✨', done);
+      push('问完啦！标杆站到中间，不用再动 ✨', done);
       push('左右两队，各自再选一位标杆 🚩', values.map((_, k) => (placed[k] ? 'placed' : 'plain')));
     } else {
       const len = hi - lo + 1;

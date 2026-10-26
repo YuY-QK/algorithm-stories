@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { callTree, flatten, memoCalls, naiveCalls, twinOf, ways, type CallNode } from '../../engine/dynamic-programming';
 import { SHAKE_MS } from '../../components/shared/timing';
 import { useStageStop } from '../../components/shared/usePlayer';
+import { play } from '../../components/shared/sound';
 import CallTree from './CallTree.vue';
 
 // 玩法二「便签有多省事」：不用便签，每个圆圈都要重新算一遍；孩子点出「前面已经算过」的圆圈，
@@ -43,13 +44,16 @@ function pick(node: CallNode) {
     misses.value = 0;
     if (found.value.length === lookups.value.length) {
       phase.value = 'explore';
+      play('win');
       say.value = '🎉 贴了便签，灰色的圆圈都不用算了！' + naive.value + ' 次算成了 ' + memo.value + ' 次';
     } else {
+      play('right');
       say.value = '📝 对！第 ' + node.n + ' 级前面算过了，直接抄便签。还有吗？';
     }
     return;
   }
   misses.value++;
+  play('wrong');
   shakeId.value = null;
   requestAnimationFrame(() => (shakeId.value = node.id));
   timers.push(setTimeout(() => (shakeId.value = null), SHAKE_MS));
@@ -72,6 +76,7 @@ function pick(node: CallNode) {
 function higher() {
   if (n.value >= MAX) return;
   n.value++;
+  play('tick');
   say.value = '🪜 爬到第 ' + n.value + ' 级：不用便签 ' + naive.value + ' 次，用便签 ' + memo.value + ' 次';
 }
 

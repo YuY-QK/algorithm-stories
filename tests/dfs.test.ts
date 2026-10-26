@@ -318,6 +318,9 @@ describe('DFS 做：猜下一步', () => {
       const m = parseMaze(genPredict(seeded(i)));
       for (const q of rounds(m)) {
         expect(q.why.startsWith('不对，')).toBe(true);
+        expect(q.ask).toContain('探险家刚走进');
+        expect(q.right.length).toBeGreaterThan(0);
+        expect(q.endNote.length).toBeGreaterThan(0);
         if (q.answer.kind === 'end') expect(q.why).toContain('宝藏');
         else {
           expect(q.why).toContain('上、右、下、左');

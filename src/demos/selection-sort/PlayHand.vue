@@ -6,6 +6,7 @@ import {
 } from '../../engine/selection-sort';
 import Candies from './Candies.vue';
 import CandyPair from './CandyPair.vue';
+import { play } from '../../components/shared/sound';
 import { PAUSE_NOTE } from '../../components/shared/timing';
 import { useStageStop } from '../../components/shared/usePlayer';
 
@@ -42,6 +43,7 @@ function answer(c: HandChoice) {
   const n = handStep(s.value, c);
   if (!n) {
     mistakes.value++;
+    play('wrong');
     glow.value = null;
     requestAnimationFrame(() => (glow.value = handNeed(s.value) === 'take' ? 'r' : 'l'));
     say.value = '🤔 小熊只要小的，哪颗更小？';
@@ -49,11 +51,13 @@ function answer(c: HandChoice) {
   }
   glow.value = null;
   s.value = n;
+  play('right');
   if (handRoundOver(n)) {
     busy.value = true;
     say.value = '👐 看完啦！手里的就是最小的';
     later(() => {
       s.value = handPlace(s.value);
+      play(s.value.done ? 'win' : 'tick');
       say.value = s.value.done ? '🎉 排好啦！最后一颗不用挑' : '🔄 放到最前面。下一轮，再拿起第一颗';
       later(() => {
         busy.value = false;

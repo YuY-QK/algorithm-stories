@@ -9,7 +9,7 @@ defineProps<{ player: Player }>();
   <div class="transport">
     <button type="button" class="btn small" :disabled="player.atStart.value" @click="player.reset()">重置</button>
     <button type="button" class="btn small" :disabled="player.atStart.value" @click="player.prev()">上一步</button>
-    <button type="button" class="btn small primary" @click="player.toggle()">{{ player.playing.value ? '暂停' : '播放' }}</button>
+    <button type="button" class="btn small primary" @click="player.toggle()">{{ player.manual.value ? '走一步' : player.playing.value ? '暂停' : '播放' }}</button>
     <button type="button" class="btn small" :disabled="player.atEnd.value" @click="player.next()">下一步</button>
     <slot />
     <label class="speed">速度

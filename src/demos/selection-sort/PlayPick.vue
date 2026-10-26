@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { KID_N, genCandies, minFrom, stars, swapAt } from '../../engine/selection-sort';
 import Candies from './Candies.vue';
 import CandyPair from './CandyPair.vue';
+import { play } from '../../components/shared/sound';
 import { PAUSE_SHORT } from '../../components/shared/timing';
 import { useStageStop } from '../../components/shared/usePlayer';
 
@@ -48,17 +49,20 @@ function wiggle(k: number) {
 function tap(k: number) {
   if (phase.value === 'last') {
     wiggle(k);
+    play('wrong');
     return;
   }
   if (phase.value !== 'pick') return;
   if (k < i.value) {
     wiggle(k);
+    play('wrong');
     say.value = '🍽️ 盘子上的已经排好啦，看后面的';
     return;
   }
   const m = minFrom(a.value, i.value);
   if (k !== m) {
     mistakes.value++;
+    play('wrong');
     pulse.value = null;
     // 并排时按在队伍里的先后放，不让位置泄露答案
     pair.value = { tapped: k, min: m, left: k < m ? 'tapped' : 'min' };
@@ -67,12 +71,14 @@ function tap(k: number) {
     return;
   }
   pulse.value = null;
+  play('right');
   phase.value = 'moving';
   bear.value = k;
   glow.value = k;
   say.value = k === i.value ? '👍 ' + a.value[k] + ' 号最小，已经在最前面啦，不用换' : '🐻 ' + a.value[k] + ' 号最小，换到最前面去 🔄';
   later(() => {
     glow.value = null;
+    play('tick');
     a.value = swapAt(a.value, i.value, k);
     bear.value = i.value;
     i.value++;
@@ -95,10 +101,12 @@ function pickInPair(side: 'l' | 'r') {
   const who = side === 'l' ? p.left : p.left === 'tapped' ? 'min' : 'tapped';
   if (who === 'tapped') {
     pairShake.value = [side, (pairShake.value?.[1] ?? 0) + 1];
+    play('wrong');
     return;
   }
   pair.value = null;
   phase.value = 'pick';
+  play('right');
   pulse.value = p.min;
   say.value = '👀 就是它！在队伍里点它';
 }
@@ -107,11 +115,13 @@ function answerLast(need: boolean) {
   if (phase.value !== 'last') return;
   if (need) {
     wiggle(a.value.length - 1);
+    play('wrong');
     say.value = '👀 数一数，剩下几颗？';
     return;
   }
   i.value = a.value.length;
   phase.value = 'done';
+  play('win');
   say.value = '🎉 排好啦！从小到大';
 }
 

@@ -6,11 +6,13 @@
 
 ## 已完成
 
-共 13 关，每关都有看、玩、做、延伸四步，点名字直接玩。
+共 15 关，每关都有看、玩、做、延伸四步，点名字直接玩。
 
 | 分类 | 算法 | 故事 |
 |---|---|---|
+| 查找 | [顺序查找](https://yuy-qk.github.io/algorithm-stories/algo/linear-search/) | 一个个开箱子找小熊 |
 | 查找 | [二分查找](https://yuy-qk.github.io/algorithm-stories/algo/binary-search/) | 小邮差找信箱 |
+| 查找 | [哈希查找](https://yuy-qk.github.io/algorithm-stories/algo/hash-lookup/) | 图书馆直接走到书架 |
 | 排序 | [冒泡排序](https://yuy-qk.github.io/algorithm-stories/algo/bubble-sort/) | 排队拍合照 |
 | 排序 | [选择排序](https://yuy-qk.github.io/algorithm-stories/algo/selection-sort/) | 小熊排糖果 |
 | 排序 | [插入排序](https://yuy-qk.github.io/algorithm-stories/algo/insertion-sort/) | 小熊理纸牌 |

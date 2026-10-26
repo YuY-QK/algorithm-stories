@@ -5,6 +5,7 @@ import {
 } from '../../engine/dynamic-programming';
 import { PAUSE_LONG, PAUSE_MID, PAUSE_SHORT, SHAKE_MS } from '../../components/shared/timing';
 import { useStageStop } from '../../components/shared/usePlayer';
+import { play } from '../../components/shared/sound';
 import Stairs from './Stairs.vue';
 
 // 玩法一「数跳法」：先自己点出第 1～3 级的所有跳法，再看着便签猜第 4～6 级该写几。
@@ -96,20 +97,24 @@ function hop(h: 1 | 2) {
   if (busy.value || !finding.value || levelDone.value) return;
   if (!canHop(level.value, path.value, h)) {
     buzz('h' + h);
+    play('wrong');
     say.value = '🙈 已经跳到第 ' + pathSum(path.value) + ' 级，再跳 ' + h + ' 级就超过第 ' + level.value + ' 级了，换一种试试';
     return;
   }
   path.value = [...path.value, h];
+  play('tap');
   if (pathSum(path.value) < level.value) return;
   // 跳到了
   busy.value = true;
   const key = pathKey(path.value);
   if (found.value.some((p) => pathKey(p) === key)) {
+    play('wrong');
     say.value = '👀 ' + path.value.join(' + ') + ' 这种跳法已经有啦，换一种';
     later(() => { path.value = []; busy.value = false; }, PAUSE_LONG);
     return;
   }
   found.value = [...found.value, path.value];
+  play('right');
   if (found.value.length === total.value) {
     levelDone.value = true;
     notes.value = notes.value.map((v, i) => (i === level.value ? total.value : v));
@@ -127,10 +132,12 @@ function choose(v: number) {
     levelDone.value = true;
     notes.value = notes.value.map((x, i) => (i === level.value ? v : x));
     glow.value = [];
+    play('right');
     say.value = '🎉 ' + ways(level.value - 1) + ' + ' + ways(level.value - 2) + ' = ' + v + '！';
     return;
   }
   wrongs.value++;
+  play('wrong');
   levelWrongs.value++;
   tried.value = [...tried.value, v];
   buzz('o' + v);
@@ -145,6 +152,7 @@ function next() {
   if (!levelDone.value) return;
   if (li.value >= LEVELS.length - 1) {
     allDone.value = true;
+    play('win');
     say.value = '🌟 你发现啦！每一级的数，都是下面两级的数加起来';
     return;
   }

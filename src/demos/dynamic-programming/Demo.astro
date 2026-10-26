@@ -1,5 +1,6 @@
 ---
 import AlgoLayout from '../../layouts/AlgoLayout.astro';
+import Block from '../../components/shared/Block.astro';
 import LogCompare from '../../components/shared/LogCompare.astro';
 import CodePanel from '../../components/shared/CodePanel.vue';
 import { memoCalls, naiveCalls } from '../../engine/dynamic-programming';
@@ -50,85 +51,98 @@ const SLIM_CODE = [
 
 <AlgoLayout {...Astro.props}>
   <Fragment slot="look">
-    <LookStory client:only="vue" />
+    <Block icon="📖" title="小兔爬台阶" intro="一页一页翻，看小兔怎么数出跳法。">
+      <LookStory client:only="vue" />
+    </Block>
   </Fragment>
 
   <Fragment slot="play">
-    <h2>🐰 数跳法</h2>
-    <PlayCount client:only="vue" />
+    <Block icon="🐰" title="数跳法">
+      <PlayCount client:only="vue" />
+    </Block>
 
-    <h2>📝 便签有多省事</h2>
-    <PlayNotes client:only="vue" />
+    <Block icon="📝" title="便签有多省事">
+      <PlayNotes client:only="vue" />
+    </Block>
   </Fragment>
 
   <Fragment slot="do">
-    <h2>① 先看一遍</h2>
-    <p class="story">自底向上填表：<code>dp[i]</code> 是到第 i 级的跳法数。每一步对应右边 Kotlin 代码的一行，高亮行是正在执行的那一行。</p>
-    <DoTrace client:only="vue" />
+    <Block icon="①" title="先看一遍">
+      <p class="story">自底向上填表：<code>dp[i]</code> 是到第 i 级的跳法数。每一步对应右边 Kotlin 代码的一行，高亮行是正在执行的那一行。</p>
+      <DoTrace client:only="vue" />
+    </Block>
 
-    <h2>② 猜下一步</h2>
-    <p class="story">每一格先点出它是从哪两格来的，再选它的值。连对 5 次过关。</p>
-    <DoPredict client:only="vue" />
+    <Block icon="②" title="猜下一步" intro="每一格先点出它是从哪两格来的，再选它的值。连对 5 次过关。">
+      <DoPredict client:only="vue" />
+    </Block>
 
-    <h2>③ 找 bug</h2>
-    <p class="story">写动态规划最常见的三个坑：初始值、循环起点、数组大小。每段代码只错了一行：先播放，看它怎么跑错，再点出错的那一行。</p>
-    <DoBug client:only="vue" />
+    <Block icon="③" title="找 bug" intro="写动态规划最常见的三个坑：初始值、循环起点、数组大小。每段代码只错了一行：先播放，看它怎么跑错，再点出错的那一行。">
+      <DoBug client:only="vue" />
+    </Block>
 
-    <h2>④ 亲手写</h2>
-    <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">DynamicProgramming.kt</code> 里的三个 <code class="path">TODO()</code> 换成你的代码：</p>
-    <ul class="pits">
-      <li><code>climbStairs(n)</code>：到第 n 级有几种跳法，结果用 <code>Long</code>。先想清楚 dp[i] 表示什么，再想起点。</li>
-      <li><code>minCostClimbing(cost)</code>：站在每一级往上跳要付体力，从第 0 或第 1 级出发，最少付多少到楼顶。和爬楼梯很像，只是把「加」换成「取小的」。</li>
-      <li><code>uniquePathsWithObstacles(grid)</code>：网格里有石头，从左上走到右下有几条路。表从一维变成二维，下面的挑战就是它。</li>
-    </ul>
-    <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
-    <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'dp.*'</span></div></pre></div>
+    <Block icon="④" title="亲手写">
+      <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">DynamicProgramming.kt</code> 里的三个 <code class="path">TODO()</code> 换成你的代码：</p>
+      <ul class="pits">
+        <li><code>climbStairs(n)</code>：到第 n 级有几种跳法，结果用 <code>Long</code>。先想清楚 dp[i] 表示什么，再想起点。</li>
+        <li><code>minCostClimbing(cost)</code>：站在每一级往上跳要付体力，从第 0 或第 1 级出发，最少付多少到楼顶。和爬楼梯很像，只是把「加」换成「取小的」。</li>
+        <li><code>uniquePathsWithObstacles(grid)</code>：网格里有石头，从左上走到右下有几条路。表从一维变成二维，下面的挑战就是它。</li>
+      </ul>
+      <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
+      <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'dp.*'</span></div></pre></div>
+    </Block>
 
-    <h2>⑤ 挑战</h2>
-    <DoChallenge client:only="vue" />
+    <Block icon="⑤" title="挑战">
+      <DoChallenge client:only="vue" />
+    </Block>
   </Fragment>
 
   <Fragment slot="more">
-    <h2>什么问题适合动态规划</h2>
-    <p class="story">要同时有两个特点：</p>
-    <ul class="pits">
-      <li><b>重叠子问题</b>：大问题拆成的小问题，会一遍又一遍地重复出现。爬 6 级时，「到第 2 级」被问了好几次，贴一张便签就不用重算。</li>
-      <li><b>最优子结构</b>：大问题的答案，可以由小问题的答案拼出来。到第 6 级的跳法数 = 到第 5 级的 + 到第 4 级的。</li>
-    </ul>
-    <p class="story">做法就三步：定义 <code>dp[i]</code> 表示什么；写出 <code>dp[i]</code> 怎么由前面的格子算出来；定好起点。</p>
+    <Block icon="🧩" title="什么问题适合动态规划">
+      <p class="story">要同时有两个特点：</p>
+      <ul class="pits">
+        <li><b>重叠子问题</b>：大问题拆成的小问题，会一遍又一遍地重复出现。爬 6 级时，「到第 2 级」被问了好几次，贴一张便签就不用重算。</li>
+        <li><b>最优子结构</b>：大问题的答案，可以由小问题的答案拼出来。到第 6 级的跳法数 = 到第 5 级的 + 到第 4 级的。</li>
+      </ul>
+      <p class="story">做法就三步：定义 <code>dp[i]</code> 表示什么；写出 <code>dp[i]</code> 怎么由前面的格子算出来；定好起点。</p>
+    </Block>
 
-    <h2>为什么快</h2>
-    <p class="story">不记便签，每个小问题会被反复重算，次数大约每高一级翻一倍；记了便签，每一级只算一次，只要大约 2n 次。</p>
-    <LogCompare rows={rows} />
-    <p class="small-note">条形长度用对数刻度绘制，否则记便签的条会窄到看不见。数字是 ways(n) 被调用的次数：不记便签是 2·ways(n) − 1（30 级就超过 269 万次），记了便签是 2n − 1。</p>
+    <Block icon="⚡" title="为什么快">
+      <p class="story">不记便签，每个小问题会被反复重算，次数大约每高一级翻一倍；记了便签，每一级只算一次，只要大约 2n 次。</p>
+      <LogCompare rows={rows} />
+      <p class="small-note">条形长度用对数刻度绘制，否则记便签的条会窄到看不见。数字是 ways(n) 被调用的次数：不记便签是 2·ways(n) − 1（30 级就超过 269 万次），记了便签是 2n − 1。</p>
+    </Block>
 
-    <h2>两种写法：记忆化和填表</h2>
-    <ul class="pits">
-      <li><b>自顶向下（记忆化）</b>：照着递归写，只是每次算完先记下来，再问到就直接抄。想到什么写什么，不需要先想好顺序。</li>
-      <li><b>自底向上（填表）</b>：从最小的问题开始，一格一格往后填，就是「做」里的 <code>climbStairs</code>。没有递归，不怕栈太深，也容易再省空间。</li>
-    </ul>
-    <CodePanel lines={MEMO_CODE} active={0} lang="KOTLIN" />
+    <Block icon="🔀" title="两种写法：记忆化和填表">
+      <ul class="pits">
+        <li><b>自顶向下（记忆化）</b>：照着递归写，只是每次算完先记下来，再问到就直接抄。想到什么写什么，不需要先想好顺序。</li>
+        <li><b>自底向上（填表）</b>：从最小的问题开始，一格一格往后填，就是「做」里的 <code>climbStairs</code>。没有递归，不怕栈太深，也容易再省空间。</li>
+      </ul>
+      <CodePanel lines={MEMO_CODE} active={0} lang="KOTLIN" />
+    </Block>
 
-    <h2>时间 O(n)，空间还能省到 O(1)</h2>
-    <p class="story">填表要 n 步，每步只做一次加法，时间 O(n)。dp 表有 n + 2 格，空间 O(n)。可是每一格只看前面两格，更早的格子再也用不到，只留两个变量就够了，空间 O(1)：</p>
-    <CodePanel lines={SLIM_CODE} active={0} lang="KOTLIN" />
-    <p class="small-note">跳法数增长很快：第 90 级是 4.6 × 10¹⁸，第 91 级是 7.5 × 10¹⁸，已经接近 <code>Long</code> 的上限 9.2 × 10¹⁸，第 92 级就溢出了。</p>
+    <Block icon="💾" title="时间 O(n)，空间还能省到 O(1)">
+      <p class="story">填表要 n 步，每步只做一次加法，时间 O(n)。dp 表有 n + 2 格，空间 O(n)。可是每一格只看前面两格，更早的格子再也用不到，只留两个变量就够了，空间 O(1)：</p>
+      <CodePanel lines={SLIM_CODE} active={0} lang="KOTLIN" />
+      <p class="small-note">跳法数增长很快：第 90 级是 4.6 × 10¹⁸，第 91 级是 7.5 × 10¹⁸，已经接近 <code>Long</code> 的上限 9.2 × 10¹⁸，第 92 级就溢出了。</p>
+    </Block>
 
-    <h2>它就是斐波那契</h2>
-    <p class="story">1、1、2、3、5、8、13 …… 这一串数就是斐波那契数列：到第 n 级的跳法数是第 n + 1 个斐波那契数。每一项等于前两项之和。斐波那契本身也是最简单的动态规划例子。</p>
+    <Block icon="🐚" title="它就是斐波那契" intro="1、1、2、3、5、8、13 …… 这一串数就是斐波那契数列：到第 n 级的跳法数是第 n + 1 个斐波那契数。每一项等于前两项之和。斐波那契本身也是最简单的动态规划例子。">
+    </Block>
 
-    <h2>和贪心的关系</h2>
-    <p class="story">贪心只看眼前，选了就不回头；动态规划把所有选择的结果都记在表里，再挑最好的。<a href={base + 'algo/greedy/'}>贪心找零</a>里，面值 1、3、4 凑 6，贪心拿 4 + 1 + 1 要三枚，动态规划的表能找到 3 + 3 只要两枚。贪心失灵的地方，常常要请动态规划兜底。</p>
+    <Block icon="🤝" title="和贪心的关系">
+      <p class="story">贪心只看眼前，选了就不回头；动态规划把所有选择的结果都记在表里，再挑最好的。<a href={base + 'algo/greedy/'}>贪心找零</a>里，面值 1、3、4 凑 6，贪心拿 4 + 1 + 1 要三枚，动态规划的表能找到 3 + 3 只要两枚。贪心失灵的地方，常常要请动态规划兜底。</p>
+    </Block>
 
-    <h2>真实世界里的动态规划</h2>
-    <ul class="pits">
-      <li>文本比较（<code>diff</code>）：找出两个文件的最长公共子序列，剩下的就是增删的行。这是一张二维的 dp 表，和「挑战」里的网格是亲戚。最早的 Unix <code>diff</code> 就基于最长公共子序列（Hunt–McIlroy 算法）；今天 Git 默认的 Myers 算法解决的是同一类问题（最短编辑脚本），做法不同。</li>
-      <li>编辑距离：一个词最少改几个字母（增、删、换）能变成另一个词，用二维 dp 表算。拼写检查、模糊搜索可以用它衡量两个词有多像（各个软件实际用的做法待核实）。</li>
-      <li>基因序列比对：Needleman–Wunsch、Smith–Waterman 算法都是动态规划，生物信息学里用它比较 DNA 和蛋白质序列。</li>
-      <li>背包问题：装得下的东西里挑价值最大的，经典的 0/1 背包用 dp 表求解，时间是 O(物品数 × 容量)。</li>
-      <li>最短路径：Bellman–Ford、Floyd–Warshall 是动态规划；Dijkstra 是贪心。「走到每个点最短要多远」和「走到每一格有几条路」是同一类问题。</li>
-      <li>隐马尔可夫模型的解码（Viterbi 算法）：语音识别、词性标注、通信里的纠错解码用它，也是动态规划。</li>
-    </ul>
+    <Block icon="🌍" title="真实世界里的动态规划">
+      <ul class="pits">
+        <li>文本比较（<code>diff</code>）：找出两个文件的最长公共子序列，剩下的就是增删的行。这是一张二维的 dp 表，和「挑战」里的网格是亲戚。最早的 Unix <code>diff</code> 就基于最长公共子序列（Hunt–McIlroy 算法）；今天 Git 默认的 Myers 算法解决的是同一类问题（最短编辑脚本），做法不同。</li>
+        <li>编辑距离：一个词最少改几个字母（增、删、换）能变成另一个词，用二维 dp 表算。拼写检查、模糊搜索这类场景常用它的思路。</li>
+        <li>基因序列比对：Needleman–Wunsch、Smith–Waterman 算法都是动态规划，生物信息学里用它比较 DNA 和蛋白质序列。</li>
+        <li>背包问题：装得下的东西里挑价值最大的，经典的 0/1 背包用 dp 表求解，时间是 O(物品数 × 容量)。</li>
+        <li>最短路径：Bellman–Ford、Floyd–Warshall 是动态规划；Dijkstra 是贪心。「走到每个点最短要多远」和「走到每一格有几条路」是同一类问题。</li>
+        <li>隐马尔可夫模型的解码（Viterbi 算法）：语音识别、词性标注、通信里的纠错解码用它，也是动态规划。</li>
+      </ul>
+    </Block>
   </Fragment>
 </AlgoLayout>
 

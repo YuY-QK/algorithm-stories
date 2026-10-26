@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { KID_MAZES, judgeRingTap, parseMaze, pathTo, ringStars, waves } from '../../engine/bfs';
+import { play } from '../../components/shared/sound';
 import Maze, { type Tone } from './Maze.vue';
 
 // 玩法一「下一圈」：孩子当水波，一圈一圈涂出小老鼠走 k 步能到的格子。
@@ -47,6 +48,7 @@ function tap(id: number) {
   const j = judgeRingTap(maze.value, wv.value.dist, ring.value, painted.value, id);
   if (j === 'wall' || j === 'painted' || j === 'far') {
     shake.value = [id, (shake.value?.[1] ?? 0) + 1];
+    play('wrong');
     if (j === 'painted') {
       say.value = '👀 这一格已经亮过啦，找这一圈还没亮的格子';
       return;
@@ -62,9 +64,11 @@ function tap(id: number) {
   painted.value = new Set([...painted.value, id]);
   if (j === 'cheese') {
     done.value = true;
+    play('win');
     say.value = '🎉 第 ' + ring.value + ' 圈找到奶酪！倒着走回去，这就是最短的路';
     return;
   }
+  if (painted.value.size !== cells.value.length) play('right');
   if (painted.value.size === cells.value.length) {
     ring.value++;
     painted.value = new Set();

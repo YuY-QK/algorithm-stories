@@ -4,6 +4,7 @@ import { bracketAction, bracketEnd, bracketGame, pairOf, stars, type Action } fr
 import { useStageStop } from '../../components/shared/usePlayer';
 import { FLASH_MS } from '../../components/shared/timing';
 import Piece from './Piece.vue';
+import { play } from '../../components/shared/sound';
 
 // 玩法二「拼积木」：( [ { 是左半块，) ] } 是右半块。孩子当栈：
 // 左半块放进篮子；右半块来了，要和篮子最上面那块拼成一整块；拼不上就卡住。
@@ -47,6 +48,7 @@ function flash(which: typeof wiggle) {
 
 function hint(text: string, which: typeof wiggle) {
   misses.value++;
+  play('wrong');
   say.value = text;
   flash(which);
 }
@@ -62,6 +64,7 @@ function act(choice: Action) {
     return basket.value.length ? hint('🤔 形状一样吗？比比看', glowTop) : hint('🤔 篮子里还有积木吗？', glowBasket);
   }
   wiggle.value = glowTop.value = glowBasket.value = 0;
+  play('right');
   if (right === 'push') {
     basket.value = [...basket.value, c];
     say.value = '⬆️ ' + c + ' 是左半块，放进篮子，篮子里现在有 ' + basket.value.length + ' 块';
@@ -91,6 +94,7 @@ function finish(choice: 'clear' | 'left') {
     return right === 'clear' ? hint('🤔 看看篮子里还有吗？', glowBasket) : hint('🤔 篮子里还剩积木呢', glowBasket);
   }
   phase.value = right;
+  play(gameOver.value ? 'win' : 'right');
   say.value = right === 'clear' ? '🎉 全拼好啦，篮子空空！' : '🙅 篮子里还剩 ' + basket.value.length + ' 块没有伙伴，没拼完';
 }
 

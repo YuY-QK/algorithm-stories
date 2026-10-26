@@ -1,0 +1,106 @@
+---
+import AlgoLayout from '../../layouts/AlgoLayout.astro';
+import LogCompare from '../../components/shared/LogCompare.astro';
+import Block from '../../components/shared/Block.astro';
+import LookStory from './LookStory.vue';
+import PlayWalk from './PlayWalk.vue';
+import PlayClash from './PlayClash.vue';
+import DoTrace from './DoTrace.vue';
+import DoPredict from './DoPredict.vue';
+import DoBug from './DoBug.vue';
+import DoChallenge from './DoChallenge.vue';
+
+interface Props { slug: string; title: string; lede: string }
+
+const repo = 'https://github.com/YuY-QK/algorithm-stories/tree/main/exercises';
+
+// 平均情况：顺序查找平均大约看一半；哈希查找（装得不满、分得匀）平均只看 1 到 2 个桶，这里按 2 画
+const rows = [10, 1000, 1000000].map((n) => ({
+  label: n.toLocaleString('en-US'),
+  unit: '本书',
+  bars: [
+    { name: '顺序', value: n / 2, tone: 'muted' as const, approx: true },
+    { name: '哈希', value: 2, tone: 'accent' as const, approx: true },
+  ],
+}));
+---
+
+<AlgoLayout {...Astro.props}>
+  <Fragment slot="look">
+    <Block icon="📖" title="图书馆直接走到书架" intro="一页一页翻，看管理员怎么一步走到书架。">
+      <LookStory client:only="vue" />
+    </Block>
+  </Fragment>
+
+  <Fragment slot="play">
+    <Block icon="🚶" title="直接走到书架">
+      <PlayWalk client:only="vue" />
+    </Block>
+
+    <Block icon="💥" title="撞了怎么办">
+      <PlayClash client:only="vue" />
+    </Block>
+  </Fragment>
+
+  <Fragment slot="do">
+    <Block icon="①" title="先看一遍" intro="线性探测表：桶被占了就往后一格，到头回到 0 号。删除要打墓碑 ✕。每一步对应下面 Kotlin 代码的一行，高亮行是正在执行的那一行。">
+      <DoTrace client:only="vue" />
+    </Block>
+
+    <Block icon="②" title="猜下一步" intro="算桶号（负数也要落在 0 到 6）、撞了往后放（到头回绕）、查到哪个桶才能下结论。点出那个桶，连对 5 次过关。">
+      <DoPredict client:only="vue" />
+    </Block>
+
+    <Block icon="③" title="找 bug" intro="哈希表最常见的三个坑。每段代码只错了一行：先播放，看它怎么跑错，再点出错的那一行。">
+      <DoBug client:only="vue" />
+    </Block>
+
+    <Block icon="④" title="亲手写">
+      <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">hashlookup/HashLookup.kt</code> 里的 <code class="path">TODO()</code> 换成你的代码：</p>
+      <ul class="pits">
+        <li><code>ChainedIntMap</code>：链地址法。<code>put</code>（键已存在就更新）、<code>get</code>、<code>remove</code>、<code>bucketOf</code>（负数键也要在范围内）。</li>
+        <li><code>ProbedIntMap</code>：线性探测，删除打墓碑，往后走到头要回绕，表满了不能死循环。</li>
+      </ul>
+      <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
+      <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'hashlookup.*'</span></div></pre></div>
+    </Block>
+
+    <Block icon="⑤" title="挑战">
+      <DoChallenge client:only="vue" />
+    </Block>
+  </Fragment>
+
+  <Fragment slot="more">
+    <Block icon="⚡" title="为什么快">
+      <p class="story">存、取、删都先算桶号，再只看那一个桶。哈希函数分得匀、表不太满时，一个桶里平均只有一两本书，所以平均时间是 O(1)，和书有多少无关。顺序查找平均要看一半的书：</p>
+      <LogCompare rows={rows} />
+      <p class="small-note">条形长度用对数刻度绘制。哈希一行按平均看 2 个桶画，是示意，不是实测。</p>
+    </Block>
+
+    <Block icon="📉" title="最坏情况和扩容">
+      <ul class="pits">
+        <li>最坏 O(n)：所有键都撞进同一个桶，退化成顺序查找。挑战里书号有规律、书架数选得不好，就是这种样子。</li>
+        <li>负载因子 = 元素个数 ÷ 桶数。链地址法可以大于 1；线性探测必须小于 1，越接近 1 探测越长，一般装到约一半到四分之三就扩容。</li>
+        <li>扩容：容量翻倍，每个键要用新容量重新算桶号（找 bug 里的第三个坑）。一次扩容是 O(n)，但每次翻倍，摊到每次插入还是 O(1)。</li>
+        <li>哈希表不保持大小顺序，不能高效找最小最大，也不能做范围查询。要范围查询用二分查找（要求有序，O(log n)）或 B 树。</li>
+      </ul>
+    </Block>
+
+    <Block icon="🌍" title="真实世界里的哈希表">
+      <ul class="pits">
+        <li>Java 和 Kotlin/JVM 的 <code>HashMap</code>：默认容量 16、装到四分之三就扩容为 2 倍；链地址法，链太长时转成红黑树。</li>
+        <li>Redis 的键空间是一张哈希表，扩容时把搬家分散到后面的多次操作里（渐进式 rehash），免得一次卡住服务。</li>
+        <li>数据库的哈希索引只适合「等于」查询；范围查询用 B 树。哈希连接把一张表建成哈希表，再逐行去查另一张表。</li>
+        <li>缓存按键存取（LRU 缓存里的「键到节点」就是哈希表）；用 <code>HashSet</code> 去重；「两数之和」用 <code>HashMap</code> 记下见过的数，把 O(n²) 降到 O(n)。</li>
+      </ul>
+    </Block>
+
+    <Block icon="🛠️" title="Kotlin 里怎么用">
+      <p class="story">直接用标准库：<code class="path">mutableMapOf()</code>（按插入顺序遍历的 <code class="path">LinkedHashMap</code>）、<code class="path">HashMap</code>、<code class="path">HashSet</code>。键要用不可变的类型，自定义类当键时 <code class="path">equals</code> 和 <code class="path">hashCode</code> 要一起重写，<code class="path">data class</code> 会自动生成。不要依赖遍历顺序。</p>
+    </Block>
+  </Fragment>
+</AlgoLayout>
+
+<style>
+  .path { font: 500 0.9em var(--mono); background: var(--out); padding: 1px 6px; border-radius: 4px; }
+</style>

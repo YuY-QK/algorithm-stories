@@ -34,7 +34,7 @@ describe('快速排序 看：体育课排队', () => {
     expect(frames).toHaveLength(16);
     expect(frames.at(-1)!.say).toContain('14 次');
     // 第一次分区后：标杆 5 站到下标 4，左边都比它矮，右边都比它高
-    const f = frames.find((x) => x.say.includes('都问完啦'))!;
+    const f = frames.find((x) => x.say.includes('问完啦'))!;
     const h = f.order.map((id) => STORY_ROW[id]);
     expect(h[4]).toBe(5);
     expect(h.slice(0, 4).every((x) => x < 5)).toBe(true);

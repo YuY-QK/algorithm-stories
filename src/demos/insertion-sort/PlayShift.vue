@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { countChoices, dealHand, nextAction, stars, toCards } from '../../engine/insertion-sort';
 import Hand from './Hand.vue';
+import { play } from '../../components/shared/sound';
 
 // 玩法二「挪一挪」：孩子自己当小熊，一张一张地挪。
 // 只看空位左边那张：比新牌大就点它，它往右挪一格，罐子里多一枚硬币；不大就点空位，把新牌放下。
@@ -57,6 +58,7 @@ function tapCard(id: number) {
   if (phase.value !== 'play') return;
   const s = slots.value.indexOf(id);
   if (s !== hole.value - 1) {
+    play('wrong');
     wobble(id);
     hint(slots.value[hole.value - 1] ?? -1);
     say.value = hole.value === 0 ? '👀 左边没有牌了，点空位放下 ' + key.value + ' ⬇️' : '👀 先看紧挨着空位左边的那张，它和 ' + key.value + ' 比大小';
@@ -64,6 +66,7 @@ function tapCard(id: number) {
   }
   if (nextAction(row.value, hole.value, key.value) === 'drop') {
     mistakes.value++;
+    play('wrong');
     wobble(id);
     hint(-1);
     say.value = '🤔 ' + values.value[id] + ' 比 ' + key.value + ' 小，不用挪，点空位把 ' + key.value + ' 放下';
@@ -75,6 +78,7 @@ function tapCard(id: number) {
   slots.value = next;
   hole.value--;
   coins.value++;
+  play('right');
   glow.value = null;
   say.value = '🪙 ' + values.value[id] + ' 比 ' + key.value + ' 大，往右挪了一格。' + (hole.value === 0 ? '左边没有牌了，点空位放下 ' + key.value : '再看空位左边那张');
 }
@@ -83,6 +87,7 @@ function tapHole() {
   if (phase.value !== 'play') return;
   if (nextAction(row.value, hole.value, key.value) === 'shift') {
     mistakes.value++;
+    play('wrong');
     const left = slots.value[hole.value - 1]!;
     wobble(left);
     hint(left);
@@ -93,6 +98,7 @@ function tapHole() {
   next[hole.value] = i.value;
   slots.value = next;
   glow.value = null;
+  play('right');
   if (i.value + 1 >= N) {
     phase.value = 'count';
     say.value = '🎉 理好啦！罐子里有几枚 🪙？';
@@ -109,11 +115,13 @@ function answer(c: number) {
     wrongChoice.value = null;
     requestAnimationFrame(() => (wrongChoice.value = c));
     coinPulse.value = false;
+    play('wrong');
     requestAnimationFrame(() => (coinPulse.value = true));
     say.value = '🤔 一枚一枚数数看';
     return;
   }
   phase.value = 'done';
+  play('win');
   say.value = '🏅 对啦！一共挪了 ' + coins.value + ' 次';
 }
 

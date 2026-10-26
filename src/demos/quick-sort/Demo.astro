@@ -1,6 +1,7 @@
 ---
 import AlgoLayout from '../../layouts/AlgoLayout.astro';
 import LogCompare from '../../components/shared/LogCompare.astro';
+import Block from '../../components/shared/Block.astro';
 import { averageCompares, seeded } from '../../engine/quick-sort';
 import LookStory from './LookStory.vue';
 import PlayStand from './PlayStand.vue';
@@ -34,72 +35,84 @@ const rows = [
 
 <AlgoLayout {...Astro.props}>
   <Fragment slot="look">
-    <LookStory client:only="vue" />
+    <Block icon="📖" title="小动物排队">
+      <LookStory client:only="vue" />
+    </Block>
   </Fragment>
 
   <Fragment slot="play">
-    <h2>🚩 站两边</h2>
-    <PlayStand client:only="vue" />
+    <Block icon="🚩" title="站两边">
+      <PlayStand client:only="vue" />
+    </Block>
 
-    <h2>🎯 挑个好标杆</h2>
-    <PlayPick client:only="vue" />
+    <Block icon="🎯" title="挑个好标杆">
+      <PlayPick client:only="vue" />
+    </Block>
   </Fragment>
 
   <Fragment slot="do">
-    <h2>① 先看一遍</h2>
-    <p class="story">每次调用先分区：最右边的当 <code class="path">pivot</code>，<code class="path">j</code> 一路往右看，比标杆小的就让 <code class="path">i</code> 往右一格、把它换到小队末尾；最后标杆换到 <code class="path">i + 1</code> 站定，再对左右两边各调用一次。留意下面的调用栈：压下去、弹出来。</p>
-    <DoTrace client:only="vue" />
+    <Block icon="①" title="先看一遍">
+      <p class="story">每次调用先分区：最右边的当 <code class="path">pivot</code>，<code class="path">j</code> 一路往右看，比标杆小的就让 <code class="path">i</code> 往右一格、把它换到小队末尾；最后标杆换到 <code class="path">i + 1</code> 站定，再对左右两边各调用一次。留意下面的调用栈：压下去、弹出来。</p>
+      <DoTrace client:only="vue" />
+    </Block>
 
-    <h2>② 猜下一步</h2>
-    <p class="story">动画停在分区的某一刻，猜接下来会发生什么：<code class="path">j</code> 指着的数要不要换、换到哪一格，循环结束标杆落在哪，分区完又递归哪两个区间。连对 6 次过关。</p>
-    <DoPredict client:only="vue" />
+    <Block icon="②" title="猜下一步">
+      <p class="story">动画停在分区的某一刻，猜接下来会发生什么：<code class="path">j</code> 指着的数要不要换、换到哪一格，循环结束标杆落在哪，分区完又递归哪两个区间。连对 6 次过关。</p>
+      <DoPredict client:only="vue" />
+    </Block>
 
-    <h2>③ 找 bug</h2>
-    <p class="story">写快速排序最常见的三个坑。每段代码只错了一行：先播放，看它怎么跑错，再点出错的那一行。</p>
-    <DoBug client:only="vue" />
+    <Block icon="③" title="找 bug" intro="写快速排序最常见的三个坑。每段代码只错了一行：先播放，看它怎么跑错，再点出错的那一行。">
+      <DoBug client:only="vue" />
+    </Block>
 
-    <h2>④ 亲手写</h2>
-    <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">quicksort/QuickSort.kt</code> 里的三个 <code class="path">TODO()</code> 换成你的代码：</p>
-    <ul class="pits">
-      <li><code>partition(arr, lo, hi)</code>：Lomuto 分区，最后一个当标杆，返回标杆落的下标。测试检查左边都比它小、右边都不比它小、区间外没被动过。</li>
-      <li><code>quickSort(arr)</code>：原地排成升序。测试里有 3000 个已经排好的数和 3000 个全一样的数，别让它退化得太慢或栈溢出。</li>
-      <li><code>quickSelect(arr, k)</code>：第 k 小的数（k 从 1 开始），只处理有答案的那一边，平均 O(n)。测试会在 100 万个数里找中位数。</li>
-    </ul>
-    <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
-    <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'quicksort.*'</span></div></pre></div>
+    <Block icon="④" title="亲手写">
+      <p class="story">在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 <a href={repo}><code class="path">exercises/</code></a> 目录，把 <code class="path">quicksort/QuickSort.kt</code> 里的三个 <code class="path">TODO()</code> 换成你的代码：</p>
+      <ul class="pits">
+        <li><code>partition(arr, lo, hi)</code>：Lomuto 分区，最后一个当标杆，返回标杆落的下标。测试检查左边都比它小、右边都不比它小、区间外没被动过。</li>
+        <li><code>quickSort(arr)</code>：原地排成升序。测试里有 3000 个已经排好的数和 3000 个全一样的数，别让它退化得太慢或栈溢出。</li>
+        <li><code>quickSelect(arr, k)</code>：第 k 小的数（k 从 1 开始），只处理有答案的那一边，平均 O(n)。测试会在 100 万个数里找中位数。</li>
+      </ul>
+      <p class="story">写完在 <code class="path">exercises/</code> 目录运行下面的命令，测试全绿就过关：</p>
+      <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests 'quicksort.*'</span></div></pre></div>
+    </Block>
 
-    <h2>⑤ 挑战</h2>
-    <DoChallenge client:only="vue" />
+    <Block icon="⑤" title="挑战">
+      <DoChallenge client:only="vue" />
+    </Block>
   </Fragment>
 
   <Fragment slot="more">
-    <h2>快还是慢，看标杆选得好不好</h2>
-    <p class="story">每次分区要把区间里每个数和标杆比一次。标杆把区间分得越均匀，递归的层数越少：平均情况约 1.39 · n · log₂n 次比较，是 O(n log n)。最坏情况是每次标杆都是最大或最小，一层只站定一个，比较 n(n − 1)/2 次，是 O(n²)，递归也有 n 层深。下面是「已经排好」的数组，用三种办法选标杆的比较次数：</p>
-    <LogCompare rows={rows} />
-    <p class="small-note">条形长度用对数刻度绘制。固定拿最后一个，一万个有序数要比较近五千万次；随机或三数取中只要十几万次，差了两三百倍。</p>
+    <Block icon="⚡" title="快还是慢，看标杆选得好不好">
+      <p class="story">每次分区要把区间里每个数和标杆比一次。标杆把区间分得越均匀，递归的层数越少：平均情况约 1.39 · n · log₂n 次比较，是 O(n log n)。最坏情况是每次标杆都是最大或最小，一层只站定一个，比较 n(n − 1)/2 次，是 O(n²)，递归也有 n 层深。下面是「已经排好」的数组，用三种办法选标杆的比较次数：</p>
+      <LogCompare rows={rows} />
+      <p class="small-note">条形长度用对数刻度绘制。固定拿最后一个，一万个有序数要比较近五千万次；随机或三数取中只要十几万次，差了三四百倍。</p>
+    </Block>
 
-    <h2>怎么躲开最坏情况</h2>
-    <ul class="pits">
-      <li><b>随机标杆</b>：随机挑一个换到末尾再分区，没有哪种输入能稳定地让它退化，期望还是 O(n log n)。</li>
-      <li><b>三数取中</b>：取区间最左、正中、最右三个数的中位数当标杆，对已经有序或倒序的数组正好选到中间。</li>
-      <li><b>先递归短的一边</b>：长的一边用循环接着做，递归深度不超过 log₂n，不会栈溢出。「亲手写」的参考答案就是这样写的。</li>
-      <li><b>重复很多时</b>：Lomuto 把相等的都放到一边，全是相同的数时会退化成 O(n²)。三路分区（小于、等于、大于）一次把相等的都站定，解决这个问题。</li>
-    </ul>
+    <Block icon="🛡️" title="怎么躲开最坏情况">
+      <ul class="pits">
+        <li><b>随机标杆</b>：随机挑一个换到末尾再分区，没有哪种输入能稳定地让它退化，期望还是 O(n log n)。</li>
+        <li><b>三数取中</b>：取区间最左、正中、最右三个数的中位数当标杆，对已经有序或倒序的数组正好选到中间。</li>
+        <li><b>先递归短的一边</b>：长的一边用循环接着做，递归深度不超过 log₂n，不会栈溢出。「亲手写」的参考答案就是这样写的。</li>
+        <li><b>重复很多时</b>：Lomuto 把相等的都放到一边，全是相同的数时会退化成 O(n²)。三路分区（小于、等于、大于）一次把相等的都站定，解决这个问题。</li>
+      </ul>
+    </Block>
 
-    <h2>原地，但不稳定</h2>
-    <ul class="pits">
-      <li><b>原地</b>：只在数组里换位置，额外空间主要是递归栈，平均 O(log n)，最坏 O(n)。</li>
-      <li><b>不稳定</b>：分区时隔着很远的交换，会让相等的元素换了先后顺序。要稳定就选归并排序，或者给每个元素带上原来的位置当第二关键字。</li>
-      <li><b>缓存友好</b>：分区是顺着数组一路扫过去，访问很连续，所以实际速度通常比同样 O(n log n) 的堆排序快。</li>
-    </ul>
+    <Block icon="🧳" title="原地，但不稳定">
+      <ul class="pits">
+        <li><b>原地</b>：只在数组里换位置，额外空间主要是递归栈，平均 O(log n)，最坏 O(n)。</li>
+        <li><b>不稳定</b>：分区时隔着很远的交换，会让相等的元素换了先后顺序。要稳定就选归并排序，或者给每个元素带上原来的位置当第二关键字。</li>
+        <li><b>缓存友好</b>：分区是顺着数组一路扫过去，访问很连续，所以实际速度通常比同样 O(n log n) 的堆排序快。</li>
+      </ul>
+    </Block>
 
-    <h2>真实世界里的快速排序</h2>
-    <ul class="pits">
-      <li>Java 的 <code>Arrays.sort(int[])</code> 用的是<b>双轴快速排序</b>（Dual-Pivot Quicksort）：选两个标杆，一次分成三段。Kotlin 的 <code>IntArray.sort()</code> 在 JVM 上就是调它。长度很小的区间改用插入排序；较新的 JDK（14 起重写）递归太深时还会切换成堆排序，保住 O(n log n)。对象数组用的是稳定的 TimSort。</li>
-      <li>C++ 的 <code>std::sort</code> 常见实现是 introsort：快速排序递归太深时切换成堆排序，保住 O(n log n)，小区间收尾用插入排序。</li>
-      <li>Go 的 <code>sort</code> 包和 Rust 的 <code>sort_unstable</code> 用的是 pdqsort 一类改良快排：自动发现有序、倒序、重复很多的情况。</li>
-      <li><b>快速选择</b>是同一个分区思路：C++ 的 <code>std::nth_element</code> 就是它的实现（introselect）。只要中位数、前 k 名，不用把全部排好。</li>
-    </ul>
+    <Block icon="🌍" title="真实世界里的快速排序">
+      <ul class="pits">
+        <li>Java 的 <code>Arrays.sort(int[])</code> 用的是<b>双轴快速排序</b>（Dual-Pivot Quicksort）：选两个标杆，一次分成三段。Kotlin 的 <code>IntArray.sort()</code> 在 JVM 上就是调它。长度很小的区间改用插入排序；较新的 JDK（14 起重写）递归太深时还会切换成堆排序，保住 O(n log n)。对象数组用的是稳定的 TimSort。</li>
+        <li>C++ 的 <code>std::sort</code> 常见实现是 introsort：快速排序递归太深时切换成堆排序，保住 O(n log n)，小区间收尾用插入排序。</li>
+        <li>Go 的 <code>sort</code> 包和 Rust 的 <code>sort_unstable</code> 用的是 pdqsort 一类改良快排：自动发现有序、倒序、重复很多的情况。</li>
+        <li><b>快速选择</b>是同一个分区思路：C++ 的 <code>std::nth_element</code> 就是它的实现（introselect）。只要中位数、前 k 名，不用把全部排好。</li>
+      </ul>
+    </Block>
   </Fragment>
 </AlgoLayout>
 

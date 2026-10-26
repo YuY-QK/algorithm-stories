@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { KID_COINS, canTake, cashierAmount, cashierStars, desc, greedyNext, minCoins } from '../../engine/greedy';
+import { play } from '../../components/shared/sound';
 import Shop from './Shop.vue';
 
 // 玩法一「当收银员」：孩子一枚一枚点硬币放进找零盘。金额一开始就定好。
@@ -34,12 +35,16 @@ function tap(c: number) {
   if (done.value) return;
   if (!canTake(left.value, c)) {
     shake.value = [c, (shake.value?.[1] ?? 0) + 1];
+    play('wrong');
     say.value = '🙅 ' + c + ' 比还要找的 ' + left.value + ' 大，放进去就找多了，换小一点的';
     return;
   }
   plate.value = [...plate.value, c];
   if (left.value === 0) finish();
-  else say.value = '放进 ' + c + '，还要找 ' + left.value;
+  else {
+    play('right');
+    say.value = '放进 ' + c + '，还要找 ' + left.value;
+  }
 }
 
 function undo() {
@@ -51,6 +56,7 @@ function undo() {
 
 function finish() {
   const n = plate.value.length;
+  play('win');
   if (n <= best.value) {
     say.value = '🎉 找好啦！' + n + ' 枚，最少！';
     if (!asked.value) {
@@ -60,6 +66,11 @@ function finish() {
   } else {
     say.value = '找好啦，' + n + ' 枚。能更少吗？🤔';
   }
+}
+
+function answerQuiz(r: 'right' | 'wrong') {
+  play(r);
+  quiz.value = r;
 }
 
 function retry() {
@@ -100,9 +111,9 @@ function nextCustomer() {
       <div v-if="quiz === 'ask'" class="quiz">
         <p class="q">🤔 每次先拿哪一枚？</p>
         <div class="choices">
-          <button type="button" class="choice" aria-label="最小的" @click="quiz = 'wrong'"><span class="mini"><b class="s" /><i /><i /></span>最小的</button>
-          <button type="button" class="choice" aria-label="随便哪个" @click="quiz = 'wrong'"><span class="mini"><i /><b class="m" /><i /></span>随便哪个</button>
-          <button type="button" class="choice" aria-label="能拿的最大的" @click="quiz = 'right'"><span class="mini"><i /><i /><b class="l" /></span>能拿的最大的</button>
+          <button type="button" class="choice" aria-label="最小的" @click="answerQuiz('wrong')"><span class="mini"><b class="s" /><i /><i /></span>最小的</button>
+          <button type="button" class="choice" aria-label="随便哪个" @click="answerQuiz('wrong')"><span class="mini"><i /><b class="m" /><i /></span>随便哪个</button>
+          <button type="button" class="choice" aria-label="能拿的最大的" @click="answerQuiz('right')"><span class="mini"><i /><i /><b class="l" /></span>能拿的最大的</button>
         </div>
       </div>
       <p v-else-if="quiz === 'right'" class="q">🏅 对啦！每次都拿能拿的最大的，这就是「贪心」。</p>

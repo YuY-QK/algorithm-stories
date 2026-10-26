@@ -74,12 +74,12 @@ fun mergeSort(a: IntArray, lo: Int = 0, hi: Int = a.size) {
 
 **工程**
 
-- Java `java.util.TimSort`（已核对源码注释）：`Arrays.sort(Object[])`、`List.sort` 等对象排序使用；类注释写道它是「A stable, adaptive, iterative mergesort that requires far fewer than n lg(n) comparisons when running on partially sorted arrays」，`MIN_MERGE = 32`，不足 32 个直接二分插入排序。Kotlin 在 JVM 上对 `List` 排序（`sorted()`、`sortedBy`）最终走 `java.util.Collections.sort` / `Arrays.sort`，因此是稳定的（调用链细节待核实）。
+- Java `java.util.TimSort`（已核对源码注释）：`Arrays.sort(Object[])`、`List.sort` 等对象排序使用；类注释写道它是「A stable, adaptive, iterative mergesort that requires far fewer than n lg(n) comparisons when running on partially sorted arrays」，`MIN_MERGE = 32`，不足 32 个直接二分插入排序。Kotlin 在 JVM 上对 `List` 排序（`sorted()`、`sortedBy`）最终走 `java.util.Collections.sort` / `Arrays.sort`，因此是稳定的。`Comparable` 对象数组走 `ComparableTimSort`（逻辑与 `TimSort` 相同）。Kotlin 的 `sorted()` 是先 `toTypedArray()` 再 `sort`。
 - Java 的基本类型数组 `Arrays.sort(int[])`：双轴快排，不稳定但对基本类型无所谓（见插入排序 notes）。
 - CPython `list.sort`：Timsort（见 `Objects/listsort.txt`），作者 Tim Peters。
-- 外部排序：数据比内存大时，切成块分别排好写盘，再 k 路归并。数据库的排序操作、MapReduce 的 shuffle 排序/归并、GNU `sort` 处理大文件都使用这一思路（GNU sort 用临时文件做归并：待核实具体实现）。
-- Linux 内核 `lib/list_sort.c` 对链表用归并排序：待核实（读取源码时被限流）。
-- Rust `slice::sort`（稳定排序）：基于归并的 driftsort，自 1.81 起：待核实。
+- 外部排序：数据比内存大时，切成块分别排好写盘，再 k 路归并。数据库的排序操作、MapReduce 的 shuffle 排序/归并、GNU `sort` 处理大文件都使用这一思路（GNU sort 用临时文件做归并）。
+- Linux 内核 `lib/list_sort.c` 对链表用稳定的归并排序。
+- Rust `slice::sort`（稳定排序）：基于归并的 driftsort，自 Rust 1.81.0 起。
 
 ## 6. 关卡讲法建议
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { coord, genPredict, parseMaze, rounds, colOf, rowOf, type Round } from '../../engine/dfs';
+import { genPredict, parseMaze, rounds, colOf, rowOf, type Round } from '../../engine/dfs';
 import PredictFrame from '../../components/shared/PredictFrame.vue';
 import { useStreak } from '../../components/shared/useStreak';
 import Grid, { type Tone } from './Grid.vue';
@@ -72,7 +72,7 @@ function advance() {
 function pick(id: number) {
   const q = cur.value;
   if (phase.value === 'ask') {
-    if (q.answer.kind === 'go' && id === q.answer.to) right('走进 ' + coord(maze.value, id) + '，撒面包屑。');
+    if (q.answer.kind === 'go' && id === q.answer.to) right(q.right);
     else if (id !== q.cur) wrong();
   } else if (phase.value === 'backTo') {
     if (!q.path.includes(id) || id === q.cur) {
@@ -81,7 +81,7 @@ function pick(id: number) {
       return;
     }
     const a = q.answer;
-    if (a.kind === 'back' && a.to === id) right('退回 ' + coord(maze.value, id) + '，从它没试过的方向继续。');
+    if (a.kind === 'back' && a.to === id) right(q.right);
     else wrong();
   }
 }
@@ -91,7 +91,7 @@ function sayBack() {
   const a = cur.value.answer;
   if (a.kind !== 'back') return wrong();
   if (a.to === null) {
-    right('死路，而且所有路口都没新路了：搜索结束，返回 false。');
+    right(cur.value.right);
     return;
   }
   phase.value = 'backTo';
@@ -99,16 +99,15 @@ function sayBack() {
 
 function sayEnd() {
   if (phase.value !== 'ask') return;
-  if (cur.value.answer.kind === 'end') right('到宝藏了，return true。');
+  if (cur.value.answer.kind === 'end') right(cur.value.right);
   else wrong();
 }
 
 const prompt = computed(() => {
   const q = cur.value;
-  const here = coord(maze.value, q.cur);
-  if (phase.value === 'end') return q.isEnd ? '走到宝藏，return true，一层层往回报喜讯。' : '搜索结束，返回 false。';
-  if (phase.value === 'backTo') return '回溯：要一直退到哪个路口，那里还有没试过的方向？点那一格。';
-  return '探险家刚走进 ' + here + '，撒了面包屑。接下来呢？往前走就点它要去的格子；四边都走不通就点「回溯」。';
+  if (phase.value === 'end') return q.endNote;
+  if (phase.value === 'backTo') return q.askBack;
+  return q.ask;
 });
 </script>
 

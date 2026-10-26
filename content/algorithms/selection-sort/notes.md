@@ -37,7 +37,7 @@
 **变种**
 
 - 只做 k 轮：得到最小的 k 个（部分排序），找第 k 小，代价约 k·n 次比较。
-- 每轮同时找最小和最大，分别放到两头（双向选择排序），轮数减半，比较次数大约变成 3n²/8（待核实具体常数）。
+- 每轮同时找最小和最大，分别放到两头（双向选择排序），轮数减半，用成对比较的技巧（先把一对元素互相比，再让大的去比最大、小的去比最小）可降到约 3n²/8 次比较。
 - 用堆来「选」：堆排序（heapsort），每次取最值 O(log n)，总共 O(n log n)。
 - 链表上的选择排序：可以把选出的节点摘下来接到结果链表尾部，这样是稳定的。
 
@@ -80,5 +80,5 @@
 - Wikipedia「Heapsort」（把堆排序描述为改进的选择排序）：<https://en.wikipedia.org/wiki/Heapsort>
 - Wikipedia「Cycle sort」（写入次数最少的排序）：<https://en.wikipedia.org/wiki/Cycle_sort>
 - Donald Knuth，《计算机程序设计艺术》第 3 卷 5.2.3 节「Sorting by Selection」
-- Cormen 等，《算法导论》第 3 版练习 2.2-2 让读者写出选择排序并分析（练习编号待核实）
+- Cormen 等，《算法导论》第 3 版第 2 章的练习里有写出选择排序并分析的题目
 - J. W. J. Williams, "Algorithm 232: Heapsort", Communications of the ACM 7(6), 1964

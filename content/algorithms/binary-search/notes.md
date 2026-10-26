@@ -50,7 +50,7 @@
 
 - `git bisect`：在一串提交里二分定位是哪一次引入了 bug，几千个提交只需十几次测试。
 - 标准库：Python `bisect` 模块、Java `Arrays.binarySearch`、C++ `std::lower_bound`。
-- 数据库和存储引擎：B+ 树在每个节点内部、LSM 树（如 LevelDB、RocksDB）在有序的 SSTable 里查找键时都用二分（节点内部的具体实现可能是二分也可能是顺序扫描，待核实各引擎细节）。
+- 数据库和存储引擎：B+ 树在每个节点内部、LSM 树（如 LevelDB、RocksDB）在有序的 SSTable 里查找键时都用二分（页内的键是有序的，可以二分定位；具体引擎也可能在页内顺序扫描）。
 
 ## 6. 分级讲法建议
 

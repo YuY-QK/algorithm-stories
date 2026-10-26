@@ -6,6 +6,7 @@
 import Base from './Base.astro';
 import { STAGES } from '../content.config';
 import { STAGE_INFO } from '../stages';
+import SoundToggle from '../components/shared/SoundToggle.vue';
 
 interface Props {
   slug: string;
@@ -21,6 +22,7 @@ const first = stages[0];
 
 <Base title={title} description={lede}>
   <header class="mast">
+    <div class="sound-slot"><SoundToggle client:only="vue" /></div>
     <h1>{title}</h1>
     <p class="lede">{lede}</p>
     <div class="stages" role="tablist" aria-label="选择步骤">

@@ -38,6 +38,7 @@ fun partition(arr: IntArray, lo: Int, hi: Int): Int {
  * 想一想：测试里会给 3000 个已经排好的数，还有 3000 个全一样的数。
  * 如果每次都用最后一个当标杆，会发生什么？（网页上「挑战」那一关讲过。）可以换一个标杆再分区，
  * 比如随机挑一个，先和 arr[hi] 换一下，再调用 partition。
+ * 全相同的数需要三路分区才能躲开，这里只要不栈溢出即可。
  */
 fun quickSort(arr: IntArray) {
     TODO("写快速排序")

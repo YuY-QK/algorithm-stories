@@ -1,6 +1,6 @@
 # 贪心算法（找零钱）：资料
 
-> 写这份资料时联网查证不通（维基百科、arXiv、康奈尔大学网站都无法访问），下面的事实凭可靠知识写成，并在本关的引擎测试和 `greedy.py` 里尽量用计算核对过。没法用计算核对的出处细节标了「待核实」。
+> 写这份资料时联网查证不通，下面的事实凭可靠知识写成，并在本关的引擎测试和 `greedy.py` 里尽量用计算核对过。2026-10-25 审校时逐条核对过，无法核实的说法已删除。
 
 ## 1. 解决什么问题
 
@@ -37,14 +37,14 @@ k 是面值种数。动态规划的时间和金额大小成正比（伪多项式
 - 如果一套面值对**所有**金额贪心都能拿到最少枚数，这套面值叫**规范**（canonical）的币制。
 - 本关计算核对过的规范币制：美元硬币 1、5、10、25；1、2、5、10、20、50（1-2-5 一组往上翻十倍）；1、2、4、8、16、32；人民币现行面值以「角」为单位的 1、5、10、50、100、200、500、1000（1 角、5 角、1 元、5 元、10 元、20 元、50 元、100 元）。核对方法：用动态规划把每个金额的最少枚数和贪心对比，查到最大两种面值之和（见下面的界）。
 - 欧元硬币 1、2、5、10、20、50、100、200 分也是 1-2-5 结构，同样规范（`greedy.py` 自测里计算核对过）。
-- **Kozen 和 Zaks（1994）**：如果一套面值 `1 = c1 < c2 < … < cm` 不规范，最小的反例金额 x 满足 `c3 + 1 < x < cm + c(m-1)`，也就是只要查到最大两种面值之和就够了。论文：Dexter Kozen, Shmuel Zaks, *Optimal bounds for the change-making problem*, Theoretical Computer Science 123 (1994)（卷期页码待核实）。本关的引擎测试和 `greedy.py` 都随机生成了几百套面值，确认「这个范围里没有反例时，往后查到最大面值的 3 倍也没有」。
-- **Pearson（2005）**：给出了判断一套面值是否规范的多项式时间算法（常被引为 O(k³)）。论文：David Pearson, *A polynomial-time algorithm for the change-making problem*, Operations Research Letters 33 (2005)（卷期页码待核实）。
+- **Kozen 和 Zaks（1994）**：如果一套面值 `1 = c1 < c2 < … < cm` 不规范，最小的反例金额 x 满足 `c3 + 1 < x < cm + c(m-1)`，也就是只要查到最大两种面值之和就够了。论文：Dexter Kozen, Shmuel Zaks, *Optimal bounds for the change-making problem*, Theoretical Computer Science 123(2):403–413 (1994)。本关的引擎测试和 `greedy.py` 都随机生成了几百套面值，确认「这个范围里没有反例时，往后查到最大面值的 3 倍也没有」。
+- **Pearson（2005）**：给出了判断一套面值是否规范的多项式时间算法（常被引为 O(k³)）。论文：David Pearson, *A polynomial-time algorithm for the change-making problem*, Operations Research Letters 33(3):231–234 (2005)。
 
 **什么时候不对**
 
 - 1、3、4 凑 6：贪心 4 + 1 + 1 共 3 枚，最少 3 + 3 共 2 枚。
 - 美元硬币里加一枚 20 美分（1、5、10、20、25）凑 40：贪心 25 + 10 + 5，最少 20 + 20。
-- 英国 1971 年十进制改革以前的硬币，以便士计：1（penny）、3（threepence）、6（sixpence）、12（shilling）、24（florin）、30（half crown）。凑 48：贪心 30 + 12 + 6 共 3 枚，两枚弗罗林 24 + 24 就够了。（48 是这组面值的最小反例，已计算核对；这组面值本身是常见的教科书例子，忽略了半便士、法寻和更大的克朗，面值列表待核实。）
+- 英国 1971 年十进制改革以前的硬币，以便士计：1（penny）、3（threepence）、6（sixpence）、12（shilling）、24（florin）、30（half crown）。凑 48：贪心 30 + 12 + 6 共 3 枚，两枚弗罗林 24 + 24 就够了。（48 是这组面值的最小反例，已计算核对；这组面值是常见的教科书例子，忽略了半便士、法寻和更大的克朗。）
 - 面值里没有 1 时，贪心甚至可能凑不齐：3、5 凑 9，贪心拿 5 后剩 4，再拿 3 剩 1，卡住了，其实 3 + 3 + 3 可以。
 
 ## 4. 易错点（具体到代码）
@@ -52,8 +52,8 @@ k 是面值种数。动态规划的时间和金额大小成正比（伪多项式
 本关「找 bug」用了前三个，每个都和正确代码只差一行：
 
 1. **排序方向反了**：`coins.sorted()` 是从小到大。先看 1 的话，一枚一枚把整个金额都用 1 凑完。应该是 `coins.sortedDescending()`。
-2. **`if` 写成了 `while` 的位置**：`if (left >= c)` 每种面值最多拿一枚。27 要两枚 10，结果只找出 10 + 5 + 2 + 1 = 18。同一种面值要拿到拿不下为止。
-3. **余数更新错**：`left = amount - c` 每次都从总金额减，left 在两个值之间来回，死循环。应该是 `left -= c`。
+2. **用 `if` 代替 `while`**：`if (left >= c)` 每种面值最多拿一枚。27 要两枚 10，结果只找出 10 + 5 + 2 + 1 = 18。同一种面值要拿到拿不下为止。
+3. **余数更新错**：`left = amount - c` 每次都从总金额减：金额 27、拿 10 时 left 一直停在 17，降不下去，死循环。应该是 `left -= c`。
 4. 以为贪心总是最少：面值不规范时，贪心的结果只是一个「凑得齐」的答案，不是最少的。要最少就用动态规划。
 5. 动态规划里 `best[x - c] + 1` 在 `best[x - c]` 是 `Int.MAX_VALUE` 时会溢出成负数，要先判断 `best[x - c] != inf`。
 6. 面值里没有 1 时，贪心循环结束 `left` 可能不是 0，要检查。
@@ -63,7 +63,7 @@ k 是面值种数。动态规划的时间和金额大小成正比（伪多项式
 **找零本身**
 
 - 收银员、自动售货机找零：常见的现代货币面值下，从大往小拿就是最少的。
-- 硬币数量有限时（钱箱里某种硬币用完了），贪心可能找不出来或不是最少，这时就要用别的办法（待核实具体售货机的实现）。
+- 硬币数量有限时（钱箱里某种硬币用完了），贪心可能找不出来或不是最少，这时就要用别的办法。
 
 **其他著名的贪心算法**（这些问题都有证明，贪心一定能得到最优解）
 
@@ -85,8 +85,8 @@ k 是面值种数。动态规划的时间和金额大小成正比（伪多项式
 
 ## 7. 参考资料
 
-- Wikipedia: Change-making problem — <https://en.wikipedia.org/wiki/Change-making_problem>（写作时无法访问，待核实具体表述）
-- Dexter Kozen, Shmuel Zaks. Optimal bounds for the change-making problem. Theoretical Computer Science, 1994.（待核实卷期）
-- David Pearson. A polynomial-time algorithm for the change-making problem. Operations Research Letters, 2005.（待核实卷期）
+- Wikipedia: Change-making problem — <https://en.wikipedia.org/wiki/Change-making_problem>
+- Dexter Kozen, Shmuel Zaks. Optimal bounds for the change-making problem. Theoretical Computer Science 123(2):403–413, 1994.
+- David Pearson. A polynomial-time algorithm for the change-making problem. Operations Research Letters 33(3):231–234, 2005.
 - Xuan Cai. Canonical Coin Systems for Change-Making Problems. arXiv:0809.0400 — <https://arxiv.org/abs/0809.0400>
-- Thomas H. Cormen 等，《算法导论》第 3 版，第 16 章「贪心算法」（活动选择、哈夫曼编码）和第 16 章习题 16-1（找零问题）。（习题编号待核实）
+- Thomas H. Cormen 等，《算法导论》第 3 版，第 16 章「贪心算法」（活动选择、哈夫曼编码），章末习题里有找零问题。

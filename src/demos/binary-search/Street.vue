@@ -140,7 +140,7 @@ const left = (p: number) => (p <= 0 ? '0%' : 'calc(' + ((p - 0.5) / props.n) * 1
 }
 /* 手机上 15 个信箱挤不下：街道伸到屏幕边缘、去掉间隙，每个信箱至少 24px 宽 */
 @media (max-width: 480px) {
-  .street { width: calc(100% + 24px); max-width: none; margin-inline: -12px; }
+  .street { width: calc(100% + 2 * var(--bleed, 12px)); max-width: none; margin-inline: calc(-1 * var(--bleed, 12px)); }
   .boxes { gap: 0; }
   .box { border-radius: 8px 8px 3px 3px; }
 }

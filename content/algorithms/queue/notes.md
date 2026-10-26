@@ -39,9 +39,9 @@
 1. **下标忘了取模**：`tail = tail + 1` 或 `head = head + 1`。走到末尾后下标等于容量，下一次读写 `items[容量]` 越界（Kotlin/Java 抛 `ArrayIndexOutOfBoundsException`）。「找 bug」坑 1。
 2. **只用 `head == tail` 判断空**：空的时候 `head == tail`，装满时 `tail` 绕一圈追上 `head`，也是 `head == tail`。只看两个下标分不清空和满，满的队列会被判成空。「找 bug」坑 2。常见的三种解法：
    - 另记一个 `size`（或 `count`），本关的写法；Java 的 `ArrayBlockingQueue` 也是这样（字段 `items`、`takeIndex`、`putIndex`、`count`，见参考资料）。
-   - 故意空出一格不用：满的条件写成 `(tail + 1) % 容量 == head`。Java 的 `ArrayDeque` 就是这样，源码注释说数组「always has at least one null slot (at tail)」，`isEmpty()` 直接比较 `head == tail`。PC 的 BIOS 键盘缓冲区 16 格只能存 15 个按键，通常解释为同一个原因（待核实：没找到 IBM 原始文档，依据是 DOSBox 等模拟器的实现）。
-   - 下标一直往上加不取模，用 `tail - head` 算个数，读写时再对容量取模（容量取 2 的幂时可以用位与）。Linux 内核的 `kfifo` 用的是这种思路（待核实具体实现细节）。
-3. **满的判断差一**：写成 `size > items.size`，永远是假，满了还往里写，`tail` 正好落在 `head` 上，把最早的元素盖掉。「找 bug」坑 3。
+   - 故意空出一格不用：满的条件写成 `(tail + 1) % 容量 == head`。Java 的 `ArrayDeque` 就是这样，源码注释说数组「always has at least one null slot (at tail)」，`isEmpty()` 直接比较 `head == tail`。PC 的 BIOS 键盘缓冲区 16 格只能存 15 个按键，通常解释为同一个原因。
+   - 下标一直往上加不取模，用 `tail - head` 算个数，读写时再对容量取模（容量取 2 的幂时可以用位与）。Linux 内核的 `kfifo` 用的是这种思路：`include/linux/kfifo.h` 里 `kfifo_len` 就是 `in - out`。
+3. **满的判断差一**：写成 `size > items.size`：装满时 size == 容量，这个条件仍是假，满了还往里写，`tail` 正好落在 `head` 上，把最早的元素盖掉。「找 bug」坑 3。
 4. **出队后忘了移动 head**：每次 poll 都返回同一个元素。
 5. **以为出队要把格子清空**：对 `IntArray` 不需要，旧值留在格子里，只是已经在 `head` 后面、不算队里的了（「挑战」考的就是这一点）。存对象的队列最好置 null，免得旧对象一直被引用，不能被垃圾回收（`ArrayDeque` 出队时会把格子置 null）。
 
@@ -56,7 +56,7 @@
 - **网卡和音频**：网卡收发包用环形描述符队列（Linux 下 `ethtool -g` 可以看 RX/TX ring 的大小）；声卡播放、录音也是环形缓冲区，写的一方追着读的一方。
 - **打印队列、任务队列**：先提交的任务先执行。
 - **消息队列**：Kafka 的每个分区是一条只往后追加的日志，同一分区里按写入顺序读；读完不删除，按保留时间或大小清理。它是「队列思想」的大规模版本，不是循环数组。
-- **Android 的 Looper / MessageQueue**：主线程不停从 `MessageQueue` 取消息处理。注意它不是严格的先进先出：内部是按 `when`（该处理的时间）排序的单链表，时间相同的按放入的先后（待核实：依据对 AOSP 源码 `enqueueMessage` 的记忆，本次没能联网核对）。
+- **Android 的 Looper / MessageQueue**：主线程不停从 `MessageQueue` 取消息处理。注意它不是严格的先进先出：内部是按 `when`（该处理的时间）排序的单链表，时间相同的按放入的先后（`postAtFrontOfQueue` 是例外，会插到队头；这是传统实现）。
 - **广度优先搜索（BFS）**：用队列保证先处理离起点近的节点，一层一层往外扩。
 
 ## 6. 常见变种
@@ -78,7 +78,7 @@
 - OpenJDK `ArrayBlockingQueue` 源码：<https://github.com/openjdk/jdk/blob/master/src/java.base/share/classes/java/util/concurrent/ArrayBlockingQueue.java>
 - OpenJDK `ArrayDeque` 源码：<https://github.com/openjdk/jdk/blob/master/src/java.base/share/classes/java/util/ArrayDeque.java>
 - Kotlin `ArrayDeque` 文档：<https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-array-deque/>
-- Linux 内核文档 Circular Buffers：<https://docs.kernel.org/core-api/circular-buffers.html>
+- Linux 内核 `include/linux/kfifo.h`（`kfifo_len` 是 `in - out`）：<https://github.com/torvalds/linux/blob/master/include/linux/kfifo.h>
 - BIOS 键盘缓冲区：<https://fysnet.net/kbuffio.htm>、BIOS Data Area <https://www.cs.yale.edu/flint/feng/cos/resources/BIOS/Resources/assembly/biosdataarea.html>
 - Kafka 文档（分区内有序、保留策略）：<https://kafka.apache.org/documentation/#intro_concepts_and_terms>
 - Android `MessageQueue` 文档：<https://developer.android.com/reference/android/os/MessageQueue>

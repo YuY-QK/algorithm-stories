@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { KID_N, middle, narrow, pickSecret, pointTo, stars, type Dir } from '../../engine/binary-search';
 import Street from './Street.vue';
+import { play } from '../../components/shared/sound';
 
 // 玩法二「当小邮差」：信由程序藏好，孩子自己点信箱找。
 // 引导：点灰信箱会摇头；第一次排除时追问「灰色的还要看吗」；连续两局不到三颗星，
@@ -31,6 +32,7 @@ function tap(i: number) {
   if (done.value) return;
   if (i < lo.value || i > hi.value) {
     shake.value = [i, (shake.value?.[1] ?? 0) + 1];
+    play('wrong');
     say.value = '🙅 灰色的信箱里没有信';
     return;
   }
@@ -39,6 +41,7 @@ function tap(i: number) {
   const d = pointTo(secret.value, i);
   doors.value = { ...doors.value, [i]: d };
   if (d === 'hit') return finish();
+  play('right');
   ({ lo: lo.value, hi: hi.value } = narrow(lo.value, hi.value, i, d));
   if (!greyTold) {
     greyTold = true;
@@ -50,6 +53,7 @@ function tap(i: number) {
 
 function finish() {
   done.value = true;
+  play('win');
   say.value = '🎉 找到啦！用了 ' + tries.value + ' 次';
   if (earned.value === 3) {
     lowRounds.value = 0;
@@ -64,6 +68,7 @@ function finish() {
 
 function answerQuiz(where: 'edge' | 'middle') {
   quiz.value = where === 'middle' ? 'right' : 'wrong';
+  play(where === 'middle' ? 'right' : 'wrong');
 }
 
 function again() {
@@ -86,6 +91,7 @@ function useHint() {
 
 <template>
   <div class="game">
+    <p class="small-note">目标：信藏在某个信箱里，你来找。每点一次，就会知道信在左边还是右边，用最少的次数找到它。</p>
     <p class="say" aria-live="polite">{{ say }}</p>
     <Street
       :n="KID_N" :lo="lo" :hi="hi" :postman="at" :doors="doors"

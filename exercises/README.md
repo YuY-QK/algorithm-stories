@@ -10,7 +10,9 @@
 
 | 关卡 | 要写的文件 | 运行测试 |
 |---|---|---|
+| 顺序查找 | `src/main/kotlin/linearsearch/LinearSearch.kt` | `./gradlew test --tests 'linearsearch.*'` |
 | 二分查找 | `src/main/kotlin/binarysearch/BinarySearch.kt` | `./gradlew test --tests 'binarysearch.*'` |
+| 哈希查找 | `src/main/kotlin/hashlookup/HashLookup.kt` | `./gradlew test --tests 'hashlookup.*'` |
 | 冒泡排序 | `src/main/kotlin/bubblesort/BubbleSort.kt` | `./gradlew test --tests 'bubblesort.*'` |
 | 选择排序 | `src/main/kotlin/selectionsort/SelectionSort.kt` | `./gradlew test --tests 'selectionsort.*'` |
 | 插入排序 | `src/main/kotlin/insertionsort/InsertionSort.kt` | `./gradlew test --tests 'insertionsort.*'` |

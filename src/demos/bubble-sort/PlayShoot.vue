@@ -5,6 +5,7 @@ import {
   type Choice, type Kid, type ShootState,
 } from '../../engine/bubble-sort';
 import Lineup from './Lineup.vue';
+import { play } from '../../components/shared/sound';
 import { PAUSE_ROUND } from '../../components/shared/timing';
 import { useStageStop } from '../../components/shared/usePlayer';
 
@@ -50,6 +51,7 @@ function answer(c: Choice) {
   const n = shootAnswer(s.value, c, byH);
   if (!n) {
     mistakes.value++;
+    play('wrong');
     blink(L.h > R.h ? L.id : R.id);
     shake.value = [L.id, (shake.value?.[1] ?? 0) + 1];
     say.value = L.h > R.h ? '🤔 谁更高？高的站在左边对吗？' : '🤔 谁更高？矮的已经在左边了吗？';
@@ -57,6 +59,7 @@ function answer(c: Choice) {
   }
   glow.value = null;
   s.value = n;
+  if (n.phase !== 'done') play('right');
   if (n.phase === 'pair') say.value = c === 'swap' ? L.face + ' 比 ' + R.face + ' 高，换了位置 🔄 下一对 👀' : L.face + ' 没有 ' + R.face + ' 高，不用换 👍 下一对 👀';
   else if (n.phase === 'next') {
     const top = n.line[n.end];
@@ -77,6 +80,7 @@ function quiet(ans: 'photo' | 'again') {
   const n = shootQuiet(s.value, ans);
   if (!n) {
     mistakes.value++;
+    play('wrong');
     hintQuiet.value = false;
     requestAnimationFrame(() => (hintQuiet.value = true));
     say.value = '🤔 一个都没换，说明大家已经……？';
@@ -88,6 +92,7 @@ function quiet(ans: 'photo' | 'again') {
 
 function finish() {
   hintQuiet.value = false;
+  play('win');
   say.value = '📸 咔嚓！排好啦 🎉';
 }
 

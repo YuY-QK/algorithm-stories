@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { BOOK_EMOJI, EVICT_BOOKS, EVICT_SEQ, KID_CAP, judgeEvict, playStars, simulate } from '../../engine/lru-cache';
+import { play } from '../../components/shared/sound';
 import Desk from './Desk.vue';
 
 // 玩法一「当管理员」：按借书顺序，孩子自己把书拿上桌、翻一翻、满了挑一本放回书架。
@@ -41,6 +42,7 @@ ask();
 
 function advance(prefix = '') {
   desk.value = cur.value.desk;
+  play(i.value >= acc.length - 1 ? 'win' : 'right');
   if (i.value >= acc.length - 1) {
     phase.value = 'done';
     glow.value = null;
@@ -53,6 +55,7 @@ function advance(prefix = '') {
 }
 
 function wiggle(b: number) {
+  play('wrong');
   shake.value = [b, (shake.value?.[1] ?? 0) + 1];
 }
 
