@@ -20,15 +20,14 @@ const props = defineProps<{
   after?: string;
   /** game：浅色凹槽里一列，目标提示是小贴士；stage：普通的操作区，开头一段普通文字 */
   frame?: 'game' | 'stage';
-  copy: Record<string, string>;
 }>();
-const { tr, ui } = useCopy(props.copy);
+const { tr, ui, has } = useCopy();
 
 const rules = rulesOf(props.slug, 'games', props.rules) as GameRules<any, unknown>;
 const Scene = sceneOf(props.slug, props.scene);
 const After = props.after ? sceneOf(props.slug, props.after) : null;
 const scenes = getLevel(props.slug).scenes;
-const lead = props.copy[props.id + '.goal'] ? tr({ key: props.id + '.goal' }) : '';
+const lead = has(props.id + '.goal') ? tr({ key: props.id + '.goal' }) : '';
 
 const run = shallowRef<GameRun<any>>(startGame(rules).run);
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -40,7 +39,7 @@ function clear() {
 function apply(step: GameStep<any>) {
   clear();
   run.value = step.run;
-  if (step.sound) play(step.sound);
+  for (const s of [step.sound ?? []].flat()) play(s);
   if (step.after !== undefined) timer = setTimeout(() => apply(tickGame(rules, run.value)), step.after);
 }
 function onAct(action: unknown) {

@@ -176,3 +176,19 @@ R2 是风险最大的一步：接口在这里定型。如果二分查找的两�
 - 画面 `Street.vue` 移到 `src/ui/vue/scenes/binary-search/`，去掉里面的流程（如果有）
 - 改完删掉 `src/demos/binary-search/`
 - 验收：`npm test`、`npm run check`、`npm run build`；`node scripts/check-pages.cjs` 对二分查找每个标签、1100px 浅色和 375px 深色；新旧页面逐块对照，文字、按钮、引导一致（可以先在改之前把旧页面的 check-pages 报告存下来对比）
+
+### 7.5 R2 结果（2026-10-26）
+
+二分查找已迁完，`src/demos/binary-search/` 已删。界面专属代码从 966 行降到约 464 行（画面 392 + level.json 72）；共用控件（约 600 行）只写一次。引擎从 355 行涨到 840 行，因为逐步执行的输入、小游戏和挑战的规则都搬进了引擎，换来的是这些规则都有单元测试。新旧页面的 check-pages 报告逐行一致，24 个交互时点的 DOM 快照一致。用了 `custom` 的地方：0 个。
+
+R2 过程中补的位置和接口（以代码为准）：
+
+- `src/core/level.ts`：level.json 的类型和校验；`src/ui/levelData.ts`：构建时读一关的 level、文案、引擎、Markdown；`src/ui/mini-md.ts`：练习说明用的极简 Markdown；`src/ui/vue/levels.ts`：画面注册表汇总（各关在 `scenes/<slug>/index.ts` 登记）
+- `Control` 的 `number` 加了 `invalid`、`clearOn`，没有 `submitLabel` 时实时提交；新增 `group` 类型（带小标题的一组按钮）
+- `Ask` 加了 `reveal`：答错时换画面和题干
+- `Outcome.sound` 可以是数组，按顺序一起出
+- level.json 的块可以带 `after`（同一块里挂第二个画面）和 `frame`（外框样式）
+- 文案表每页只写一份：`LevelPage` 写进 `<script type="application/json" id="level-copy">`，各控件用 `useCopy()` 自己读（原来每个控件各带一份，页面 228KB，现在 141KB）
+- 共用文案的键以 `ui.` 开头；旧共享组件 `BookPager`、`Transport`、`CodePanel`、`PredictFrame` 加了可选的 `labels` 参数，默认中文，未迁移的关卡不受影响
+
+R3 时再处理：画面注册表现在是 eager glob，15 关迁完后考虑按关懒加载；`GameRules.act` 的 `rand` 控件里还没传；速度档的「慢中快手动」还在 tokens.json，没进文案表。

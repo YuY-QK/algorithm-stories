@@ -10,6 +10,7 @@ import { t } from '../../core/i18n';
 import type { Msg } from '../../core/types';
 import { loadLevel } from '../levelData';
 import BlockView from './BlockView.astro';
+import { COPY_ELEMENT_ID } from './i18n';
 
 interface Props { slug: string; title: string; lede: string }
 const { slug } = Astro.props;
@@ -42,6 +43,7 @@ const more = (level.more ?? []).flatMap((b) => (b.kind === 'markdown' ? sections
 ---
 
 <AlgoLayout {...Astro.props}>
+  <script is:inline slot="data" type="application/json" id={COPY_ELEMENT_ID} set:html={JSON.stringify(copy).replace(/</g, '\\u003c')} />
   {level.look && (
     <Fragment slot="look">
       {level.look.map((block) => block.kind !== 'markdown' && <BlockView slug={slug} block={block} copy={copy} />)}

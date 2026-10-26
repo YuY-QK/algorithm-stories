@@ -40,6 +40,7 @@ const first = stages[0];
     {Astro.slots.has('play') && <section id="panel-play" class="panel" role="tabpanel" aria-labelledby="tab-play" hidden={first !== 'play'}><slot name="play" /></section>}
     {Astro.slots.has('do') && <section id="panel-do" class="panel" role="tabpanel" aria-labelledby="tab-do" hidden={first !== 'do'}><slot name="do" /></section>}
     {Astro.slots.has('more') && <section id="panel-more" class="panel" role="tabpanel" aria-labelledby="tab-more" hidden={first !== 'more'}><slot name="more" /></section>}
+    <slot name="data" />
   </main>
 
   <p class="foot">

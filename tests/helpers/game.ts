@@ -8,7 +8,7 @@ export function driver<S, A>(rules: GameRules<S, A>, rand?: Rand) {
   const afters: number[] = [];
   const record = (st: GameStep<S>) => {
     step = st;
-    if (st.sound) sounds.push(st.sound);
+    sounds.push(...[st.sound ?? []].flat());
     if (st.after !== undefined) afters.push(st.after);
   };
   record(step);

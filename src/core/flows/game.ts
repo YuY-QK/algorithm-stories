@@ -12,7 +12,7 @@ export interface GameRun<S> {
 
 export interface GameStep<S> {
   run: GameRun<S>;
-  sound?: SoundName;
+  sound?: SoundName | SoundName[];
   /** 过多少毫秒后调用 tick；没有就不需要 */
   after?: number;
 }

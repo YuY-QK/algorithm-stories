@@ -34,7 +34,8 @@ export interface Outcome<S> {
   state: S;
   /** 台词（「玩」里大字那一行）；不给就保持上一句 */
   say?: Msg;
-  sound?: SoundName;
+  /** 音效；给数组时按顺序一起出（如猜中时先「对」再「赢」） */
+  sound?: SoundName | SoundName[];
   /** 过多少毫秒后自动调用 tick（动画步骤）；只能用 src/core/timing.ts 里的常量 */
   after?: number;
 }

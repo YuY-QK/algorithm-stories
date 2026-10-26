@@ -8,8 +8,8 @@ import { useCopy } from '../i18n';
 import { rulesOf, sceneOf } from '../levels';
 
 // 做：猜下一步。按规则出的题一问一问地答，连对到目标过关。流程在 core/flows/predict.ts。
-const props = defineProps<{ slug: string; rules: string; scene: string; copy: Record<string, string> }>();
-const { tr, ui } = useCopy(props.copy);
+const props = defineProps<{ slug: string; rules: string; scene: string }>();
+const { tr, ui } = useCopy();
 
 const rules = rulesOf(props.slug, 'predict', props.rules) as PredictRules<unknown, unknown>;
 const Scene = sceneOf(props.slug, props.scene);

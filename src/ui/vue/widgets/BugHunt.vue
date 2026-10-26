@@ -12,8 +12,8 @@ import { useCopy } from '../i18n';
 import { rulesOf, sceneOf } from '../levels';
 
 // 做：找 bug。先看有 bug 的代码在动画里怎么跑错，再点出错的那一行。流程在 core/flows/bughunt.ts。
-const props = defineProps<{ slug: string; rules: string; scene: string; copy: Record<string, string> }>();
-const { tr, ui } = useCopy(props.copy);
+const props = defineProps<{ slug: string; rules: string; scene: string }>();
+const { tr, ui } = useCopy();
 
 const rules = rulesOf(props.slug, 'bugs', props.rules) as BugRules<BugInfo, Step>;
 const Scene = sceneOf(props.slug, props.scene);

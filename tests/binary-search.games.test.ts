@@ -107,7 +107,7 @@ describe('玩法一「藏信」', () => {
       expect(s.tries).toBe(postmanTrace(KID_N, secret).length);
       expect(s).toMatchObject({ letter: secret, covered: null });
       expect(g.say).toEqual(m('hide.say.found', { n: s.tries }));
-      expect(g.sounds.at(-1)).toBe('win');
+      expect(g.sounds.slice(-2)).toEqual(['right', 'win']);
       expect(hideRules.controls(s)).toMatchObject([{ look: 'primary', label: m('hide.again') }]);
       g.act({ type: 'again' });
       expect(g.state).toMatchObject({ phase: 'hide', secret: null, tries: 0, doors: {}, lo: 1, hi: KID_N, at: 0 });

@@ -10,8 +10,8 @@ import { rulesOf, sceneOf } from '../levels';
 import Controls from './Controls.vue';
 
 // 做：逐步执行。输入由规则的 controls 修改，步骤轨迹由规则生成，这里只负责播放和排版。
-const props = defineProps<{ slug: string; rules: string; scene: string; copy: Record<string, string> }>();
-const { tr, ui } = useCopy(props.copy);
+const props = defineProps<{ slug: string; rules: string; scene: string }>();
+const { tr, ui } = useCopy();
 
 const rules = rulesOf(props.slug, 'trace', props.rules) as TraceRules<unknown, Step, unknown>;
 const Scene = sceneOf(props.slug, props.scene);

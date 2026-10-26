@@ -174,7 +174,7 @@ export const hideRules: GameRules<HideState, PlayAction> = {
         return {
           state: settleHide({ ...s, phase: 'done', glow: null, doors: { ...s.doors, [s.at]: 'hit' } }),
           say: m('hide.say.found', { n: s.tries }),
-          sound: 'win',
+          sound: ['right', 'win'],
         };
       }
       const r = narrow(s.lo, s.hi, s.at, a.dir);

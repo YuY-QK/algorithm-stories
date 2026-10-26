@@ -24,11 +24,11 @@ const intro = copy[block.id + '.intro'];
 ---
 
 <Block icon={block.icon} title={title} intro={intro}>
-  {block.kind === 'book' && <Book client:only="vue" slug={slug} id={block.id} rules={block.rules} scene={block.scene} copy={copy} />}
-  {block.kind === 'game' && <Game client:only="vue" slug={slug} id={block.id} rules={block.rules} scene={block.scene} after={block.after} frame={block.frame} copy={copy} />}
-  {block.kind === 'trace' && <Trace client:only="vue" slug={slug} rules={block.rules} scene={block.scene} copy={copy} />}
-  {block.kind === 'predict' && <Predict client:only="vue" slug={slug} rules={block.rules} scene={block.scene} copy={copy} />}
-  {block.kind === 'bugs' && <BugHunt client:only="vue" slug={slug} rules={block.rules} scene={block.scene} copy={copy} />}
+  {block.kind === 'book' && <Book client:only="vue" slug={slug} id={block.id} rules={block.rules} scene={block.scene} />}
+  {block.kind === 'game' && <Game client:only="vue" slug={slug} id={block.id} rules={block.rules} scene={block.scene} after={block.after} frame={block.frame} />}
+  {block.kind === 'trace' && <Trace client:only="vue" slug={slug} rules={block.rules} scene={block.scene} />}
+  {block.kind === 'predict' && <Predict client:only="vue" slug={slug} rules={block.rules} scene={block.scene} />}
+  {block.kind === 'bugs' && <BugHunt client:only="vue" slug={slug} rules={block.rules} scene={block.scene} />}
   {block.kind === 'exercise' && (
     <div class="md">
       <Fragment set:html={renderMiniMd(copy[block.id + '.body'])} />
