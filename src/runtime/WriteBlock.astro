@@ -1,0 +1,23 @@
+---
+/** 亲手写：打开练习项目、要写的函数、跑测试的命令。固定的说明在 common.json 的 write.* */
+import type { WriteBlock } from '../levels/types';
+import { loadDict, translator } from '../i18n/load';
+import { toHtml } from '../i18n/format';
+
+interface Props { block: WriteBlock; slug: string }
+const { block, slug } = Astro.props;
+const t = translator(loadDict(slug));
+const repo = 'https://github.com/YuY-QK/algorithm-stories/tree/main/exercises';
+const open = t('write.open', { repo, target: t(block.target), todos: block.todos ? t(block.todos) : '' });
+---
+
+<p class="story write-path" set:html={toHtml(open)} />
+<ul class="pits">
+  {block.items.map((k) => <li set:html={toHtml(t(k))} />)}
+</ul>
+<p class="story write-path" set:html={toHtml(t('write.run'))} />
+<div class="code"><div class="codehead">{t('write.terminal')}</div><pre><div class="line"><i>$</i><span>./gradlew test --tests '{block.pkg}.*'</span></div></pre></div>
+
+<style>
+  .write-path :global(code) { font: 500 0.9em var(--mono); background: var(--out); padding: 1px 6px; border-radius: 4px; }
+</style>

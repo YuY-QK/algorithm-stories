@@ -1,6 +1,8 @@
 ---
 import { getCollection } from 'astro:content';
 import { DEMOS } from '../../demos';
+import { LEVELS } from '../../levels';
+import LevelPage from '../../runtime/LevelPage.astro';
 
 export async function getStaticPaths() {
   const all = await getCollection('algorithms');
@@ -8,8 +10,10 @@ export async function getStaticPaths() {
 }
 
 const { algo } = Astro.props;
+// 迁移期间：有 src/levels/<slug>/level.ts 的按配置生成，其余还用旧的 Demo.astro
+const level = LEVELS[algo.id];
 const Demo = DEMOS[algo.id];
-if (!Demo) throw new Error('content/algorithms/' + algo.id + ' 还没有在 src/demos/index.ts 登记演示页');
+if (!level && !Demo) throw new Error('content/algorithms/' + algo.id + ' 还没有 src/levels/' + algo.id + '/level.ts');
 ---
 
-<Demo slug={algo.id} />
+{level ? <LevelPage level={level} /> : Demo && <Demo slug={algo.id} />}

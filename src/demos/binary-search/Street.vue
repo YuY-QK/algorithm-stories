@@ -2,7 +2,8 @@
 import { onBeforeUnmount, ref, watch } from 'vue';
 import type { Dir } from '../../engine/binary-search';
 import { useStageStop } from '../../components/shared/usePlayer';
-import { SHAKE_MS } from '../../components/shared/timing';
+import { FLASH_MS, SHAKE_MS } from '../../components/shared/timing';
+import { t } from '../../i18n/runtime';
 
 // 信箱街：一排信箱加上方的小邮差。看、玩法一、玩法二共用，只负责画，不管规则。
 const props = withDefaults(defineProps<{
@@ -18,8 +19,8 @@ const props = withDefaults(defineProps<{
   letter?: number | null;
   /** 盖着叶子的信箱 */
   covered?: number | null;
-  /** 透光提示：信在这里 */
-  glow?: number | null;
+  /** 透光提示：信在这里。格式 [信箱, 计数]，计数变了就重播一遍 */
+  glow?: [number, number] | null;
   /** 一闪一闪：小邮差的秘诀 */
   pulse?: number | null;
   /** 信箱能不能点 */
@@ -37,6 +38,21 @@ function stopShake() {
   shakeTimer = null;
   shaking.value = null;
 }
+
+// 透光：先去掉再加回 class，动画才会重播
+const glowing = ref<number | null>(null);
+let glowTimer: ReturnType<typeof setTimeout> | null = null;
+function stopGlow() {
+  if (glowTimer) clearTimeout(glowTimer);
+  glowTimer = null;
+  glowing.value = null;
+}
+watch(() => props.glow, (v) => {
+  stopGlow();
+  if (!v) return;
+  requestAnimationFrame(() => (glowing.value = v[0]));
+  glowTimer = setTimeout(() => (glowing.value = null), FLASH_MS);
+});
 watch(() => props.shake, (v) => {
   if (!v) return;
   stopShake();
@@ -44,8 +60,14 @@ watch(() => props.shake, (v) => {
   shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
 });
 // 切换标签或卸载时，晃动动画停下
-useStageStop(stopShake);
-onBeforeUnmount(stopShake);
+useStageStop(() => {
+  stopShake();
+  stopGlow();
+});
+onBeforeUnmount(() => {
+  stopShake();
+  stopGlow();
+});
 
 const ICON: Record<Dir, string> = { left: '⬅️', right: '➡️', hit: '✉️' };
 
@@ -58,8 +80,8 @@ function door(i: number): string {
 
 function label(i: number): string {
   const d = props.doors[i];
-  const out = i < props.lo || i > props.hi;
-  return i + ' 号信箱' + (d === 'left' ? '，信在左边' : d === 'right' ? '，信在右边' : '') + (out ? '，已排除' : '');
+  const box = t(d === 'left' ? 'street.boxLeft' : d === 'right' ? 'street.boxRight' : 'street.box', { i });
+  return i < props.lo || i > props.hi ? t('street.out', { box }) : box;
 }
 
 const left = (p: number) => (p <= 0 ? '0%' : 'calc(' + ((p - 0.5) / props.n) * 100 + '% - 0.8em)');
@@ -80,7 +102,7 @@ const left = (p: number) => (p <= 0 ? '0%' : 'calc(' + ((p - 0.5) / props.n) * 1
           out: i < lo || i > hi,
           open: !!doors[i],
           leaf: covered === i,
-          glow: glow === i,
+          glow: glowing === i,
           pulse: pulse === i,
           shake: shaking === i,
           here: postman === i,

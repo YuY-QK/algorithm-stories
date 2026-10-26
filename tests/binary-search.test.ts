@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { expectTranslatable, zh } from './helpers/i18n';
 import {
   BUGS, CHALLENGE_LIMIT, CHALLENGE_MAX, CODE, KID_N, bugVerdict, buildTrace, genArray, genChallenge, genPredict,
   lookFrames, middle, missingValue, narrow, pickSecret, pickTarget, pointTo, postmanTrace, rounds, runBug, stars,
 } from '../src/engine/binary-search';
+
+
+const text = zh('binary-search');
 
 describe('二分查找 看、玩：小邮差', () => {
   it('15 个信箱，每个位置最多看 4 次就找到，每次都看剩下范围的正中间', () => {
@@ -157,11 +161,11 @@ describe('二分查找 引擎：看的台词和随机出题', () => {
       const fs = lookFrames(secret);
       const probes = postmanTrace(KID_N, secret);
       expect(fs.length).toBe(2 + 2 * (probes.length - 1) + 1);
-      for (const f of fs) expect(f.say.length).toBeGreaterThan(0);
+      expectTranslatable(fs, 'binary-search');
       const last = fs.at(-1)!;
       expect(last.letter).toBe(secret);
       expect(last.postman).toBe(secret);
-      expect(last.say).toContain('只看了 ' + probes.length + ' 次');
+      expect(text(last.say)).toContain('只看了 ' + probes.length + ' 次');
       // 小邮差每一页都在当前范围里（第一页还没出发）
       for (const f of fs.slice(1)) expect(f.postman >= f.lo && f.postman <= f.hi).toBe(true);
     }
@@ -217,14 +221,14 @@ describe('二分查找 引擎：看的台词和随机出题', () => {
     const rs = rounds(arr, 8);
     expect(rs).toHaveLength(1);
     expect(rs[0].move).toBe('found');
-    expect(rs[0].why).toBe('arr[2] = 8，正好等于 8，直接返回 mid。');
-    expect(rs[0].whyMid).toBe('mid = lo + (hi - lo) / 2 = 0 + (4 - 0) / 2 = 2。整数除法向下取整。');
+    expect(text(rs[0].why)).toBe('arr[2] = 8，正好等于 8，直接返回 mid。');
+    expect(text(rs[0].whyMid)).toBe('mid = lo + (hi - lo) / 2 = 0 + (4 - 0) / 2 = 2。整数除法向下取整。');
     const rs2 = rounds(arr, 14);
-    expect(rs2[0].why).toContain('< 14');
-    expect(rs2[0].why).toContain('lo = mid + 1');
+    expect(text(rs2[0].why)).toContain('< 14');
+    expect(text(rs2[0].why)).toContain('lo = mid + 1');
     const rs3 = rounds(arr, 2);
-    expect(rs3[0].why).toContain('> 2');
-    expect(rs3[0].why).toContain('hi = mid - 1');
+    expect(text(rs3[0].why)).toContain('> 2');
+    expect(text(rs3[0].why)).toContain('hi = mid - 1');
   });
 });
 
@@ -232,8 +236,9 @@ describe('二分查找 引擎：bugVerdict', () => {
   it('没跑完是空，跑完按结果给判定', () => {
     const v = Object.fromEntries(BUGS.map((b) => {
       const tr = runBug(b);
-      expect(bugVerdict(tr[0], b)).toBe('');
-      return [b.id, bugVerdict(tr.at(-1)!, b)];
+      expect(bugVerdict(tr[0], b)).toBeNull();
+      expectTranslatable(tr, 'binary-search');
+      return [b.id, text(bugVerdict(tr.at(-1)!, b)!)];
     }));
     expect(v.lt).toBe('❌ 返回了 -1，不对');
     expect(v['hi-mid']).toContain('死循环');

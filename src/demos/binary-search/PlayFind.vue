@@ -1,135 +1,51 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { KID_N, middle, narrow, pickSecret, pointTo, stars, type Dir } from '../../engine/binary-search';
+import { computed } from 'vue';
+import { KID_N, middle, stars } from '../../engine/binary-search';
+import type { FindAction, FindState } from '../../levels/binary-search/flows';
+import { t } from '../../i18n/runtime';
 import Street from './Street.vue';
-import { play } from '../../components/shared/sound';
 
-// 玩法二「当小邮差」：信由程序藏好，孩子自己点信箱找。
-// 引导：点灰信箱会摇头；第一次排除时追问「灰色的还要看吗」；连续两局不到三颗星，
-// 可以看小邮差的秘诀（正中间一闪一闪）；拿到三颗星后问「点哪里最快」，让孩子自己说出「中间」。
-const pick = () => pickSecret();
-
-const secret = ref(pick());
-const lo = ref(1);
-const hi = ref(KID_N);
-const at = ref(0);
-const doors = ref<Record<number, Dir>>({});
-const tries = ref(0);
-const done = ref(false);
-const shake = ref<[number, number] | null>(null);
-const say = ref('🐰 现在你是小邮差！点一个信箱找信 ✉️');
-
-const lowRounds = ref(0);
-const hint = ref(false);
-const asked = ref(false);
-const quiz = ref<'ask' | 'right' | 'wrong' | null>(null);
-let greyTold = false;
-
-const earned = computed(() => stars(tries.value));
-const pulse = computed(() => (hint.value && !done.value ? middle(lo.value, hi.value) : null));
-
-function tap(i: number) {
-  if (done.value) return;
-  if (i < lo.value || i > hi.value) {
-    shake.value = [i, (shake.value?.[1] ?? 0) + 1];
-    play('wrong');
-    say.value = '🙅 灰色的信箱里没有信';
-    return;
-  }
-  tries.value++;
-  at.value = i;
-  const d = pointTo(secret.value, i);
-  doors.value = { ...doors.value, [i]: d };
-  if (d === 'hit') return finish();
-  play('right');
-  ({ lo: lo.value, hi: hi.value } = narrow(lo.value, hi.value, i, d));
-  if (!greyTold) {
-    greyTold = true;
-    say.value = '信在' + (d === 'left' ? '左边 ⬅️' : '右边 ➡️') + ' 那灰色的还要看吗？🤔';
-  } else {
-    say.value = '信在' + (d === 'left' ? '左边 ⬅️' : '右边 ➡️');
-  }
-}
-
-function finish() {
-  done.value = true;
-  play('win');
-  say.value = '🎉 找到啦！用了 ' + tries.value + ' 次';
-  if (earned.value === 3) {
-    lowRounds.value = 0;
-    if (!asked.value) {
-      asked.value = true;
-      quiz.value = 'ask';
-    }
-  } else {
-    lowRounds.value++;
-  }
-}
-
-function answerQuiz(where: 'edge' | 'middle') {
-  quiz.value = where === 'middle' ? 'right' : 'wrong';
-  play(where === 'middle' ? 'right' : 'wrong');
-}
-
-function again() {
-  secret.value = pick();
-  lo.value = 1;
-  hi.value = KID_N;
-  at.value = 0;
-  doors.value = {};
-  tries.value = 0;
-  done.value = false;
-  say.value = hint.value ? '💡 点一闪一闪的那个信箱试试' : '🐰 再找一封信 ✉️';
-}
-
-function useHint() {
-  hint.value = true;
-  lowRounds.value = 0;
-  again();
-}
+// 玩法二「当小邮差」的画面：信箱街、点了几次、星星、「点哪里最快」、秘诀按钮。规则在 flows.ts 的 findFlow
+const props = defineProps<{ s: FindState; send: (a: FindAction) => void }>();
+const earned = computed(() => stars(props.s.tries));
+const pulse = computed(() => (props.s.hint && !props.s.done ? middle(props.s.lo, props.s.hi) : null));
 </script>
 
 <template>
-  <div class="game">
-    <p class="small-note">目标：信藏在某个信箱里，你来找。每点一次，就会知道信在左边还是右边，用最少的次数找到它。</p>
-    <p class="say" aria-live="polite">{{ say }}</p>
-    <Street
-      :n="KID_N" :lo="lo" :hi="hi" :postman="at" :doors="doors"
-      :letter="done ? secret : null" :pulse="pulse" :shake="shake"
-      :clickable="!done" @pick="tap"
-    />
-    <p class="tries" aria-label="已经点了几次">
-      <span v-for="t in tries" :key="t">👆</span>
+  <Street
+    :n="KID_N" :lo="s.lo" :hi="s.hi" :postman="s.at" :doors="s.doors"
+    :letter="s.done ? s.secret : null" :pulse="pulse" :shake="s.shake"
+    :clickable="!s.done" @pick="(i) => send({ type: 'tap', i })"
+  />
+  <p class="tries" :aria-label="t('play.find.tries')">
+    <span v-for="k in s.tries" :key="k">👆</span>
+  </p>
+
+  <div v-if="s.done" class="result">
+    <p class="stars" :aria-label="t('play.find.stars', { n: earned })">
+      <span v-for="k in 3" :key="k" :class="{ dim: k > earned }">⭐</span>
     </p>
 
-    <div v-if="done" class="result">
-      <p class="stars" :aria-label="earned + ' 颗星'">
-        <span v-for="s in 3" :key="s" :class="{ dim: s > earned }">⭐</span>
-      </p>
-
-      <div v-if="quiz === 'ask'" class="quiz">
-        <p class="q">🤔 点哪里最快？</p>
-        <div class="choices">
-          <button type="button" class="choice" @click="answerQuiz('edge')"><span class="mini"><b /><i /><i /><i /><i /></span>最边上</button>
-          <button type="button" class="choice" @click="answerQuiz('middle')"><span class="mini"><i /><i /><b /><i /><i /></span>正中间</button>
-          <button type="button" class="choice" @click="answerQuiz('edge')"><span class="mini"><i /><i /><i /><i /><b /></span>另一边</button>
-        </div>
+    <div v-if="s.quiz === 'ask'" class="quiz">
+      <p class="q">{{ t('play.find.quiz') }}</p>
+      <div class="choices">
+        <button type="button" class="choice" @click="send({ type: 'quiz', where: 'edge' })"><span class="mini"><b /><i /><i /><i /><i /></span>{{ t('play.find.quizEdge') }}</button>
+        <button type="button" class="choice" @click="send({ type: 'quiz', where: 'middle' })"><span class="mini"><i /><i /><b /><i /><i /></span>{{ t('play.find.quizMiddle') }}</button>
+        <button type="button" class="choice" @click="send({ type: 'quiz', where: 'edge' })"><span class="mini"><i /><i /><i /><i /><b /></span>{{ t('play.find.quizOther') }}</button>
       </div>
-      <p v-else-if="quiz === 'right'" class="q">🏅 对啦！点正中间，一下就能排除一半。这就是小邮差的秘诀！</p>
-      <p v-else-if="quiz === 'wrong'" class="q">🤔 下一局都点那里试试，数数要几次？再和点正中间比一比。</p>
+    </div>
+    <p v-else-if="s.quiz === 'right'" class="q">{{ t('play.find.quizRight') }}</p>
+    <p v-else-if="s.quiz === 'wrong'" class="q">{{ t('play.find.quizWrong') }}</p>
 
-      <div class="row">
-        <button type="button" class="btn primary" @click="again">🔁 再找一封</button>
-        <button v-if="lowRounds >= 2 && !hint" type="button" class="btn" @click="useHint">💡 看看小邮差的秘诀</button>
-        <button v-if="hint" type="button" class="btn" @click="hint = false; again()">🙈 关掉秘诀，自己找</button>
-      </div>
+    <div class="row">
+      <button type="button" class="btn primary" @click="send({ type: 'again' })">{{ t('play.find.againBtn') }}</button>
+      <button v-if="s.lowRounds >= 2 && !s.hint" type="button" class="btn" @click="send({ type: 'hint', on: true })">{{ t('play.find.hint') }}</button>
+      <button v-if="s.hint" type="button" class="btn" @click="send({ type: 'hint', on: false })">{{ t('play.find.hintOff') }}</button>
     </div>
   </div>
 </template>
 
 <style scoped>
-.game { display: flex; flex-direction: column; gap: 16px; }
-.say { font-size: clamp(1.3rem, 5vw, 1.9rem); min-height: 1.4em; }
 .tries { min-height: 1.6em; font-size: 1.2rem; letter-spacing: 2px; }
 .result { display: flex; flex-direction: column; gap: 14px; }
 .stars { font-size: 2.4rem; line-height: 1; }

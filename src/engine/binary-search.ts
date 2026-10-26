@@ -1,4 +1,9 @@
 import type { BugInfo, LookFrame, Step, Trace } from './types';
+import { msgOf, type Msg } from '../i18n/format';
+import type zh from '../locales/zh/binary-search.json';
+
+/** 本关的文案键（src/locales/zh/binary-search.json），写错键 npm run check 会报错 */
+const msg = msgOf<typeof zh>();
 
 /* ---------- 看、玩：小邮差找信箱 ---------- */
 
@@ -53,7 +58,7 @@ export function pickSecret(rand: () => number = Math.random, except?: number, n:
 }
 
 /** 「看」的一页：台词加画面（范围、小邮差位置、已开的门、信） */
-export interface LookPage extends LookFrame {
+export interface LookPage extends LookFrame<Msg> {
   lo: number;
   hi: number;
   postman: number;
@@ -66,19 +71,24 @@ export function lookFrames(secret: number): LookPage[] {
   const probes = postmanTrace(KID_N, secret);
   const out: LookPage[] = [];
   let doors: Record<number, Dir> = {};
-  out.push({ say: '信藏在一个信箱里 ✉️ 小邮差 🐰 要找到它', lo: 1, hi: KID_N, postman: 0, doors, letter: null });
-  out.push({ say: '一个一个找？太慢啦 🐢 小邮差的秘诀：先去正中间！', lo: 1, hi: KID_N, postman: middle(1, KID_N), doors, letter: null });
+  out.push({ say: msg('look.start'), lo: 1, hi: KID_N, postman: 0, doors, letter: null });
+  out.push({ say: msg('look.secret'), lo: 1, hi: KID_N, postman: middle(1, KID_N), doors, letter: null });
   for (const p of probes) {
     doors = { ...doors, [p.at]: p.dir };
     if (p.dir === 'hit') {
-      out.push({ say: '找到啦 🎉 只看了 ' + probes.length + ' 次！', lo: p.at, hi: p.at, postman: p.at, doors, letter: p.at });
+      out.push({ say: msg('look.found', { n: probes.length }), lo: p.at, hi: p.at, postman: p.at, doors, letter: p.at });
       break;
     }
-    out.push({ say: '门上说：信在' + (p.dir === 'left' ? '左边 ⬅️' : '右边 ➡️'), lo: p.lo, hi: p.hi, postman: p.at, doors, letter: null });
+    out.push({ say: msg('look.door', { side: sideMsg(p.dir) }), lo: p.lo, hi: p.hi, postman: p.at, doors, letter: null });
     const r = narrow(p.lo, p.hi, p.at, p.dir);
-    out.push({ say: (p.dir === 'left' ? '右' : '左') + '边一半都不用看了 👋 再去剩下的正中间', lo: r.lo, hi: r.hi, postman: middle(r.lo, r.hi), doors, letter: null });
+    out.push({ say: msg(p.dir === 'left' ? 'look.skipRight' : 'look.skipLeft'), lo: r.lo, hi: r.hi, postman: middle(r.lo, r.hi), doors, letter: null });
   }
   return out;
+}
+
+/** 「信在左边 ⬅️ / 右边 ➡️」里的方向 */
+export function sideMsg(dir: Dir): Msg {
+  return msg(dir === 'left' ? 'dir.left' : 'dir.right');
 }
 
 /** 玩法二的星星：最多 4 次是三颗，6 次以内两颗，其余一颗 */
@@ -104,7 +114,7 @@ export const CODE = [
   '}',
 ];
 
-export interface BinaryStep extends Step {
+export interface BinaryStep extends Step<Msg> {
   lo: number;
   hi: number;
   mid: number | null;
@@ -143,33 +153,40 @@ export function buildTrace(arr: number[], target: number): Trace<BinaryStep> {
   let lo = 0;
   let hi = arr.length - 1;
   let count = 0;
-  const push = (line: number, note: string, extra: Partial<BinaryStep> = {}) => {
+  const push = (line: number, note: Msg, extra: Partial<BinaryStep> = {}) => {
     steps.push({ line, lo, hi, mid: null, count, note, found: -1, done: false, ...extra });
   };
 
-  push(3, '初始化：lo = 0，hi = ' + hi + '，整个数组都是候选范围。');
+  push(3, msg('do.trace.init', { hi }));
   while (true) {
-    push(4, lo <= hi
-      ? 'lo ≤ hi（' + lo + ' ≤ ' + hi + '），候选范围不为空，继续循环。'
-      : 'lo > hi（' + lo + ' > ' + hi + '），候选范围已空，退出循环。');
+    push(4, msg(lo <= hi ? 'do.trace.loop' : 'do.trace.exit', { lo, hi }));
     if (lo > hi) break;
     const mid = lo + Math.floor((hi - lo) / 2);
     count++;
-    push(5, '取中点：mid = lo + (hi - lo) / 2 = ' + mid + '。', { mid });
-    if (arr[mid] === target) {
-      push(7, 'arr[' + mid + '] = ' + arr[mid] + '，等于目标，返回下标 ' + mid + '。', { mid, found: mid, done: true });
+    push(5, msg('do.trace.mid', { mid }), { mid });
+    const v = arr[mid];
+    if (v === target) {
+      push(7, msg('do.trace.hit', { mid, v }), { mid, found: mid, done: true });
       return steps;
     }
-    if (arr[mid] < target) {
+    if (v < target) {
       lo = mid + 1;
-      push(8, 'arr[' + mid + '] = ' + arr[mid] + ' < ' + target + '，目标在右半边：lo = mid + 1 = ' + lo + '。', { mid });
+      push(8, msg('do.trace.right', { mid, v, target, lo }), { mid });
     } else {
       hi = mid - 1;
-      push(9, 'arr[' + mid + '] = ' + arr[mid] + ' > ' + target + '，目标在左半边：hi = mid - 1 = ' + hi + '。', { mid });
+      push(9, msg('do.trace.left', { mid, v, target, hi }), { mid });
     }
   }
-  push(12, '返回 -1，数组里没有 ' + target + '。', { done: true });
+  push(12, msg('do.trace.none', { target }), { done: true });
   return steps;
+}
+
+/** 播放到最后一步时的总结：和从头顺序查找比一比要看几个 */
+export function traceSummary(step: BinaryStep, arr: number[], target: number): Msg | null {
+  if (!step.done) return null;
+  return step.found >= 0
+    ? msg('do.trace.summaryFound', { i: step.found, target, count: step.count, linear: step.found + 1 })
+    : msg('do.trace.summaryMissing', { target, count: step.count, n: arr.length });
 }
 
 /* ---------- 做：猜下一步 ---------- */
@@ -182,9 +199,9 @@ export interface Round {
   /** 'found'：找到了；'right'：lo = mid + 1；'left'：hi = mid - 1 */
   move: 'found' | 'right' | 'left';
   /** 点错 mid 时的解释 */
-  whyMid: string;
+  whyMid: Msg;
   /** 选错下一步时的解释 */
-  why: string;
+  why: Msg;
 }
 
 /** 猜下一步出一道题：长度 10～18 的数组，七成找得到、三成找不到 */
@@ -203,12 +220,8 @@ export function rounds(arr: number[], target: number): Round[] {
     const mid = lo + Math.floor((hi - lo) / 2);
     const move = arr[mid] === target ? 'found' : arr[mid] < target ? 'right' : 'left';
     const v = arr[mid];
-    const whyMid = 'mid = lo + (hi - lo) / 2 = ' + lo + ' + (' + hi + ' - ' + lo + ') / 2 = ' + mid + '。整数除法向下取整。';
-    const why = move === 'found'
-      ? 'arr[' + mid + '] = ' + v + '，正好等于 ' + target + '，直接返回 mid。'
-      : move === 'right'
-        ? 'arr[' + mid + '] = ' + v + ' < ' + target + '，目标只可能在 mid 右边，mid 自己也不是，所以 lo = mid + 1。'
-        : 'arr[' + mid + '] = ' + v + ' > ' + target + '，目标只可能在 mid 左边，mid 自己也不是，所以 hi = mid - 1。';
+    const whyMid = msg('do.predict.whyMid', { lo, hi, mid });
+    const why = msg(move === 'found' ? 'do.predict.whyFound' : move === 'right' ? 'do.predict.whyRight' : 'do.predict.whyLeft', { mid, v, target });
     out.push({ lo, hi, mid, move, whyMid, why });
     if (move === 'found') break;
     if (move === 'right') lo = mid + 1;
@@ -219,7 +232,7 @@ export function rounds(arr: number[], target: number): Round[] {
 
 /* ---------- 做：找 bug ---------- */
 
-export interface Bug extends BugInfo {
+export interface Bug extends BugInfo<Msg> {
   id: 'lt' | 'hi-mid' | 'overflow';
   /** 用来演示出错的输入。size 很大时 arr[i] = i，不真的建数组 */
   size: number;
@@ -234,42 +247,42 @@ function variant(line: number, text: string): string[] {
 export const BUGS: readonly Bug[] = [
   {
     id: 'lt',
-    title: '明明在数组里，却说找不到',
+    title: msg('do.bugs.lt.title'),
     code: variant(4, '    while (lo < hi) {'),
     wrongLine: 4,
     fixed: '    while (lo <= hi) {',
     size: 3,
     values: [2, 5, 8],
     target: 8,
-    expect: '8 在下标 2，应该返回 2',
-    explain: '循环条件少了等号。lo 和 hi 相等时，范围里还剩最后一个元素没看，循环却已经结束了。',
+    expect: msg('do.bugs.lt.expect'),
+    explain: msg('do.bugs.lt.explain'),
   },
   {
     id: 'hi-mid',
-    title: '转圈圈，停不下来',
+    title: msg('do.bugs.hiMid.title'),
     code: variant(9, '            else -> hi = mid'),
     wrongLine: 9,
     fixed: '            else -> hi = mid - 1',
     size: 4,
     values: [1, 3, 5, 7],
     target: 0,
-    expect: '0 不在数组里，应该返回 -1',
-    explain: 'mid 已经比较过、确定不是答案，却还留在范围里。范围缩到只剩它一个时，lo、hi、mid 再也不变，循环永远停不下来。',
+    expect: msg('do.bugs.hiMid.expect'),
+    explain: msg('do.bugs.hiMid.explain'),
   },
   {
     id: 'overflow',
-    title: '数组很大时崩溃',
+    title: msg('do.bugs.overflow.title'),
     code: variant(5, '        val mid = (lo + hi) / 2'),
     wrongLine: 5,
     fixed: '        val mid = lo + (hi - lo) / 2',
     size: 2_100_000_000,
     target: 2_000_000_000,
-    expect: '数组有 21 亿个元素，arr[i] = i，应该返回 2000000000',
-    explain: 'Int 最大约 21.4 亿。lo + hi 超过它就会溢出成负数，mid 变成负的下标，程序崩溃。Java 标准库的 Arrays.binarySearch 就曾有这个 bug，2006 年才被发现修复。',
+    expect: msg('do.bugs.overflow.expect'),
+    explain: msg('do.bugs.overflow.explain'),
   },
 ];
 
-export interface BugStep extends Step {
+export interface BugStep extends Step<Msg> {
   lo: number;
   hi: number;
   mid: number | null;
@@ -291,56 +304,63 @@ export function runBug(bug: Bug): Trace<BugStep> {
   let lo = 0;
   let hi = bug.size - 1;
   const seen = new Set<string>();
-  const push = (line: number, note: string, extra: Partial<BugStep> = {}) => {
+  const push = (line: number, note: Msg, extra: Partial<BugStep> = {}) => {
     steps.push({ line, lo, hi, mid: null, note, done: false, outcome: 'running', result: null, ...extra });
   };
   const cond = bug.id === 'lt' ? (a: number, b: number) => a < b : (a: number, b: number) => a <= b;
   const op = bug.id === 'lt' ? '<' : '<=';
 
-  push(3, '初始化：lo = 0，hi = ' + hi + '。');
+  push(3, msg('do.bugs.init', { hi }));
   for (;;) {
     const key = lo + ',' + hi;
     if (seen.has(key)) {
-      push(4, 'lo = ' + lo + '，hi = ' + hi + '，和上一圈一模一样，再转下去也不会变：死循环！', { outcome: 'stuck', done: true });
+      push(4, msg('do.bugs.stuck', { lo, hi }), { outcome: 'stuck', done: true });
       return steps;
     }
     seen.add(key);
     const go = cond(lo, hi);
-    push(4, lo + ' ' + op + ' ' + hi + ' 是' + (go ? '真，继续循环。' : '假，退出循环。'));
+    push(4, msg(go ? 'do.bugs.condTrue' : 'do.bugs.condFalse', { lo, op, hi }));
     if (!go) break;
     const mid = bug.id === 'overflow' ? int32(int32(lo + hi) / 2) : lo + Math.floor((hi - lo) / 2);
     if (bug.id === 'overflow' && lo + hi > 0x7fffffff) {
-      push(5, 'lo + hi = ' + (lo + hi) + '，超过了 Int 的上限 2147483647，溢出成 ' + int32(lo + hi) + '，mid = ' + mid + '。', { mid });
+      push(5, msg('do.bugs.overflowMid', { sum: lo + hi, wrapped: int32(lo + hi), mid }), { mid });
     } else {
-      push(5, 'mid = ' + mid + '。', { mid });
+      push(5, msg('do.bugs.mid', { mid }), { mid });
     }
     if (mid < 0 || mid >= bug.size) {
-      push(7, '读 arr[' + mid + ']：下标越界，程序崩溃！', { mid, outcome: 'crash', done: true });
+      push(7, msg('do.bugs.crash', { mid }), { mid, outcome: 'crash', done: true });
       return steps;
     }
     const v = get(mid);
     if (v === bug.target) {
-      push(7, 'arr[' + mid + '] = ' + v + '，找到了，返回 ' + mid + '。', { mid, outcome: 'ok', result: mid, done: true });
+      push(7, msg('do.bugs.hit', { mid, v }), { mid, outcome: 'ok', result: mid, done: true });
       return steps;
     }
     if (v < bug.target) {
       lo = mid + 1;
-      push(8, 'arr[' + mid + '] = ' + v + ' < ' + bug.target + '，lo = ' + lo + '。', { mid });
+      push(8, msg('do.bugs.right', { mid, v, target: bug.target, lo }), { mid });
     } else {
       hi = bug.id === 'hi-mid' ? mid : mid - 1;
-      push(9, 'arr[' + mid + '] = ' + v + ' > ' + bug.target + '，hi = ' + hi + '。', { mid });
+      push(9, msg('do.bugs.left', { mid, v, target: bug.target, hi }), { mid });
     }
   }
-  push(12, '返回 -1：没找到。', { outcome: 'ok', result: -1, done: true });
+  push(12, msg('do.bugs.none'), { outcome: 'ok', result: -1, done: true });
   return steps;
 }
 
 /** 找 bug 面板底部的判定：动画跑完后程序到底怎么错的 */
-export function bugVerdict(step: BugStep, _bug?: Bug): string {
-  if (!step.done) return '';
-  if (step.outcome === 'stuck') return '🔁 死循环，程序卡住了';
-  if (step.outcome === 'crash') return '💥 下标越界，程序崩溃';
-  return '❌ 返回了 ' + step.result + '，不对';
+export function bugVerdict(step: BugStep, _bug?: Bug): Msg | null {
+  if (!step.done) return null;
+  if (step.outcome === 'stuck') return msg('do.bugs.verdictStuck');
+  if (step.outcome === 'crash') return msg('do.bugs.verdictCrash');
+  return msg('do.bugs.verdictWrong', { result: step.result ?? '' });
+}
+
+/** 找 bug 面板「输入：」后面那句话 */
+export function bugInput(bug: Bug): Msg {
+  return bug.values
+    ? msg('do.bugs.input', { values: bug.values.join(', '), target: bug.target, expect: bug.expect })
+    : msg('do.bugs.inputBig', { expect: bug.expect });
 }
 
 /* ---------- 做：挑战 ---------- */

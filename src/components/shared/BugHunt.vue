@@ -14,8 +14,8 @@ import { toHtml, type Msg } from '../../i18n/format';
 const props = defineProps<{
   bugs: readonly B[];
   run: (bug: B) => S[];
-  vars: (step: S, bug: B) => [string, string | number][];
-  verdict: (step: S, bug: B) => string | Msg;
+  vars: (step: S, bug: B) => [string | Msg, string | number | Msg][];
+  verdict: (step: S, bug: B) => string | Msg | null;
   speeds?: Speed[];
 }>();
 
@@ -35,7 +35,7 @@ const marks = computed(() => {
   return m;
 });
 
-const verdictText = computed(() => show(props.verdict(s.value, bug.value)));
+const verdictText = computed(() => { const v = props.verdict(s.value, bug.value); return v ? show(v) : ''; });
 const varList = computed(() => props.vars(s.value, bug.value));
 
 const msg = ref('');
@@ -69,7 +69,7 @@ function onSwitch() { msg.value = ''; }
     <p class="small-note">{{ t('bug.input') }}<slot name="input" :bug="bug" /></p>
     <slot name="board" :step="s" :bug="bug" />
     <VarChips :vars="varList" />
-    <p class="note" aria-live="polite">{{ t('bug.step', { n: p.idx.value + 1, total: p.total.value, note: s.note }) }}</p>
+    <p class="note" aria-live="polite">{{ t('player.stepNote', { n: p.idx.value + 1, total: p.total.value, note: s.note }) }}</p>
     <Transport :player="p"><slot name="transport" :player="p" /></Transport>
     <p v-if="verdictText" class="summary verdict">{{ verdictText }}</p>
   </div>

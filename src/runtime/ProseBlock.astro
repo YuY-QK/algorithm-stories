@@ -1,0 +1,19 @@
+---
+/** 延伸：段落、列表、小字和对数对比图，构建时生成 */
+import type { ProseBlock } from '../levels/types';
+import LogCompare from '../components/shared/LogCompare.astro';
+import { loadDict, translator } from '../i18n/load';
+import { toHtml } from '../i18n/format';
+
+interface Props { block: ProseBlock; slug: string }
+const { block, slug } = Astro.props;
+const t = translator(loadDict(slug));
+const html = (k: string) => toHtml(t(k));
+---
+
+{block.lines.map((line) =>
+  typeof line === 'string' ? <p class="story" set:html={html(line)} />
+  : 'list' in line ? <ul class="pits">{line.list.map((k) => <li set:html={html(k)} />)}</ul>
+  : 'note' in line ? <p class="small-note" set:html={html(line.note)} />
+  : <LogCompare rows={line.rows.map((r) => ({ label: r.label, unit: t(r.unit), bars: r.bars.map((b) => ({ ...b, name: t(b.name) })) }))} />
+)}

@@ -1,0 +1,20 @@
+---
+/**
+ * 按配置（src/levels/<slug>/level.ts）排出一关的四步，取代各关手写的 Demo.astro。
+ */
+import AlgoLayout from '../layouts/AlgoLayout.astro';
+import StageBlocks from './StageBlocks.astro';
+import type { Level } from '../levels/types';
+
+interface Props { level: Level }
+const { level } = Astro.props;
+const has = (stage: 'look' | 'play' | 'do' | 'more') => (level.blocks[stage] ?? []).length > 0;
+---
+
+<AlgoLayout slug={level.slug}>
+  {/* 插槽名必须写死，AlgoLayout 才认得出是哪一步 */}
+  {has('look') && <Fragment slot="look"><StageBlocks level={level} stage="look" /></Fragment>}
+  {has('play') && <Fragment slot="play"><StageBlocks level={level} stage="play" /></Fragment>}
+  {has('do') && <Fragment slot="do"><StageBlocks level={level} stage="do" /></Fragment>}
+  {has('more') && <Fragment slot="more"><StageBlocks level={level} stage="more" /></Fragment>}
+</AlgoLayout>

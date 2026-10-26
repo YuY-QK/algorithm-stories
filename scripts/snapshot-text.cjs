@@ -49,6 +49,16 @@ function seedRandom() {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+  // 迁移到配置的关卡：每块自己向 src/runtime/rand.ts 要随机源，种子和上面按序号重新播种时一样
+  window.__islandRandom = (el) => {
+    let b = 20261026 + [...document.querySelectorAll("astro-island")].indexOf(el) * 7919;
+    return () => {
+      b |= 0; b = (b + 0x6d2b79f5) | 0;
+      let t = Math.imul(b ^ (b >>> 15), 1 | b);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  };
   let turn = 0;
   const waiting = [];
   const wake = () => waiting.splice(0).forEach((f) => f());

@@ -75,11 +75,21 @@
   "bug.tabSolved": "✅ 坑 {n}",
   "bug.found": "已找到 {n} / {total}",
   "bug.input": "输入：",
-  "bug.step": "第 {n}/{total} 步：{note}",
+  "player.stepNote": "第 {n}/{total} 步：{note}",
   "bug.ask": "**哪一行有 bug？**点它。",
   "bug.notThis": "不是第 {n} 行。回到动画里，看看是哪一步开始不对的。",
   "bug.solved": "✅ 找到了：第 {n} 行",
   "bug.fix": "改成：",
+
+  "block.trace": "先看一遍",
+  "block.predict": "猜下一步",
+  "block.bugs": "找 bug",
+  "block.write": "亲手写",
+  "block.challenge": "挑战",
+
+  "write.open": "在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 [`exercises/`]({repo}) 目录，把 {target} 里的{todos} `TODO()` 换成你的代码：",
+  "write.run": "写完在 `exercises/` 目录运行下面的命令，测试全绿就过关：",
+  "write.terminal": "TERMINAL",
 
   "log.times": "{value} 次",
   "log.approx": "≈ {value} 次"

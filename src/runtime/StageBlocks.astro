@@ -1,0 +1,22 @@
+---
+/** 一步（看、玩、做、延伸）里的全部块。静态块构建时生成，交互块交给 LevelIsland */
+import Block from '../components/shared/Block.astro';
+import LevelIsland from './LevelIsland.vue';
+import WriteBlock from './WriteBlock.astro';
+import ProseBlock from './ProseBlock.astro';
+import type { Level } from '../levels/types';
+import type { Stage } from '../content.config';
+import { loadDict, translator } from '../i18n/load';
+
+interface Props { level: Level; stage: Stage }
+const { level, stage } = Astro.props;
+const t = translator(loadDict(level.slug));
+---
+
+{(level.blocks[stage] ?? []).map((b, i) => (
+  <Block icon={b.icon} title={t(b.title)} intro={b.intro && t(b.intro)}>
+    {b.kind === 'write' ? <WriteBlock block={b} slug={level.slug} />
+      : b.kind === 'prose' ? <ProseBlock block={b} slug={level.slug} />
+      : <LevelIsland client:only="vue" slug={level.slug} stage={stage} index={i} />}
+  </Block>
+))}
