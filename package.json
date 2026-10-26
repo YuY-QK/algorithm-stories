@@ -8,7 +8,8 @@
     "preview": "astro preview",
     "check": "astro check",
     "test": "vitest run",
-    "test:py": "for f in content/algorithms/*/*.py; do python3 \"$f\" || exit 1; done"
+    "test:py": "for f in content/algorithms/*/*.py; do python3 \"$f\" || exit 1; done",
+    "snapshot": "node scripts/snapshot-text.cjs"
   },
   "dependencies": {
     "@astrojs/vue": "^7.1.1",

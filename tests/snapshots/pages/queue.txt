@@ -1,0 +1,485 @@
+🔊
+队列
+
+先来的先买，新来的站队尾。孩子当奶茶店的小店员，大人一路练到亲手写出循环队列。
+
+👀
+看
+一起看
+🎮
+玩
+孩子停在这里
+🛠️
+做
+大人继续
+📖
+延伸
+通关以后
+
+==== look ====
+📖
+奶茶店排队
+
+看店员怎么叫号，椅子怎么围成一圈。
+
+奶茶店开门啦 🧋 门口摆着 6 把椅子
+
+›
+›
+›
+›
+›
+›
+🧑‍🍳🧋
+🪑
+0
+🪑
+1
+🪑
+2
+🪑
+3
+🪑
+4
+🪑
+5
+
+🧋
+
+◀
+▶️
+▶
+
+==== play ====
+🧋
+谁先买到？
+
+目标：客人一个个来排队。店员问「下一个是谁」的时候，点出下一个能买到奶茶的人。点错了，排最前面的会举手提醒你。
+
+🧑‍🍳 又来了一批客人……
+
+🧑‍🍳
+🧋
+
+🧋
+
+🧑‍🍳
+我是店员
+
+目标：椅子围成一圈，按上面的指令卡干活。有人来了，点他该坐的椅子（最后一位后面那把，走到 5 号后面回到 0 号）；卖出一杯，点买到奶茶的人（队头，等得最久的）。
+
+🦊 来了，该坐哪把椅子？
+
+🦊
+🚶
+🐷
+🚶
+🧋
+🐸
+🚶
+🧋
+🐰
+🚶
+🧋
+🧋
+🐔
+🚶
+🧋
+›
+›
+›
+›
+›
+›
+🧑‍🍳
+🪑
+0
+🪑
+1
+🪑
+2
+队头
+🐼
+3
+🐯
+4
+🪑
+5
+
+🧋
+
+==== do ====
+①
+先看一遍
+
+循环队列：固定容量的数组，head 指向下一个出队的格子，tail 指向下一个入队的格子，走到末尾绕回 0。上面是真实的数组，右边把它弯成一圈。每一步对应下面 Kotlin 代码的一行。
+
+操作序列
+绕一圈
+满了、空了
+随机
+offer(12)
+offer(35)
+offer(47)
+poll()
+poll()
+offer(58)
+offer(61)
+offer(79)
+poll()
+poll()
+
+数组 items
+
+head·tail
+0
+1
+2
+3
+
+弯成一圈看
+
+›
+›
+›
+›
+head·tail
+0
+1
+2
+3
+head
+0
+tail
+0
+size
+0
+容量
+4
+出队
+—
+
+第 1/51 步：新建容量为 4 的队列：数组 4 格，head = tail = size = 0。
+
+重置
+上一步
+播放
+下一步
+速度
+慢
+中
+快
+手动
+KOTLIN
+1
+class RingQueue(capacity: Int) {
+2
+    private val items = IntArray(capacity)
+3
+    private var head = 0  // 下一个出队的格子
+4
+    private var tail = 0  // 下一个入队的格子
+5
+    private var size = 0
+6
+7
+    fun offer(x: Int): Boolean {
+8
+        if (size == items.size) return false
+9
+        items[tail] = x
+10
+        tail = (tail + 1) % items.size
+11
+        size++
+12
+        return true
+13
+    }
+14
+15
+    fun poll(): Int? {
+16
+        if (size == 0) return null
+17
+        val x = items[head]
+18
+        head = (head + 1) % items.size
+19
+        size--
+20
+        return x
+21
+    }
+22
+}
+②
+猜下一步
+
+每个操作先点出它写进或读出哪一格（满了、空了就点按钮），再点出 tail 或 head 接下来指向哪一格。连对 6 次过关。
+
+容量
+5
+size
+0
+连对
+0 / 6
+offer(25)
+offer(31)
+offer(66)
+poll()
+poll()
+poll()
+offer(86)
+offer(42)
+poll()
+poll()
+poll()
+poll()
+head·tail
+0
+1
+2
+3
+4
+
+offer(25)：25 会写进哪一格？满了就点「满了」。
+
+满了：return false
+空了：return null
+③
+找 bug
+
+写循环队列最常见的三个坑。每段代码只错了一行：先播放，看它怎么跑错，再点出错的那一行。
+
+选一个坑
+坑 1
+坑 2
+坑 3
+已找到 0 / 3
+排着排着，程序崩溃了
+
+输入：容量 4。队里最多 3 个，从没超过容量 4，每个 offer 都应该成功。
+
+offer(11)
+offer(22)
+offer(33)
+poll()
+poll()
+offer(44)
+offer(55)
+head·tail
+0
+1
+2
+3
+head
+0
+tail
+0
+size
+0
+容量
+4
+
+第 1/33 步：新建容量为 4 的队列。
+
+重置
+上一步
+播放
+下一步
+速度
+慢
+中
+快
+手动
+
+哪一行有 bug？
+点它。
+
+KOTLIN
+1
+class RingQueue(capacity: Int) {
+2
+    private val items = IntArray(capacity)
+3
+    private var head = 0  // 下一个出队的格子
+4
+    private var tail = 0  // 下一个入队的格子
+5
+    private var size = 0
+6
+7
+    fun offer(x: Int): Boolean {
+8
+        if (size == items.size) return false
+9
+        items[tail] = x
+10
+        tail = tail + 1
+11
+        size++
+12
+        return true
+13
+    }
+14
+15
+    fun poll(): Int? {
+16
+        if (size == 0) return null
+17
+        val x = items[head]
+18
+        head = (head + 1) % items.size
+19
+        size--
+20
+        return x
+21
+    }
+22
+}
+④
+亲手写
+
+在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 exercises/ 目录，把 queue 包里的 TODO() 换成你的代码：
+
+RingQueue.kt：固定容量的循环队列，写 offer、poll、peek、size、isEmpty、isFull。只许用一个 IntArray，每个操作 O(1)。
+TwoStackQueue.kt：变种，只用两个栈拼出一个先进先出的队列。经典面试题，想想为什么平均每个操作是 O(1)。
+
+写完在 exercises/ 目录运行下面的命令，测试全绿就过关：
+
+TERMINAL
+$
+./gradlew test --tests 'queue.*'
+⑤
+挑战
+
+不看动画，在脑子里把一串操作跑完，预测数组最后的样子，再和真正的循环队列比一比。
+
+容量 5 的循环队列，从空的开始，依次执行：
+
+offer(69)
+poll()
+offer(23)
+poll()
+offer(67)
+offer(12)
+poll()
+offer(58)
+offer(62)
+
+最后数组里每一格是什么？head、tail 在哪？出队的值会被擦掉吗？
+
+0 号格
+空
+69
+23
+67
+12
+58
+62
+0
+1 号格
+空
+69
+23
+67
+12
+58
+62
+1
+2 号格
+空
+69
+23
+67
+12
+58
+62
+2
+3 号格
+空
+69
+23
+67
+12
+58
+62
+3
+4 号格
+空
+69
+23
+67
+12
+58
+62
+4
+head
+0
+1
+2
+3
+4
+tail
+0
+1
+2
+3
+4
+揭晓
+换一题
+
+==== more ====
+⚡
+为什么快
+
+入队、出队都只动一个下标，是 O(1)。如果用普通数组、每次从头部删除，后面的元素要整体往前挪一格，队里有 n 个就要挪 n − 1 次。
+
+6
+把椅子
+挪数组
+5 次
+循环队列
+0 次
+1,000
+一千
+挪数组
+999 次
+循环队列
+0 次
+1,000,000
+一百万
+挪数组
+999,999 次
+循环队列
+0 次
+
+出队一次要挪动几个元素。条形长度用对数刻度绘制。循环队列一个都不用挪，只把 head 往前走一格。
+
+🪑
+空和满怎么分
+
+空的时候 head == tail，满的时候 tail 绕一圈追上 head，也是 head == tail。常见的三种办法：
+
+另记一个 size：本关的写法。Java 的 ArrayBlockingQueue 也是这样，字段叫 items、takeIndex、putIndex、count。
+故意空出一格不用：满的条件是 (tail + 1) % 容量 == head。Java 的 ArrayDeque 就这样做，源码注释写着数组在 tail 处至少留一个空格（它是会扩容的，本关是固定容量）。
+下标一直往上加、不取模，用 tail - head 算个数，读写时再取模。容量取 2 的幂时，取模可以换成更快的位与。
+🌍
+真实世界里的队列
+ArrayDeque：Java 和 Kotlin 标准库里最常用的队列，内部就是一个会扩容的循环数组。写 BFS、滑动窗口时用它代替 LinkedList。
+键盘缓冲区：按键先存进环形缓冲区，程序按顺序取。老式 PC 的 BIOS 缓冲区只有 16 格，头尾两个指针绕着圈走。
+网卡和声卡：网卡收发数据包、声卡播放声音，都用环形缓冲区，写的一方在前面跑，读的一方在后面追。
+打印队列、任务队列：先提交的先处理。
+消息队列：Kafka 每个分区是一条只往后追加的日志，同一分区里按写入顺序读。读完不删，按保留时间清理，是「先进先出」思想的大规模版本。
+Android 的 Looper 和 MessageQueue：主线程一直从队列里取消息处理。它按消息该被处理的时间排序，时间相同的先放进来的先处理，所以不是严格的先进先出。
+广度优先搜索（BFS）：用队列一层一层往外找，保证先处理离起点近的。
+🔀
+常见变种
+双端队列（deque）：两头都能进出，ArrayDeque 就是。
+阻塞队列：空了取的人等，满了放的人等，生产者和消费者靠它配合。
+优先队列：按优先级出队（用堆实现），名字里有「队列」，但不是先进先出。
+
+想听完整的故事？读 故事稿。

@@ -1,0 +1,323 @@
+🔊
+深度优先搜索
+
+一条路走到底，碰壁就退回上一个岔路口换方向，沿路撒面包屑不走回头路。孩子当探险家选方向、数小岛，大人一路练到亲手写出递归 DFS 和回溯。
+
+👀
+看
+一起看
+🎮
+玩
+孩子停在这里
+🛠️
+做
+大人继续
+📖
+延伸
+通关以后
+
+==== look ====
+📖
+探险家走山洞
+
+一页一页翻，看探险家怎么一路走到底、没路了再退回来。
+
+探险家 🧭 走进山洞，要找宝藏 💎
+
+🧭
+💎
+◀
+▶️
+▶
+
+==== play ====
+🧭
+下一步往哪走
+
+目标：帮探险家 🧭 找到宝藏 💎。每到一个路口，按 ①上 ②右 ③下 ④左 的顺序，哪边能走就走哪边；走过的地方撒面包屑 🍞，不走回头路。四边都走不通，就点 ↩️ 退回上一个路口。
+
+👆 帮探险家 🧭 找宝藏 💎：按 ①②③④ 的顺序，哪边能走就走哪边
+
+👣 0
+↩️ 0
+🧭
+💎
+⬆️
+1
+⬅️
+4
+➡️
+2
+⬇️
+3
+↩️
+
+① 上　② 右　③ 下　④ 左：先试 ①，不行再试 ②……四边都不行，就点 ↩️ 退回。
+
+🏝️
+数一数小岛
+
+目标：海上有好几座小岛。点一块灰色的陆地，探险家 🧭 会把和它连在一起的陆地全涂上同一种颜色；涂完所有的岛，再数一数一共有几座。点到海会摇头。
+
+👆 点一块陆地，探险家 🧭 会把整座岛涂上颜色
+
+==== do ====
+①
+先看一遍
+
+在山洞里判断 S 能不能走到 E。每一步对应右边 Kotlin 代码的一行，高亮行是正在执行的那一行。注意调用栈：每进一个格子多一层，死路 return 就少一层。
+
+山洞
+山洞 1
+山洞 2
+山洞 3
+走不到
+0
+1
+2
+3
+4
+5
+6
+0
+1
+2
+3
+4
+5
+💎
+6
+
+格子里的数字是被标记 visited 的先后。橙色实心：正在执行的这一层；浅橙：调用栈里的格子，也就是现在这条路；浅绿：走过又退回来的。
+
+栈底 →
+（空）
+(r, c)
+—
+递归深度
+0
+dfs 调用次数
+0
+visited 个数
+0
+
+第 1/201 步：从起点 (0,0) 调用 dfs，开始探险。
+
+重置
+上一步
+播放
+下一步
+下一个新格子
+下一次回溯
+速度
+慢
+中
+快
+手动
+KOTLIN
+1
+fun hasPath(grid: List<String>): Boolean {
+2
+    val h = grid.size
+3
+    val w = grid[0].length
+4
+    val start = findCell(grid, 'S')
+5
+    val visited = Array(h) { BooleanArray(w) }
+6
+    return dfs(grid, visited, start.first, start.second)
+7
+}
+8
+9
+fun dfs(grid: List<String>, visited: Array<BooleanArray>, r: Int, c: Int): Boolean {
+10
+    if (r !in grid.indices || c !in grid[0].indices) return false
+11
+    if (grid[r][c] == '#' || visited[r][c]) return false
+12
+    visited[r][c] = true
+13
+    if (grid[r][c] == 'E') return true
+14
+    for ((dr, dc) in DIRS) {
+15
+        if (dfs(grid, visited, r + dr, c + dc)) return true
+16
+    }
+17
+    return false
+18
+}
+
+DIRS 是上、右、下、左四个方向：listOf(-1 to 0, 0 to 1, 1 to 0, 0 to -1)；findCell 找出 S 所在的格子。dfs 每被调用一次，调用栈就多一层；return 一次，就少一层。
+
+②
+猜下一步
+
+动画会停在探险家刚站稳的时候。先猜接下来是往前走（去哪格）、回溯（退到哪个路口），还是已经到了宝藏，连对几次过关。
+
+第
+1 次站稳
+连对
+0 / 5
+0
+1
+2
+3
+4
+5
+6
+0
+🧭
+1
+2
+3
+4
+5
+6
+💎
+栈底 →
+(0,0)
+← 栈顶
+
+探险家刚走进 (0,0)，撒了面包屑。接下来呢？往前走就点它要去的格子；四边都走不通就点「回溯」。
+
+↩️ 死路了，回溯
+💎 是宝藏，return true
+③
+找 bug
+
+写 DFS 最常见的三个坑。每段代码只错了一行：先播放，看它怎么跑错，再点出错的那一行。
+
+选一个坑
+坑 1
+坑 2
+坑 3
+已找到 0 / 3
+来回打转停不下来
+
+输入：下面这个山洞，3×3 的小山洞，有路能走到宝藏。
+
+0
+1
+2
+0
+1
+2
+💎
+栈底 →
+（空）
+(r, c)
+—
+递归深度
+0
+dfs 调用次数
+0
+
+第 1/362 步：从起点 (0,0) 调用 dfs，开始探险。
+
+重置
+上一步
+播放
+下一步
+下一个新格子
+跳到结尾
+速度
+慢
+中
+快
+手动
+
+哪一行有 bug？
+点它。
+
+KOTLIN
+1
+fun hasPath(grid: List<String>): Boolean {
+2
+    val h = grid.size
+3
+    val w = grid[0].length
+4
+    val start = findCell(grid, 'S')
+5
+    val visited = Array(h) { BooleanArray(w) }
+6
+    return dfs(grid, visited, start.first, start.second)
+7
+}
+8
+9
+fun dfs(grid: List<String>, visited: Array<BooleanArray>, r: Int, c: Int): Boolean {
+10
+    if (r !in grid.indices || c !in grid[0].indices) return false
+11
+    if (grid[r][c] == '#' || visited[r][c]) return false
+12
+        // visited[r][c] = true
+13
+    if (grid[r][c] == 'E') return true
+14
+    for ((dr, dc) in DIRS) {
+15
+        if (dfs(grid, visited, r + dr, c + dc)) return true
+16
+    }
+17
+    return false
+18
+}
+④
+亲手写
+
+在自己电脑上用 IntelliJ IDEA 或 Android Studio 打开仓库里的 exercises/ 目录，把 Dfs.kt 里的三个 TODO() 换成你的代码：
+
+numIslands(grid)：数岛屿（'1' 陆地、'0' 海），上下左右连着的陆地算一座。洪水填充：点到一块没访问的陆地就数一座，再用 DFS 把整座岛标记掉。
+hasPath(grid)：山洞里 S 能不能走到 E。
+countPaths(grid)：S 到 E 一共有几条不重复走格子的路。这是回溯：进格子时标记，退出时要把标记擦掉。
+
+写完在 exercises/ 目录运行下面的命令，测试全绿就过关：
+
+TERMINAL
+$
+./gradlew test --tests 'dfs.*'
+⑤
+挑战
+
+同一个山洞，DFS 和 BFS 走的顺序完全不同。DFS 按 上、右、下、左 的顺序，哪个格子是第 12 个被标记 visited 的？起点算第 1 个。
+
+题目
+DFS 第 12 个
+💎
+
+💡 提示：给我看前 6 个
+
+==== more ====
+⏱️
+复杂度
+
+每个格子最多被标记一次，每个格子看四个方向，时间是 O(h·w)；一般的图是 O(V + E)。空间是 visited 加上调用栈，最坏一条路穿过所有格子，递归深度就是 O(h·w)。
+
+📚
+递归深度和 StackOverflowError
+递归写法每进一个格子就叠一层调用栈。JVM 默认的栈大约能撑上万层，1000×1000 的空地可能一条路走一百万格，会 StackOverflowError。
+办法：改成显式的栈（ArrayDeque 当栈用），数据放在堆里，不怕深；或者在更大栈的线程里跑。
+显式栈要小心：想要和递归一样的访问顺序，得记住每个格子试到第几个方向（本关「看」里的行程就是这样算出来的）。
+⚖️
+DFS 和 BFS 怎么选
+要「最少步数」「最短路」用 BFS；DFS 第一次到达的路不一定最短（「看」里的第一个山洞：DFS 走 13 步，最短只要 11 步）。
+只问「能不能走到」「有几块连在一起」「有没有环」「排顺序」，DFS 代码更短。
+内存：BFS 要装下最宽的一圈，DFS 只装当前这条路；很宽很浅的图 DFS 省内存，很深的图 BFS 省栈。
+把 BFS 的队列换成栈，BFS 就变成 DFS。
+🌍
+真实世界里的 DFS
+洪水填充：画图软件的「油漆桶」把一块颜色相同、连在一起的区域涂成新颜色，本关「数岛」就是它。
+拓扑排序：按依赖关系排顺序（先装哪个包、先编译哪个模块），DFS 的「退出时间」倒过来就是一种拓扑序。
+检测环：DFS 时碰到「还在栈上」的点，说明有环；构建系统用它发现循环依赖。
+迷宫生成：随机 DFS 挖通道，就是「挖一条路走到底，没路了退回换方向」。
+回溯搜索：数独、八皇后、排列组合，试一步、往下递归、不行就撤销，本质是带撤销的 DFS。
+强连通分量（Tarjan、Kosaraju）、连通分量、二分图判断等图算法的基础。
+
+想听完整的故事？读 故事稿。
