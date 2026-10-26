@@ -4,14 +4,16 @@
 
 ## 新增一个算法
 
-照二分查找这个样板关做（`src/demos/binary-search/`、`src/engine/binary-search.ts`、`exercises/.../binarysearch/`）。
+照二分查找这个样板关做（`src/levels/binary-search/`、`src/engine/binary-search.ts`、`src/demos/binary-search/`、`src/locales/zh/binary-search.json`、`exercises/.../binarysearch/`）。分层规则见末节「架构：逻辑、流程、文案、页面结构分开」。
 
-1. `content/algorithms/<slug>/`：写 `meta.json`、`notes.md`、`story.md`
-2. `src/engine/<slug>.ts`：引擎，参考代码的行号要和 `CODE` 数组一致
-3. `tests/<slug>.test.ts`：大量随机输入检查每一步和最终结果。最终结果要和一个**独立的标准答案**比：语言自带的函数（如 `Array.prototype.sort`），或测试里另写的最朴素做法（暴力枚举、逐个比较），不能拿引擎自己的函数当答案
-4. `src/demos/<slug>/`：`Demo.astro` 加四步的 Vue 组件，用 `<Fragment slot="look|play|do|more">` 传给 `AlgoLayout`。`src/demos/index.ts` 自动收集，不用登记
-5. `exercises/`：加一个包，放函数框架、测试和参考答案
-6. 更新 `docs/algorithm-catalog.md` 和根目录 `README.md`（由主线程统一做）
+1. `content/algorithms/<slug>/`：写 `meta.json`（只放分类、步骤、顺序）、`notes.md`、`story.md`
+2. `src/locales/zh/<slug>.json`：这一关的全部文案，包括 `meta.title` 等
+3. `src/engine/<slug>.ts`：引擎，只产出 Msg；参考代码的行号要和 `CODE` 数组一致
+4. `src/levels/<slug>/flows.ts`：玩法、猜下一步、挑战、逐步执行输入的状态机；`level.ts`：四步里各有哪些块
+5. `src/demos/<slug>/`：画面组件和 `views.ts`
+6. `tests/<slug>.test.ts`（引擎）、`tests/<slug>.flows.test.ts`（流程）：大量随机输入检查每一步和最终结果。最终结果要和一个**独立的标准答案**比：语言自带的函数（如 `Array.prototype.sort`），或测试里另写的最朴素做法（暴力枚举、逐个比较），不能拿引擎自己的函数当答案
+7. `exercises/`：加一个包，放函数框架、测试和参考答案
+8. 更新 `docs/algorithm-catalog.md` 和根目录 `README.md`（由主线程统一做）
 
 **为什么不再写 Python**：同一个算法原本写三遍（TS 引擎、Python、Kotlin 参考答案）。Python 的作用只是给引擎对拍，第 3 步的独立标准答案能起同样的作用，还少一个文件、少一套运行环境。早期关卡的 `<name>.py` 和 `tests/<slug>.crosscheck.test.ts` 保留，不回头删。
 
@@ -32,10 +34,10 @@
 
 - 配色、字体和通用控件在 `src/styles/theme.css`，用里面的 CSS 变量，不写死颜色；算法独有的画面样式写在组件的 `<style scoped>` 里。theme.css 里有不少全局类名（如 `.num`、`.tag`、`.idx`、`.say`、`.note`、`.result`），scoped 样式挡不住它们，起类名前先搜一下
 - 同时支持浅色和深色主题，手机宽度（375px）下不横向滚动
-- 语言：简体中文
+- 语言：简体中文，文字一律写在 `src/locales/zh/` 里（见末节）
 - `prototypes/` 是最早的单文件原型，只做参考，不再修改
 
-## 共享组件与引擎数据格式（阶段 B 规格，2026-10-25）
+## 共享组件与引擎数据格式（阶段 B 规格，2026-10-25；文字、组件拆分以末节阶段 R 为准）
 
 背景：13 关的「看」「猜下一步」「找 bug」骨架相同却各写一份（盘点见 `docs/progress.md` 的阶段 B 记录）。原则：**共享骨架，不共享画面**。每关独有的是画面组件（`Street`、`Maze` 等）、题目内容、「玩」的小游戏和「挑战」；骨架（翻页、计时器、连对、答错提示、找 bug 面板）一律走共享组件，新关卡不许再抄。
 
@@ -96,3 +98,37 @@ export interface BugInfo {
 3. 迁移是**纯重构**：页面外观和行为不变，除非顺手修了盘点里的三处计时器泄漏（`bubble-sort/DoPredict`、`dynamic-programming/DoPredict`、`insertion-sort/DoChallenge`，都改用 `useStageStop`）。
 4. 引擎里改名要同步改 `tests/` 和（若有）`<name>.py` 对拍测试，改完测试必须全绿。
 5. 迁移期间，没迁移的旧关卡继续能用；共享组件只加不改旧接口。
+
+## 架构：逻辑、流程、文案、页面结构分开（阶段 R 规格，2026-10-26）
+
+目标：换平台只重写「放映机」和画面，换语言只加语言文件。样板是二分查找，迁移其余关卡时照着它做。
+
+### 1. 分层
+
+| 层 | 位置 | 规则 |
+|---|---|---|
+| 文案 | `src/locales/zh/common.json`（全站通用）、`src/locales/zh/<slug>.json`（一关一个） | 一层扁平的「键 → 字符串」，键用点分段：`look.*`、`play.<游戏>.*`、`do.trace.*`、`do.predict.*`、`do.bugs.*`、`do.write.*`、`do.challenge.*`、`more.*`、`meta.*`。参数写 `{name}`；可以写 `` `代码` ``、`**加粗**`、`[文字](链接)`。关卡文件不许和 common 重名（测试会查）。通用的块标题用 common 的 `block.trace / predict / bugs / write / challenge` |
+| 引擎 | `src/engine/<slug>.ts` | 不写给人看的文字，只产出 `Msg`（键加参数）：`const msg = msgOf<typeof zh>()`，`import type zh from '../locales/zh/<slug>.json'`，键写错 `npm run check` 报错。步骤写 `extends Step<Msg>`，绘本页 `extends LookFrame<Msg>`，坑 `extends BugInfo<Msg>`。原来写在组件里的文字（总结、「输入：」那句、判定）搬进引擎函数（如 `traceSummary`、`bugInput`、`bugVerdict` 返回 `Msg \| null`） |
+| 流程 | `src/levels/<slug>/flows.ts` | 玩法、猜下一步、挑战、逐步执行的输入，各写成一个 `Flow<State, Action>`（`src/levels/types.ts`）：`init(rand)`、`step(state, action, rand)`、可选 `interrupt(state)`（切标签时收拾动画）。纯函数、不原地改状态；要显示的文字放在状态里（`say: Msg` 等）。声音和定时都写成效果：`{ sound }`、`{ after: PAUSE_*, then: 动作 }`，组件里不许再有 `setTimeout` 推进规则。重播的动画（晃一下、透光）在状态里放 `[位置, 次数]`，画面组件看到次数变了就重播 |
+| 配置 | `src/levels/<slug>/level.ts` | 四步里各有哪些块，用 `book / game / predict / trace / bugs / write / prose` 这几个函数写（见 types.ts 的注释）。title、intro、goal 等都是键 |
+| 画面 | `src/demos/<slug>/*.vue` + `views.ts` | 只画状态、把点击变成 `send(动作)`，不写规则；文字用 `t(键或 Msg)`（`src/i18n/runtime.ts`）。views.ts 导出「名字 → 组件」，名字和配置里的 `view` 对应 |
+| 放映机 | `src/runtime/` | 共享，不随关卡改。`LevelPage` 排四步；`LevelIsland` 按需加载一关的配置和画面；`BookHost`（画面收到 `{ frame }`）、`GameHost`（显示 goal 和 `state.say`，画面收到 `{ s, send }`）、`PredictHost`（外框由状态的 `PredictState` 字段决定，画面收到 `{ s, send, part: 'board' \| 'answers' }`）、`TraceHost`（画面收到 `{ input, send, step, part: 'controls' \| 'board' }`，变量、步骤说明、播放条、跳转按钮、总结、代码面板都在这里）、`BugHost`（画面收到 `{ step, bug }`）；亲手写、延伸在构建时生成（`WriteBlock`、`ProseBlock`） |
+
+变量小标签（`vars`、`chips`）的名字和值：字符串原样显示（变量名、数字），`Msg` 才翻译（如「已检查」）。
+
+### 2. 迁移一关的步骤（R3）
+
+1. 把引擎、组件、`Demo.astro` 里所有中文搬进 `src/locales/zh/<slug>.json`（`meta.*` 已经在了），文字一个字不改
+2. 引擎改成只产出 Msg，原来在组件里的文字逻辑搬进引擎
+3. 组件里的规则搬进 `flows.ts`，**随机数调用的先后要和原来一致**（页面快照靠它比对）
+4. 写 `level.ts`、`views.ts`，组件改成只画画面；删掉 `Demo.astro`、`LookStory`、`DoTrace`、`DoPredict`、`DoBug`、`DoChallenge` 等外壳
+5. 测试：引擎测试里比文字的地方用 `tests/helpers/i18n.ts` 的 `zh(slug)` 翻译后再比，并用 `expectTranslatable` 检查；新增 `tests/<slug>.flows.test.ts`，用 `tests/helpers/flow.ts` 的 `driver` 把每个流程从头玩到尾（包括答错、点错、切标签）
+6. 检查：`npm test`、`npm run check`、`npm run build` 后 `npm run snapshot -- --check <slug>` **必须一致**；再用 `check-pages.cjs` 看这一关；最后在浏览器里每个游戏点几下（快照只看初始画面）
+
+纯重构：页面外观、文字、行为都不变。快照不一致时，先找原因；确实只是无关紧要的差别（比如随机数先后变了），在交回的总结里写清楚。
+
+### 3. 迁移期间
+
+- `src/pages/algo/[slug].astro`：有 `src/levels/<slug>/level.ts` 的按配置生成，否则还用旧的 `Demo.astro`
+- `engine/types.ts` 的 `Step`、`LookFrame`、`BugInfo` 带类型参数（旧关卡 `string`，新关卡 `Msg`）；共享组件里的 `show()` 同时接受两种。全部迁完后去掉类型参数、`show()` 改回 `t()`、删掉 `src/demos/index.ts` 和 `AlgoLayout` 之外的旧路径（R4）
+- 页面文字快照：`tests/snapshots/pages/<slug>.txt`，`npm run snapshot -- --check` 对比；R4 收尾后保留，作为以后改共享部分时的回归检查

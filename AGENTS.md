@@ -19,20 +19,23 @@
 
 ```
 npm run dev / npm test / npm run test:py / npm run check / npm run build
+npm run snapshot -- --check [slug...]                           # 先 build；页面文字和快照比对，重构时用
 cd exercises && ./gradlew test -Psolutions
 node scripts/check-pages.cjs <页面地址> --each '[role=tab]'   # 页面检查，只出文字报告，不看截图
 ```
 
-## 三层结构
+## 分层结构
+
+逻辑、流程、文案、页面结构分开（阶段 R，详见 `docs/level-spec.md` 末节，样板是二分查找；迁移期间未迁移的关卡还是旧结构）：
 
 | 层 | 位置 | 规则 |
 |---|---|---|
-| 内容 | `content/algorithms/<slug>/` | `meta.json`（标题、分类、已做的步骤等，字段见 `src/content.config.ts`）、`notes.md` 资料、`story.md` 故事稿；早期关卡另有 `<name>.py` 参考实现，用于和引擎对拍（新关卡不再写，见 `docs/level-spec.md`） |
-| 引擎 | `src/engine/<slug>.ts` | 纯函数，不碰 DOM、不依赖 Vue。看和玩的规则、逐步执行的 `buildTrace`、找 bug 的 bug 版本都在这里。步骤轨迹每一步继承 `src/engine/types.ts` 的 `Step`（`line` 代码行号、`note` 说明、`done`），`CODE` 是 Kotlin 代码 |
-| 界面 | `src/demos/<slug>/` | `Demo.astro` 组织四步的面板（`src/demos/index.ts` 自动收集，不用登记），交互部分写成 Vue 组件，用 `client:only="vue"` 挂载。通用部分用 `src/components/shared/`：`usePlayer`、`Transport`、`CodePanel`（可点行，用于找 bug）、`VarChips`、`Segmented`、`LogCompare` |
+| 内容 | `content/algorithms/<slug>/` | `meta.json`（分类、已做的步骤、顺序，不放文字，字段见 `src/content.config.ts`）、`notes.md` 资料、`story.md` 故事稿；早期关卡另有 `<name>.py` 参考实现，用于和引擎对拍（新关卡不再写） |
+| 文案 | `src/locales/zh/` | `common.json` 全站通用，`<slug>.json` 一关一个（含标题、导语）。所有给人看的文字都在这里，代码里不写中文 |
+| 引擎 | `src/engine/<slug>.ts` | 纯函数，不碰 DOM、不依赖 Vue，只产出 Msg（文案键加参数）。逐步执行的 `buildTrace`、找 bug 的 bug 版本都在这里。`CODE` 是 Kotlin 代码 |
+| 流程、配置 | `src/levels/<slug>/` | `flows.ts`：玩法、猜下一步、挑战的状态机（纯函数）；`level.ts`：四步里各有哪些块 |
+| 画面 | `src/demos/<slug>/` | 只画状态、转发点击的 Vue 组件，`views.ts` 登记。共享的放映机在 `src/runtime/`，共享控件在 `src/components/shared/` |
 | 练习 | `exercises/` | 每个算法一个 Kotlin 包：框架、测试、参考答案 |
-
-`<slug>` 是算法英文名，短横线分隔。
 
 新增算法的步骤、四步关卡怎么做、页面约定，见 `docs/level-spec.md`。
 
