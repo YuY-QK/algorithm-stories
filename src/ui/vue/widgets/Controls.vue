@@ -1,0 +1,126 @@
+<script setup lang="ts">
+import { computed, reactive, useId, watch, type Component } from 'vue';
+import Segmented from '../../../components/shared/Segmented.vue';
+import type { Control } from '../../../core/types';
+import type { Tr } from '../i18n';
+
+// 画一组 Control：按钮、数字输入框、分段选择、小按钮组。只认核心层的描述，不认识任何具体算法。
+// fields：逐步执行面板上方的设置栏（每项一个带标签的字段）；play：「玩」和「挑战」里的按钮、输入框。
+const props = withDefaults(defineProps<{
+  controls: Control<any>[];
+  variant?: 'fields' | 'play';
+  /** 按钮上的小画面（art）从这里按名字取 */
+  scenes?: Record<string, Component>;
+  tr: Tr;
+}>(), { variant: 'play', scenes: () => ({}) });
+const emit = defineEmits<{ act: [action: unknown] }>();
+
+type Num = Extract<Control<any>, { type: 'number' }>;
+type Btn = Extract<Control<any>, { type: 'button' }>;
+
+const uid = useId();
+const id = (k: number) => uid + '-' + k;
+
+// 数字框里正在输入的字，按控件序号记。接受了一次操作（clearOn 变了）就清空
+const texts = reactive<Record<number, string>>({});
+watch(() => props.controls.map((c) => (c.type === 'number' ? c.clearOn : null)).join(), () => {
+  for (const k of Object.keys(texts)) delete texts[Number(k)];
+});
+
+function onLive(c: Num, e: Event) {
+  const v = parseInt((e.target as HTMLInputElement).value, 10);
+  if (!isNaN(v)) emit('act', c.submit(v));
+}
+function onSubmit(c: Num, k: number) {
+  const v = parseInt(texts[k] ?? '', 10);
+  if (!isNaN(v)) emit('act', c.submit(v));
+  else if (c.invalid !== undefined) emit('act', c.invalid);
+}
+
+const cls = (c: Btn) => (c.look === 'pad' ? 'pad' : c.look === 'choice' ? 'choice' : c.look === 'primary' ? 'btn primary' : c.look === 'small' ? 'btn small' : 'btn');
+
+/** play 变体：相邻的同类控件放进同一个容器（指路按钮一排、追问选项一排、其余按钮一行） */
+const groups = computed(() => {
+  const out: { kind: string; items: { c: Control<any>; k: number }[] }[] = [];
+  props.controls.forEach((c, k) => {
+    const kind = c.type === 'button' ? (c.look === 'pad' ? 'pad' : c.look === 'choice' ? 'choice' : 'row') : c.type;
+    const last = out[out.length - 1];
+    if (last && last.kind === kind && kind !== 'number') last.items.push({ c, k });
+    else out.push({ kind, items: [{ c, k }] });
+  });
+  return out;
+});
+</script>
+
+<template>
+  <div v-if="variant === 'fields'" class="controls">
+    <template v-for="(c, k) in controls" :key="k">
+      <Segmented
+        v-if="c.type === 'segmented'"
+        :model-value="c.value"
+        :legend="tr(c.legend)"
+        :options="c.options.map((o) => ({ value: o.value, label: tr(o.label) }))"
+        @update:model-value="(v: string | number) => emit('act', c.choose(v))"
+      />
+      <div v-else-if="c.type === 'number'" class="field">
+        <label :for="id(k)">{{ tr(c.label) }}</label>
+        <input :id="id(k)" type="number" inputmode="numeric" step="1" :value="c.value" @input="onLive(c, $event)">
+      </div>
+      <div v-else-if="c.type === 'group'" class="field">
+        <span class="lab">{{ tr(c.legend) }}</span>
+        <div class="inline">
+          <template v-for="(b, j) in c.items" :key="j">
+            <button v-if="b.type === 'button'" type="button" :class="cls(b)" :disabled="b.disabled" :aria-label="b.aria ? tr(b.aria) : undefined" @click="emit('act', b.action)">{{ tr(b.label) }}</button>
+          </template>
+        </div>
+      </div>
+      <button v-else type="button" :class="cls(c)" :disabled="c.disabled" :aria-label="c.aria ? tr(c.aria) : undefined" @click="emit('act', c.action)">{{ tr(c.label) }}</button>
+    </template>
+  </div>
+
+  <template v-else>
+    <template v-for="(g, gi) in groups" :key="gi">
+      <div v-if="g.kind === 'pad'" class="answers pads">
+        <button v-for="{ c, k } in g.items" :key="k" type="button" class="pad" :disabled="(c as Btn).disabled" :aria-label="(c as Btn).aria ? tr((c as Btn).aria!) : undefined" @click="emit('act', (c as Btn).action)">{{ tr((c as Btn).label) }}</button>
+      </div>
+      <div v-else-if="g.kind === 'choice'" class="choices">
+        <button v-for="{ c, k } in g.items" :key="k" type="button" class="choice" :disabled="(c as Btn).disabled" @click="emit('act', (c as Btn).action)">
+          <component :is="scenes[(c as Btn).art!.scene]" v-if="(c as Btn).art" v-bind="(c as Btn).art!.props" />{{ tr((c as Btn).label) }}
+        </button>
+      </div>
+      <div v-else-if="g.kind === 'row'" class="row">
+        <button v-for="{ c, k } in g.items" :key="k" type="button" :class="cls(c as Btn)" :disabled="(c as Btn).disabled" :aria-label="(c as Btn).aria ? tr((c as Btn).aria!) : undefined" @click="emit('act', (c as Btn).action)">{{ tr((c as Btn).label) }}</button>
+      </div>
+      <template v-else-if="g.kind === 'number'">
+        <form v-for="{ c, k } in g.items" :key="k" class="inline" @submit.prevent="onSubmit(c as Num, k)">
+          <label class="sr" :for="id(k)">{{ tr((c as Num).label) }}</label>
+          <input
+            :id="id(k)" type="number" inputmode="numeric" :min="(c as Num).min" :max="(c as Num).max"
+            :placeholder="tr((c as Num).label)" :value="texts[k] ?? ''" @input="texts[k] = ($event.target as HTMLInputElement).value"
+          >
+          <button v-if="(c as Num).submitLabel" type="submit" class="btn small primary">{{ tr((c as Num).submitLabel!) }}</button>
+        </form>
+      </template>
+    </template>
+  </template>
+</template>
+
+<style scoped>
+.pads { gap: 12px; }
+.pad {
+  font: inherit; font-size: clamp(1.8rem, 8vw, 2.4rem); cursor: pointer; flex: 0 1 3.2em; height: 1.9em;
+  border-radius: 16px; border: 1.5px solid var(--line); background: var(--surface);
+}
+.pad:disabled { opacity: 0.4; cursor: default; }
+.pad:not(:disabled):hover { border-color: var(--accent); }
+.pad:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.choices { display: flex; flex-wrap: wrap; gap: 10px; }
+.choice {
+  font: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--fg);
+}
+.choice:hover { border-color: var(--accent); }
+.choice:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+form.inline { display: flex; gap: 8px; align-items: center; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>

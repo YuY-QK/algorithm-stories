@@ -1,6 +1,8 @@
 ---
 import { getCollection } from 'astro:content';
 import { DEMOS } from '../../demos';
+import LevelPage from '../../ui/vue/LevelPage.astro';
+import { hasLevel } from '../../ui/levelData';
 
 export async function getStaticPaths() {
   const all = await getCollection('algorithms');
@@ -8,8 +10,9 @@ export async function getStaticPaths() {
 }
 
 const { algo } = Astro.props;
-const Demo = DEMOS[algo.id];
-if (!Demo) throw new Error('content/algorithms/' + algo.id + ' 还没有在 src/demos/index.ts 登记演示页');
+// 有 level.json 的关卡走通用页面（阶段 R 的新结构），其余还用 src/demos/<slug>/Demo.astro
+const Demo = hasLevel(algo.id) ? LevelPage : DEMOS[algo.id];
+if (!Demo) throw new Error('content/algorithms/' + algo.id + ' 既没有 level.json，也还没有 src/demos/' + algo.id + '/Demo.astro');
 ---
 
 <Demo slug={algo.id} title={algo.data.title} lede={algo.data.lede} />

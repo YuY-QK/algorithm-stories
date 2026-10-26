@@ -1,0 +1,79 @@
+---
+/**
+ * 读 content/algorithms/<slug>/level.json，按四步和块的类型挂控件，取代每关一份的 Demo.astro。
+ * 页面结构和文案在内容目录里，规则在 src/engine，画面在 src/ui/vue/scenes，这里不认识任何具体算法。
+ */
+import AlgoLayout from '../../layouts/AlgoLayout.astro';
+import Block from '../../components/shared/Block.astro';
+import LogCompare from '../../components/shared/LogCompare.astro';
+import { t } from '../../core/i18n';
+import type { Msg } from '../../core/types';
+import { loadLevel } from '../levelData';
+import BlockView from './BlockView.astro';
+
+interface Props { slug: string; title: string; lede: string }
+const { slug } = Astro.props;
+const { level, copy, engine, html } = await loadLevel(slug);
+
+const COMPARE = '<!-- compare -->';
+
+/** 把 more.zh.md 渲染出的 HTML 按「## 」切成块：标题第一个字符是图标，正文里的 <!-- compare --> 单独成段 */
+function sections(src: string) {
+  return html[src]
+    .split(/<h2[^>]*>/)
+    .slice(1)
+    .map((part) => {
+      const [head, ...rest] = part.split('</h2>');
+      const [icon, ...title] = Array.from(head.replace(/<[^>]+>/g, '').trim());
+      const body = rest.join('</h2>');
+      const segs = body.split(COMPARE).flatMap((seg, k, all) => (k < all.length - 1 ? [seg, COMPARE] : [seg]));
+      return { icon, title: title.join('').trim(), segs: segs.filter((s) => s.trim()) };
+    });
+}
+
+/** 对比图的数据由引擎给，文字是 Msg，这里按文案表填好 */
+function compareRows() {
+  const rows = (engine.compareRows as (() => { label: string; unit: Msg; bars: { name: Msg; value: number; tone: 'muted' | 'accent' | 'warn' }[] }[]) | undefined)?.();
+  if (!rows) throw new Error('src/engine/' + slug + '.ts 没有导出 compareRows，但 more.zh.md 里用了 ' + COMPARE);
+  return rows.map((r) => ({ ...r, unit: t(r.unit, copy), bars: r.bars.map((b) => ({ ...b, name: t(b.name, copy) })) }));
+}
+
+const more = (level.more ?? []).flatMap((b) => (b.kind === 'markdown' ? sections(b.src) : []));
+---
+
+<AlgoLayout {...Astro.props}>
+  {level.look && (
+    <Fragment slot="look">
+      {level.look.map((block) => block.kind !== 'markdown' && <BlockView slug={slug} block={block} copy={copy} />)}
+    </Fragment>
+  )}
+  {level.play && (
+    <Fragment slot="play">
+      {level.play.map((block) => block.kind !== 'markdown' && <BlockView slug={slug} block={block} copy={copy} />)}
+    </Fragment>
+  )}
+  {level.do && (
+    <Fragment slot="do">
+      {level.do.map((block) => block.kind !== 'markdown' && <BlockView slug={slug} block={block} copy={copy} />)}
+    </Fragment>
+  )}
+  {level.more && (
+    <Fragment slot="more">
+      {more.map((sec) => (
+        <Block icon={sec.icon} title={sec.title}>
+          <div class="md">
+            {sec.segs.map((seg) => (seg === COMPARE ? <LogCompare rows={compareRows()} /> : <Fragment set:html={seg} />))}
+          </div>
+        </Block>
+      ))}
+    </Fragment>
+  )}
+</AlgoLayout>
+
+<style is:global>
+  /* 文案和 Markdown 渲染出来的正文：段落、列表、行内代码沿用原来各关写的样子 */
+  .md { display: flex; flex-direction: column; gap: 16px; }
+  .md p:not(.small-note) { max-width: 36em; }
+  .md ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 8px; max-width: 44em; }
+  .md code { font: 500 0.9em var(--mono); background: var(--out); padding: 1px 6px; border-radius: 4px; }
+</style>
