@@ -96,7 +96,7 @@ const groups = computed(() => {
           <label class="sr" :for="id(k)">{{ tr((c as Num).label) }}</label>
           <input
             :id="id(k)" type="number" inputmode="numeric" :min="(c as Num).min" :max="(c as Num).max"
-            :placeholder="tr((c as Num).label)" :value="texts[k] ?? ''" @input="texts[k] = ($event.target as HTMLInputElement).value"
+            :placeholder="tr((c as Num).placeholder ?? (c as Num).label)" :value="texts[k] ?? ''" @input="texts[k] = ($event.target as HTMLInputElement).value"
           >
           <button v-if="(c as Num).submitLabel" type="submit" class="btn small primary">{{ tr((c as Num).submitLabel!) }}</button>
         </form>

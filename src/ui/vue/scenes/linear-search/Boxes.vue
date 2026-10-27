@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { Cell } from '../../engine/linear-search';
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
+import type { Cell } from '../../../../engine/linear-search';
 
 // 一排玩具箱（或一排数字格）：盖着的、看过的、正在开的、找到的。
 // 小箭头 / 小朋友指着当前这一个；可选：点箱子、点错了晃一下、越界的那个虚线格。
@@ -14,12 +16,13 @@ withDefaults(defineProps<{
   shake?: [number, number] | null;
   /** 在末尾多画一个虚线格：下标越界 */
   ghost?: boolean;
-  /** 给整排起的名字 */
-  label?: string;
-}>(), { pointer: -1, kid: '', clickable: false, shake: null, ghost: false, label: '一排箱子' });
+  /** 给整排起的名字（已经是文字） */
+  label: string;
+  t: (msg: Msg) => string;
+}>(), { pointer: -1, kid: '', clickable: false, shake: null, ghost: false });
 const emit = defineEmits<{ pick: [index: number] }>();
 
-const STATE_TEXT = { closed: '盖着', seen: '看过了', now: '正在看', hit: '找到了' } as const;
+const STATE_TEXT = { closed: m('scene.state.closed'), seen: m('scene.state.seen'), now: m('scene.state.now'), hit: m('scene.state.hit') } as const;
 </script>
 
 <template>
@@ -33,14 +36,14 @@ const STATE_TEXT = { closed: '盖着', seen: '看过了', now: '正在看', hit:
           class="bx"
           :class="[c.state, { wiggle: shake && shake[0] === k, digits: c.label !== '' && !/\p{Extended_Pictographic}/u.test(c.label) }]"
           :type="clickable ? 'button' : undefined"
-          :aria-label="'第 ' + (k + 1) + ' 个，' + STATE_TEXT[c.state] + (c.label ? '：' + c.label : '')"
+          :aria-label="t(m('scene.box', { n: k + 1, state: STATE_TEXT[c.state], label: c.label ? m('scene.boxLabel', { v: c.label }) : '' }))"
           @click="clickable && emit('pick', k)"
         >{{ c.label || '📦' }}</component>
         <span class="ix" aria-hidden="true">{{ k }}</span>
       </li>
       <li v-if="ghost" class="col">
         <span class="ptr" aria-hidden="true">{{ pointer === cells.length ? (kid || '▼') : '' }}</span>
-        <span class="bx ghost" aria-label="越界：这里没有箱子">💥</span>
+        <span class="bx ghost" :aria-label="t(m('scene.ghost'))">💥</span>
         <span class="ix" aria-hidden="true">{{ cells.length }}</span>
       </li>
     </ol>

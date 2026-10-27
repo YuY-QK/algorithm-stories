@@ -79,9 +79,11 @@ const controls = computed(() => rules.controls(state.value));
       </p>
       <h3 v-if="result.title">{{ tr(result.title) }}</h3>
       <p v-if="result.body">{{ tr(result.body) }}</p>
-      <div v-if="result.quiz && result.quiz.options.length" class="quiz">
+      <div v-if="result.quiz && (result.quiz.options.length || result.quiz.note || result.quiz.ok)" class="quiz">
         <p class="q">{{ tr(result.quiz.prompt) }}</p>
-        <Controls :controls="result.quiz.options" :scenes="scenes" :tr="tr" @act="onAct" />
+        <Controls v-if="result.quiz.options.length" :controls="result.quiz.options" :scenes="scenes" :tr="tr" @act="onAct" />
+        <p v-if="result.quiz.note" class="hint">{{ tr(result.quiz.note) }}</p>
+        <p v-if="result.quiz.ok" class="q">{{ tr(result.quiz.ok) }}</p>
       </div>
       <p v-else-if="result.quiz" class="q">{{ tr(result.quiz.prompt) }}</p>
       <Controls :controls="controls" :scenes="scenes" :tr="tr" @act="onAct" />
@@ -98,4 +100,5 @@ const controls = computed(() => rules.controls(state.value));
 .stars .dim { filter: grayscale(1); opacity: 0.3; }
 .quiz { display: flex; flex-direction: column; gap: 10px; }
 .q { font-size: 1.2rem; max-width: 30em; }
+.hint { color: var(--muted); max-width: 30em; }
 </style>

@@ -58,6 +58,8 @@ export type Control<A> =
   | {
       type: 'number';
       label: Msg;
+      /** 输入框里的灰字；不给就用 label。label 很长（当问题用）时单独给一个短的 */
+      placeholder?: Msg;
       min?: number;
       max?: number;
       value?: number;
@@ -185,7 +187,14 @@ export interface GameResult<A> {
   title?: Msg;
   body?: Msg;
   /** 追问（如「点哪里最快？」） */
-  quiz?: { prompt: Msg; options: Control<A>[] };
+  quiz?: {
+    prompt: Msg;
+    options: Control<A>[];
+    /** 选项后面的一句提示（如答错时的「再想想」，灰色小字） */
+    note?: Msg;
+    /** 追问答对后的讲解（正文大小，在选项的位置之后） */
+    ok?: Msg;
+  };
 }
 
 /**
