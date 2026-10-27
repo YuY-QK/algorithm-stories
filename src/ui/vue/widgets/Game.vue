@@ -82,12 +82,13 @@ const controls = computed(() => rules.controls(state.value));
       </p>
       <h3 v-if="result.title">{{ tr(result.title) }}</h3>
       <p v-if="result.body">{{ tr(result.body) }}</p>
+      <component :is="scenes[result.art.scene]" v-if="result.art" v-bind="result.art.props" :t="tr" />
       <div v-if="result.quiz && result.quiz.options.length" class="quiz">
-        <p class="q">{{ tr(result.quiz.prompt) }}</p>
+        <p v-if="result.quiz.prompt" class="q">{{ tr(result.quiz.prompt) }}</p>
         <Controls :controls="result.quiz.options" :scenes="scenes" :tr="tr" @act="onAct" />
         <p v-if="result.quiz.after" class="q hint">{{ tr(result.quiz.after) }}</p>
       </div>
-      <p v-else-if="result.quiz" class="q">{{ tr(result.quiz.prompt) }}</p>
+      <p v-else-if="result.quiz?.prompt" class="q">{{ tr(result.quiz.prompt) }}</p>
       <Controls :controls="controls" :scenes="scenes" :tr="tr" @act="onAct" />
     </div>
   </div>

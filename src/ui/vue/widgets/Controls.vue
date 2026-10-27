@@ -40,6 +40,7 @@ function onSubmit(c: Num, k: number) {
 }
 
 type Txt = Extract<Control<any>, { type: 'text' }>;
+type Seg = Extract<Control<any>, { type: 'segmented' }>;
 type Bar = Extract<Control<any>, { type: 'transport' }>;
 
 // 文本框：每次输入都交给规则；规则改写了输入（如去掉不是括号的字），就把框里的字换成规则给的
@@ -56,7 +57,7 @@ function onText(c: Txt, e: Event) {
 const bar = (c: Bar, op: TransportOp) => emit('act', c.act(op));
 const barLabel = (c: Bar) => props.tr(m(c.speed === 0 ? 'ui.transport.step' : c.playing ? 'ui.transport.pause' : 'ui.transport.play'));
 
-const cls = (c: Btn) => (c.look === 'pad' ? 'pad' : c.look === 'choice' ? 'choice' : c.look === 'primary' ? 'btn primary' : c.look === 'small' ? 'btn small' : 'btn');
+const cls = (c: Btn) => (c.look === 'pad' ? 'pad' : c.look === 'choice' ? 'choice' : c.look === 'primary' ? 'btn primary' : c.look === 'small' ? 'btn small' : c.look === 'smallPrimary' ? 'btn small primary' : 'btn');
 
 /** play 变体：相邻的同类控件放进同一个容器（指路按钮一排、追问选项一排、其余按钮一行） */
 const groups = computed(() => {
@@ -116,6 +117,13 @@ const groups = computed(() => {
       </div>
       <div v-else-if="g.kind === 'row'" class="row">
         <button v-for="{ c, k } in g.items" :key="k" type="button" :class="cls(c as Btn)" :disabled="(c as Btn).disabled" :aria-label="(c as Btn).aria ? tr((c as Btn).aria!) : undefined" @click="emit('act', (c as Btn).action)">{{ tr((c as Btn).label) }}</button>
+      </div>
+      <div v-else-if="g.kind === 'segmented'" class="controls">
+        <Segmented
+          v-for="{ c, k } in g.items" :key="k" :model-value="(c as Seg).value" :legend="tr((c as Seg).legend)"
+          :options="(c as Seg).options.map((o) => ({ value: o.value, label: tr(o.label) }))"
+          @update:model-value="(v: string | number) => emit('act', (c as Seg).choose(v))"
+        />
       </div>
       <template v-else-if="g.kind === 'transport'">
         <div v-for="{ c, k } in g.items" :key="k" class="transport">

@@ -50,7 +50,7 @@ export type Control<A> =
       /** 读屏文字；label 只有图标时必须给 */
       aria?: Msg;
       /** pad：「玩」里的大图标按钮；primary：主按钮；choice：追问的选项；默认普通按钮 */
-      look?: 'pad' | 'primary' | 'choice' | 'small';
+      look?: 'pad' | 'primary' | 'choice' | 'small' | 'smallPrimary';
       disabled?: boolean;
       /** 按钮上的小画面：画面注册表里的组件名，和传给它的参数 */
       art?: { scene: string; props?: Record<string, unknown> };
@@ -138,9 +138,12 @@ export interface Ask<V, T = unknown> {
   prompt: Msg;
   kind: 'pick' | 'choose';
   answer: T;
+  /** choose 必须有；pick 也可以有，作为画面旁边的补充按钮（如点格子，或者点「满了」） */
   options?: { value: T; label: Msg }[];
   /** 答错时的解释 */
   why: Msg;
+  /** 这一问时顶上的变量标签（如队里还有几个）；不给就用 Puzzle.chips */
+  chips?: Var[];
   /** 答对时也要讲一句的关卡用；有它时答对先停下显示，再点「下一题」 */
   right?: Msg;
   /** 答错、看解释时画面和题干换成这个（如点错 mid 后把 mid 亮出来）；不给就保持原样 */
@@ -151,7 +154,7 @@ export interface Ask<V, T = unknown> {
 export interface Puzzle<V, T = unknown> {
   chips?: Var[];
   asks: Ask<V, T>[];
-  end: { view: V; prompt: Msg };
+  end: { view: V; prompt: Msg; chips?: Var[] };
 }
 
 export interface PredictRules<V, T = unknown> {
@@ -194,7 +197,10 @@ export interface GameResult<A> {
   title?: Msg;
   body?: Msg;
   /** 追问（如「点哪里最快？」） */
-  quiz?: { prompt: Msg; options: Control<A>[]; /** 选项下面再补一句（如答错后的提醒） */ after?: Msg };
+  /** 结算里再画一小块画面（画面注册表里的组件名和参数），在文字之后、追问之前 */
+  art?: { scene: string; props?: Record<string, unknown> };
+  /** 追问；prompt 可以不给（问题已经在台词里了），after 是选项下面再补的一句（如答错后的提醒） */
+  quiz?: { prompt?: Msg; options: Control<A>[]; after?: Msg };
 }
 
 /**

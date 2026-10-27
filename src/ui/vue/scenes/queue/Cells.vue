@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
 
 // 「做」里的数组：一排格子，上面标 head、tail，下面是下标。
 // 队里的格子正常显示，出队后留下的旧值变灰，从没写过的格子是空的。
@@ -13,9 +15,10 @@ const props = withDefaults(defineProps<{
   hideTags?: boolean;
   clickable?: boolean;
   /** 点错的格子 */
-  miss?: number | null;
+  miss?: number | string | null;
   /** 点对的格子 */
   hit?: number | null;
+  t: (msg: Msg) => string;
 }>(), { touched: null, hideTags: false, clickable: false, miss: null, hit: null });
 
 const emit = defineEmits<{ pick: [i: number] }>();
@@ -34,7 +37,8 @@ function tag(k: number) {
 }
 function label(k: number) {
   const v = props.cells[k];
-  return k + ' 号格，' + (v === null ? '空' : '值 ' + v + (live(k) ? '' : '，已出队')) + (tag(k) ? '，' + tag(k) : '');
+  const base = v === null ? m('cell.empty', { k }) : live(k) ? m('cell.value', { k, v }) : m('cell.valueOld', { k, v });
+  return props.t(base) + (tag(k) ? props.t(m('cell.tag', { tag: tag(k) })) : '');
 }
 </script>
 
@@ -54,7 +58,7 @@ function label(k: number) {
       <span class="val">{{ v ?? '' }}</span>
       <span class="idx">{{ k }}</span>
     </button>
-    <div v-if="ghost" class="box ghost" aria-label="数组外面">
+    <div v-if="ghost" class="box ghost" :aria-label="t(m('cell.ghost'))">
       <span class="tag">tail</span>
       <span class="val">💥</span>
       <span class="idx">{{ tail }}</span>
