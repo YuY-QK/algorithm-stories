@@ -20,6 +20,10 @@ export interface GameBlock extends Base {
   after?: string;
   /** game：浅色凹槽，目标提示是小贴士（默认）；stage：普通的操作区 */
   frame?: 'game' | 'stage';
+  /** 台词预留几行高度（默认 1）；台词常折成两行的关写 2，免得页面跳动 */
+  sayLines?: 1 | 2;
+  /** 台词字号：small 小一号（画面大、字多的关，如 BFS、DFS） */
+  saySize?: 'small';
 }
 export interface TraceBlock extends Base { kind: 'trace'; rules: string; scene: string }
 export interface PredictBlock extends Base { kind: 'predict'; rules: string; scene: string }
@@ -104,6 +108,8 @@ export function parseLevel(raw: unknown, ctx: LevelContext): Level {
         if (typeof v !== 'string' || !ctx.scenes.includes(v)) fail(where, field + ' "' + String(v) + '" 不在画面注册表里（有：' + ctx.scenes.join('、') + '）');
       }
       if (b.frame !== undefined && b.frame !== 'game' && b.frame !== 'stage') fail(where, 'frame 只能是 game 或 stage');
+      if (b.sayLines !== undefined && b.sayLines !== 1 && b.sayLines !== 2) fail(where, 'sayLines 只能是 1 或 2');
+      if (b.saySize !== undefined && b.saySize !== 'small') fail(where, 'saySize 只能是 small');
     });
     out[stage as Stage] = blocks as Block[];
   }

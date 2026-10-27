@@ -3,8 +3,8 @@
     { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookPlates" }
   ],
   "play": [
-    { "id": "plates", "kind": "game", "icon": "🍽️", "rules": "plates", "scene": "PlayPlates" },
-    { "id": "blocks", "kind": "game", "icon": "🧩", "rules": "blocks", "scene": "PlayBlocks" }
+    { "id": "plates", "kind": "game", "icon": "🍽️", "rules": "plates", "scene": "PlayPlates", "sayLines": 2 },
+    { "id": "blocks", "kind": "game", "icon": "🧩", "rules": "blocks", "scene": "PlayBlocks", "sayLines": 2 }
   ],
   "do": [
     { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceBracket" },

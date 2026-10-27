@@ -20,6 +20,10 @@ const props = defineProps<{
   after?: string;
   /** game：浅色凹槽里一列，目标提示是小贴士；stage：普通的操作区，开头一段普通文字 */
   frame?: 'game' | 'stage';
+  /** 台词预留几行高度 */
+  sayLines?: 1 | 2;
+  /** 台词字号小一号 */
+  saySize?: 'small';
 }>();
 const { tr, ui, has } = useCopy();
 
@@ -67,7 +71,7 @@ const controls = computed(() => rules.controls(state.value));
   <div :class="frame === 'stage' ? 'stage' : 'game'">
     <p v-if="lead && frame === 'stage'">{{ lead }}</p>
     <p v-else-if="lead" class="small-note">{{ lead }}</p>
-    <p v-if="run.say" class="say" aria-live="polite">{{ tr(run.say) }}</p>
+    <p v-if="run.say" class="say" :class="{ two: sayLines === 2, small: saySize === 'small' }" aria-live="polite">{{ tr(run.say) }}</p>
     <component :is="Scene" :state="state" :clickable="rules.clickable(state)" :t="tr" @act="onAct" />
     <p v-if="hud?.tries !== undefined" class="tries" :aria-label="ui('ui.game.tries')">
       <span v-for="n in hud.tries" :key="n">👆</span>
@@ -97,6 +101,8 @@ const controls = computed(() => rules.controls(state.value));
 <style scoped>
 .game { display: flex; flex-direction: column; gap: 16px; }
 .say { font-size: clamp(1.3rem, 5vw, 1.9rem); min-height: 1.4em; }
+.say.two { min-height: 2.6em; }
+.say.small { font-size: clamp(1.2rem, 4.6vw, 1.7rem); }
 .tries { min-height: 1.6em; font-size: 1.2rem; letter-spacing: 2px; }
 .result { display: flex; flex-direction: column; gap: 14px; }
 .stars { font-size: 2.4rem; line-height: 1; }
