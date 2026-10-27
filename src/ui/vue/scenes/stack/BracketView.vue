@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
 import Piece from './Piece.vue';
 
 // 「做」里的画面：上面是括号串（当前字符标出来），下面是栈（左边栈底，右边栈顶）。
@@ -11,26 +13,27 @@ withDefaults(defineProps<{
   top?: string | null;
   /** 当前字符出问题时标红 */
   bad?: boolean;
+  t: (msg: Msg) => string;
 }>(), { top: null, bad: false });
 </script>
 
 <template>
   <div class="bview">
-    <ol class="chars" aria-label="括号串">
+    <ol class="chars" :aria-label="t(m('bracket.chars'))">
       <li v-for="(c, k) in s" :key="k" :class="{ past: k < i, now: k === i, bad: bad && k === i }">
         <Piece :c="c" small />
         <span class="ix">{{ k }}</span>
       </li>
-      <li v-if="!s.length" class="empty">（空串）</li>
+      <li v-if="!s.length" class="empty">{{ t(m('bracket.emptyStr')) }}</li>
     </ol>
     <div class="srow">
-      <span class="lab">栈底</span>
-      <div class="cells" :aria-label="'栈：' + (stack.join(' ') || '空')">
+      <span class="lab">{{ t(m('bracket.bottom')) }}</span>
+      <div class="cells" :aria-label="t(m('bracket.stackLabel', { items: stack.join(' ') || t(m('bracket.nil')) }))">
         <span v-for="(c, k) in stack" :key="k" class="cellwrap" :class="{ topc: k === stack.length - 1 }"><Piece :c="c" small /></span>
-        <span v-if="!stack.length" class="emptyst">空</span>
+        <span v-if="!stack.length" class="emptyst">{{ t(m('bracket.nil')) }}</span>
       </div>
-      <span class="lab">← 栈顶</span>
-      <span v-if="top" class="popped">弹出 <Piece :c="top" small /></span>
+      <span class="lab">{{ t(m('bracket.top')) }}</span>
+      <span v-if="top" class="popped">{{ t(m('bracket.popped')) }} <Piece :c="top" small /></span>
     </div>
   </div>
 </template>

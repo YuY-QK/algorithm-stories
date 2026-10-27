@@ -5,7 +5,15 @@ import {
   permPuzzles, permTrace, plateGame, presetString, rounds, runBug, runPlates, stars, topIndex, type PuzzleKind,
   type Round,
 } from '../src/engine/stack';
+import { mergeCopy, t } from '../src/core/i18n';
+import coreCopy from '../src/core/copy.zh.json';
+import stackCopy from '../content/algorithms/stack/copy.zh.json';
+import { asCopy } from './helpers/copy';
 import { seeded } from './helpers/seeded';
+
+/** 台词是 Msg，断言时按文案表填成文字 */
+const copy = mergeCopy(asCopy(coreCopy), asCopy(stackCopy));
+const T = (x: Parameters<typeof t>[0] | null) => (x === null ? '' : t(x, copy));
 
 /** 笨办法判断括号串：反复删掉相邻的一对，最后删空就合法 */
 function slowValid(s: string): boolean {
@@ -291,11 +299,11 @@ describe('栈 迁移后的引擎导出', () => {
     const states = runPlates(LOOK_OPS);
     expect(fs).toHaveLength(states.length + 1);
     fs.forEach((f, k) => {
-      expect(f.say.length).toBeGreaterThan(0);
+      expect(T(f.say).length).toBeGreaterThan(0);
       expect(f.stack).toEqual(states[Math.min(k, states.length - 1)].stack);
     });
-    expect(fs[0].say).toContain('小熊');
-    expect(fs.at(-1)!.say).toContain('栈');
+    expect(T(fs[0].say)).toContain('小熊');
+    expect(T(fs.at(-1)!.say)).toContain('栈');
     expect(fs.map((f) => f.say)).toEqual(lookFrames().map((f) => f.say));
   });
 
@@ -304,15 +312,15 @@ describe('栈 迁移后的引擎导出', () => {
       const s = genPredict(seeded(k));
       const rs: Round[] = rounds(s);
       rs.forEach((r) => {
-        expect(r.why.length).toBeGreaterThan(0);
+        expect(T(r.why).length).toBeGreaterThan(0);
         expect(r.options).toBe(r.i < s.length ? CHAR_MOVES : END_MOVES);
         expect(r.options.map((o) => o.move)).toContain(r.correct);
-        if (r.i < s.length) expect(r.why).toContain(s[r.i]);
+        if (r.i < s.length) expect(T(r.why)).toContain(s[r.i]);
       });
     }
-    expect(rounds('(]').at(-1)!.why).toContain('要配 )');
-    expect(rounds(')').at(-1)!.why).toContain('栈是空的');
-    expect(rounds('(').at(-1)!.why).toContain('还剩 1 个');
+    expect(T(rounds('(]').at(-1)!.why)).toContain('要配 )');
+    expect(T(rounds(')').at(-1)!.why)).toContain('栈是空的');
+    expect(T(rounds('(').at(-1)!.why)).toContain('还剩 1 个');
   });
 
   it('genPredict、presetString、genChallenge：固定种子可复现', () => {
@@ -332,8 +340,8 @@ describe('栈 迁移后的引擎导出', () => {
   });
 
   it('bugVerdict：没跑完是空，崩溃和返回错误各有说法', () => {
-    for (const b of BUGS) expect(bugVerdict(runBug(b)[0], b)).toBe('');
-    const text = Object.fromEntries(BUGS.map((b) => [b.id, bugVerdict(runBug(b).at(-1)!, b)]));
+    for (const b of BUGS) expect(bugVerdict(runBug(b)[0], b)).toBeNull();
+    const text = Object.fromEntries(BUGS.map((b) => [b.id, T(bugVerdict(runBug(b).at(-1)!, b))]));
     expect(text['no-empty']).toContain('崩溃');
     expect(text['no-final']).toBe('❌ 返回了 true，不对');
     expect(text['no-type']).toBe('❌ 返回了 true，不对');

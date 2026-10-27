@@ -1,0 +1,19 @@
+{
+  "look": [
+    { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookPlates" }
+  ],
+  "play": [
+    { "id": "plates", "kind": "game", "icon": "🍽️", "rules": "plates", "scene": "PlayPlates" },
+    { "id": "blocks", "kind": "game", "icon": "🧩", "rules": "blocks", "scene": "PlayBlocks" }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceBracket" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictBracket" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugBracket" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "Stack.kt", "package": "stack" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "PermLanes", "after": "PermAfter", "frame": "stage" }
+  ],
+  "more": [
+    { "kind": "markdown", "src": "more" }
+  ]
+}

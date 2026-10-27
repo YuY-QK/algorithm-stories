@@ -29,7 +29,8 @@ const After = props.after ? sceneOf(props.slug, props.after) : null;
 const scenes = getLevel(props.slug).scenes;
 const lead = has(props.id + '.goal') ? tr({ key: props.id + '.goal' }) : '';
 
-const run = shallowRef<GameRun<any>>(startGame(rules).run);
+const first = startGame(rules);
+const run = shallowRef<GameRun<any>>(first.run);
 let timer: ReturnType<typeof setTimeout> | null = null;
 
 function clear() {
@@ -46,6 +47,8 @@ function onAct(action: unknown) {
   const step = actGame(rules, run.value, action);
   if (step) apply(step);
 }
+// 开局就带自动步骤的游戏（页面一打开小熊就开始叠盘子）：开局的声音和定时器也要执行
+if (first.sound || first.after !== undefined) apply(first);
 // 切换标签或卸载时，定时器清掉，动画中途的状态复位到可再次操作
 useStageStop(() => {
   clear();
@@ -71,7 +74,7 @@ const controls = computed(() => rules.controls(state.value));
     </p>
     <VarChips v-if="chips.length" :vars="chips" />
     <Controls v-if="!result" :controls="controls" :scenes="scenes" :tr="tr" @act="onAct" />
-    <component :is="After" v-if="After" :state="state" :t="tr" />
+    <component :is="After" v-if="After" :state="state" :t="tr" @act="onAct" />
 
     <div v-if="result" class="result">
       <p v-if="result.stars" class="stars" :aria-label="ui('ui.game.stars', { n: result.stars })">
@@ -82,6 +85,7 @@ const controls = computed(() => rules.controls(state.value));
       <div v-if="result.quiz && result.quiz.options.length" class="quiz">
         <p class="q">{{ tr(result.quiz.prompt) }}</p>
         <Controls :controls="result.quiz.options" :scenes="scenes" :tr="tr" @act="onAct" />
+        <p v-if="result.quiz.after" class="q hint">{{ tr(result.quiz.after) }}</p>
       </div>
       <p v-else-if="result.quiz" class="q">{{ tr(result.quiz.prompt) }}</p>
       <Controls :controls="controls" :scenes="scenes" :tr="tr" @act="onAct" />
@@ -98,4 +102,5 @@ const controls = computed(() => rules.controls(state.value));
 .stars .dim { filter: grayscale(1); opacity: 0.3; }
 .quiz { display: flex; flex-direction: column; gap: 10px; }
 .q { font-size: 1.2rem; max-width: 30em; }
+.q.hint { color: var(--muted); font-size: 1.05rem; }
 </style>

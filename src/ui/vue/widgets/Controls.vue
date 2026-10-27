@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, reactive, useId, watch, type Component } from 'vue';
+import { computed, nextTick, reactive, useId, watch, type Component } from 'vue';
 import Segmented from '../../../components/shared/Segmented.vue';
-import type { Control } from '../../../core/types';
+import { m } from '../../../core/i18n';
+import { SPEEDS } from '../../../core/timing';
+import type { Control, TransportOp } from '../../../core/types';
 import type { Tr } from '../i18n';
 
 // 画一组 Control：按钮、数字输入框、分段选择、小按钮组。只认核心层的描述，不认识任何具体算法。
@@ -37,6 +39,23 @@ function onSubmit(c: Num, k: number) {
   else if (c.invalid !== undefined) emit('act', c.invalid);
 }
 
+type Txt = Extract<Control<any>, { type: 'text' }>;
+type Bar = Extract<Control<any>, { type: 'transport' }>;
+
+// 文本框：每次输入都交给规则；规则改写了输入（如去掉不是括号的字），就把框里的字换成规则给的
+function onText(c: Txt, e: Event) {
+  const el = e.target as HTMLInputElement;
+  emit('act', c.submit(el.value));
+  nextTick(() => {
+    const now = props.controls.find((x): x is Txt => x.type === 'text');
+    if (now && el.value !== now.value) el.value = now.value;
+  });
+}
+
+// 播放控制条：文字和 Transport 组件一样，状态在规则里
+const bar = (c: Bar, op: TransportOp) => emit('act', c.act(op));
+const barLabel = (c: Bar) => props.tr(m(c.speed === 0 ? 'ui.transport.step' : c.playing ? 'ui.transport.pause' : 'ui.transport.play'));
+
 const cls = (c: Btn) => (c.look === 'pad' ? 'pad' : c.look === 'choice' ? 'choice' : c.look === 'primary' ? 'btn primary' : c.look === 'small' ? 'btn small' : 'btn');
 
 /** play 变体：相邻的同类控件放进同一个容器（指路按钮一排、追问选项一排、其余按钮一行） */
@@ -66,6 +85,10 @@ const groups = computed(() => {
         <label :for="id(k)">{{ tr(c.label) }}</label>
         <input :id="id(k)" type="number" inputmode="numeric" step="1" :value="c.value" @input="onLive(c, $event)">
       </div>
+      <div v-else-if="c.type === 'text'" class="field">
+        <label :for="id(k)">{{ tr(c.label) }}</label>
+        <input :id="id(k)" class="txt" type="text" autocomplete="off" spellcheck="false" :value="c.value" @input="onText(c, $event)">
+      </div>
       <div v-else-if="c.type === 'group'" class="field">
         <span class="lab">{{ tr(c.legend) }}</span>
         <div class="inline">
@@ -74,14 +97,17 @@ const groups = computed(() => {
           </template>
         </div>
       </div>
-      <button v-else type="button" :class="cls(c)" :disabled="c.disabled" :aria-label="c.aria ? tr(c.aria) : undefined" @click="emit('act', c.action)">{{ tr(c.label) }}</button>
+      <button v-else-if="c.type === 'button'" type="button" :class="cls(c)" :disabled="c.disabled" :aria-label="c.aria ? tr(c.aria) : undefined" @click="emit('act', c.action)">{{ tr(c.label) }}</button>
     </template>
   </div>
 
   <template v-else>
     <template v-for="(g, gi) in groups" :key="gi">
       <div v-if="g.kind === 'pad'" class="answers pads">
-        <button v-for="{ c, k } in g.items" :key="k" type="button" class="pad" :disabled="(c as Btn).disabled" :aria-label="(c as Btn).aria ? tr((c as Btn).aria!) : undefined" @click="emit('act', (c as Btn).action)">{{ tr((c as Btn).label) }}</button>
+        <button v-for="{ c, k } in g.items" :key="k" type="button" class="pad" :class="{ cap: !!(c as Btn).caption }" :disabled="(c as Btn).disabled" :aria-label="(c as Btn).aria ? tr((c as Btn).aria!) : undefined" @click="emit('act', (c as Btn).action)">
+          <template v-if="(c as Btn).caption"><span aria-hidden="true">{{ tr((c as Btn).label) }}</span><small>{{ tr((c as Btn).caption!) }}</small></template>
+          <template v-else>{{ tr((c as Btn).label) }}</template>
+        </button>
       </div>
       <div v-else-if="g.kind === 'choice'" class="choices">
         <button v-for="{ c, k } in g.items" :key="k" type="button" class="choice" :disabled="(c as Btn).disabled" @click="emit('act', (c as Btn).action)">
@@ -91,6 +117,19 @@ const groups = computed(() => {
       <div v-else-if="g.kind === 'row'" class="row">
         <button v-for="{ c, k } in g.items" :key="k" type="button" :class="cls(c as Btn)" :disabled="(c as Btn).disabled" :aria-label="(c as Btn).aria ? tr((c as Btn).aria!) : undefined" @click="emit('act', (c as Btn).action)">{{ tr((c as Btn).label) }}</button>
       </div>
+      <template v-else-if="g.kind === 'transport'">
+        <div v-for="{ c, k } in g.items" :key="k" class="transport">
+          <button type="button" class="btn small" :disabled="(c as Bar).idx === 0" @click="bar(c as Bar, 'reset')">{{ tr(m('ui.transport.reset')) }}</button>
+          <button type="button" class="btn small" :disabled="(c as Bar).idx === 0" @click="bar(c as Bar, 'prev')">{{ tr(m('ui.transport.prev')) }}</button>
+          <button type="button" class="btn small primary" @click="bar(c as Bar, 'toggle')">{{ barLabel(c as Bar) }}</button>
+          <button type="button" class="btn small" :disabled="(c as Bar).idx >= (c as Bar).total - 1" @click="bar(c as Bar, 'next')">{{ tr(m('ui.transport.next')) }}</button>
+          <label class="speed">{{ tr(m('ui.transport.speed')) }}
+            <select :value="(c as Bar).speed" @change="bar(c as Bar, { speed: Number(($event.target as HTMLSelectElement).value) })">
+              <option v-for="sp in SPEEDS" :key="sp.ms" :value="sp.ms">{{ sp.label }}</option>
+            </select>
+          </label>
+        </div>
+      </template>
       <template v-else-if="g.kind === 'number'">
         <form v-for="{ c, k } in g.items" :key="k" class="inline" @submit.prevent="onSubmit(c as Num, k)">
           <label class="sr" :for="id(k)">{{ tr((c as Num).label) }}</label>
@@ -121,6 +160,17 @@ const groups = computed(() => {
 }
 .choice:hover { border-color: var(--accent); }
 .choice:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.pad.cap {
+  height: auto; flex: 0 1 6.2em; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 6px; font-size: 1rem; color: var(--fg);
+}
+.pad.cap span { font-size: clamp(1.7rem, 8vw, 2.2rem); line-height: 1.1; }
+.pad.cap small { font-size: 13px; color: var(--muted); }
+.txt {
+  font: 500 16px var(--mono); color: var(--fg); background: var(--surface);
+  border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; width: min(16em, 100%); box-sizing: border-box;
+}
+.txt:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 form.inline { display: flex; gap: 8px; align-items: center; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 </style>

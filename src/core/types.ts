@@ -54,6 +54,8 @@ export type Control<A> =
       disabled?: boolean;
       /** 按钮上的小画面：画面注册表里的组件名，和传给它的参数 */
       art?: { scene: string; props?: Record<string, unknown> };
+      /** pad 按钮图标下面的小字说明（label 是图标，caption 是字）；不给就只有图标 */
+      caption?: Msg;
     }
   | {
       type: 'number';
@@ -78,7 +80,14 @@ export type Control<A> =
       choose: (v: string | number) => A;
     }
   /** 一组小按钮，带一个小标题（如「快速设置」） */
-  | { type: 'group'; legend: Msg; items: Control<A>[] };
+  | { type: 'group'; legend: Msg; items: Control<A>[] }
+  /** 文本框（逐步执行里输入一串括号）：每次输入都提交；规则可以改写输入，界面把框里的字换成规则给的 value */
+  | { type: 'text'; label: Msg; value: string; submit: (s: string) => A }
+  /** 播放控制条（重置、上一步、播放/暂停、下一步、速度）：状态放在规则里，用 core/flows/transport.ts 处理 */
+  | { type: 'transport'; idx: number; total: number; playing: boolean; speed: number; act: (op: TransportOp) => A };
+
+/** 播放控制条上的操作 */
+export type TransportOp = 'reset' | 'prev' | 'toggle' | 'next' | { speed: number };
 
 /* ---------- 看：绘本 ---------- */
 
@@ -185,7 +194,7 @@ export interface GameResult<A> {
   title?: Msg;
   body?: Msg;
   /** 追问（如「点哪里最快？」） */
-  quiz?: { prompt: Msg; options: Control<A>[] };
+  quiz?: { prompt: Msg; options: Control<A>[]; /** 选项下面再补一句（如答错后的提醒） */ after?: Msg };
 }
 
 /**
