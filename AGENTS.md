@@ -13,7 +13,7 @@
 
 ## 技术栈
 
-网站：Astro + Vue 3 + TypeScript，静态网站，推到 `main` 后由 `.github/workflows/deploy.yml` 测试并部署到 GitHub Pages（`base` 是 `/algorithm-stories`，站内链接一律用 `import.meta.env.BASE_URL` 拼）。
+网站：Astro + Vue 3 + TypeScript，静态网站，推到 `main` 后由 `.github/workflows/deploy.yml` 测试并部署到 GitHub Pages（`base` 是 `/algorithm-stories`，站内链接一律用 `import.meta.env.BASE_URL` 拼）。推到 `preview` 分支则部署预览版到 `/algorithm-stories/preview/`（构建时设 `SITE_BASE`），用来在合并前看最新代码的效果：`git push origin HEAD:preview --force`。
 
 练习：`exercises/` 是一个 Kotlin Gradle 项目，给 Yumor 在本地 IDE 里「亲手写」。`src/main/kotlin/<包>/` 放函数框架（`TODO()`），`src/test/kotlin/<包>/` 放测试，`solutions/<包>/` 放参考答案；CI 用 `./gradlew test -Psolutions` 检查测试本身没写错。
 
