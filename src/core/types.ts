@@ -129,6 +129,10 @@ export interface TraceRules<I, S extends Step, A> {
   summary?(input: I, step: S): Msg | null;
   /** 播放条上多一个「跳到……」按钮：往后跳到第一个 stop 为真的步骤（from 是当前步骤），找不到就停在最后一步 */
   jump?: { label: Msg; stop(step: S, from: S): boolean };
+  /** 播放条上还要更多「跳到……」按钮时用（如归并排序的「下一次调用」「下一次合并」），规则同 jump，排在 jump 后面 */
+  jumps?: { label: Msg; stop(step: S, from: S): boolean }[];
+  /** 播放条和总结后面的一行小字（图例：亮的格子、虚线格各是什么） */
+  legend?: Msg;
 }
 
 /* ---------- 做：猜下一步 ---------- */
@@ -154,6 +158,8 @@ export interface Ask<V, T = unknown> {
   right?: Msg;
   /** 答错、看解释时画面和题干换成这个（如点错 mid 后把 mid 亮出来）；不给就保持原样 */
   reveal?: { view: V; prompt: Msg };
+  /** 有 right 的问：答对看讲解时画面和题干也换成 reveal（默认只在答错时换） */
+  revealOnRight?: boolean;
   /**
    * 这一问答完（答对，或答错看完解释点了继续）以后先播一段动画，播完才进入下一问或结局。
    * frames 依次是画面的样子（第一帧马上显示，之后每帧按 core/timing 的节拍换），prompt 是播放时的题干。
@@ -166,6 +172,8 @@ export interface Puzzle<V, T = unknown> {
   chips?: Var[];
   asks: Ask<V, T>[];
   end: { view: V; prompt: Msg; chips?: Var[] };
+  /** 答完不看结局画面，直接换下一题（没有结局页的关卡；end 照给，但不会显示） */
+  skipEnd?: boolean;
   /** 最后一问答对时的结局（如多一个 ✅）；不给就用 end */
   endRight?: { view: V; prompt: Msg; chips?: Var[] };
 }

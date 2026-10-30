@@ -41,8 +41,10 @@ const codeLabels = { group: ui('ui.code.group', { lang: 'KOTLIN' }), line: (n: n
     <p class="note" aria-live="polite">{{ note }}</p>
     <Transport :player="p" :labels="tLabels">
       <button v-if="rules.jump" type="button" class="btn small" :disabled="p.atEnd.value" @click="p.jumpTo((x) => rules.jump!.stop(x, s))">{{ tr(rules.jump.label) }}</button>
+      <button v-for="(j, k) in rules.jumps ?? []" :key="k" type="button" class="btn small" :disabled="p.atEnd.value" @click="p.jumpTo((x) => j.stop(x, s))">{{ tr(j.label) }}</button>
     </Transport>
     <p v-if="summary" class="summary">{{ tr(summary) }}</p>
+    <p v-if="rules.legend" class="small-note">{{ tr(rules.legend) }}</p>
   </div>
 
   <CodePanel :lines="rules.code" :active="s.line" lang="KOTLIN" :labels="codeLabels" />

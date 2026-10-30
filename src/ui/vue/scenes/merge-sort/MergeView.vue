@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { suitOf, type MergeStep } from '../../engine/merge-sort';
+import type { Msg } from '../../../../core/types';
+import { m } from '../../../../core/i18n';
+import { suitOf, type MergeStep } from '../../../../engine/merge-sort';
 
 // 「做」里的数组：上面一排是 a（亮的是当前区间，橙色竖线是 mid），下面一排是临时数组 tmp，
 // 标出 i、j 两个队头。逐步执行、猜下一步、找 bug 共用。suits 为真时每个元素带上花色，用来看稳定性。
-const props = defineProps<{ step: MergeStep; suits?: boolean }>();
+const props = defineProps<{ step: MergeStep; suits?: boolean; t: (msg: Msg) => string }>();
 
 const n = computed(() => props.step.arr.length);
 
@@ -37,7 +39,7 @@ const inRange = (k: number) => k >= props.step.lo && k < props.step.hi;
 <template>
   <div class="mv" :style="{ '--n': n }" aria-hidden="true">
     <div class="calls">
-      <span class="lab">调用栈</span>
+      <span class="lab">{{ t(m('scene.stack')) }}</span>
       <span v-for="(r, x) in step.stack" :key="x" class="call" :class="{ top: x === step.stack.length - 1 }">[{{ r[0] }}, {{ r[1] }})</span>
     </div>
     <div class="grid tags">
@@ -60,7 +62,7 @@ const inRange = (k: number) => k >= props.step.lo && k < props.step.hi;
     <div class="grid">
       <div v-for="(_, k) in step.arr" :key="k" class="idx">{{ k }}</div>
     </div>
-    <div class="cap">{{ step.tmp.length ? 'tmp（临时数组，长度 ' + step.tmp.length + '）' : '' }}</div>
+    <div class="cap">{{ step.tmp.length ? t(m('scene.tmp', { n: step.tmp.length })) : '' }}</div>
     <div class="grid">
       <template v-for="(_, k) in step.arr" :key="k">
         <div

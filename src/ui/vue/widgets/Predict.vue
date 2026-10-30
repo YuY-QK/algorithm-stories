@@ -27,6 +27,8 @@ function clear() {
 }
 function set(next: typeof st.value) {
   clear();
+  // 没有结局页的题：答完直接换下一题
+  if (flow.isOver(next)) next = flow.nextPuzzle(next, rules.puzzle());
   st.value = next;
   const delay = flow.animDelay(next);
   if (delay !== null) {

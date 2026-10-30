@@ -49,6 +49,11 @@ function advance<V, T>(s: PredictState<V, T>): PredictState<V, T> {
   return s.puzzle.asks[s.i].anim ? { ...s, phase: 'anim', picked: null, frame: 0 } : step(s);
 }
 
+/** 这一题答完了，又不看结局画面（Puzzle.skipEnd）：界面该直接换下一题 */
+export function isOver<V, T>(s: PredictState<V, T>): boolean {
+  return s.phase === 'end' && s.puzzle.skipEnd === true;
+}
+
 /** 动画到点了：换下一帧，播完进入下一问。此刻不在播动画就返回 null */
 export function tickAnim<V, T>(s: PredictState<V, T>): PredictState<V, T> | null {
   if (s.phase !== 'anim') return null;
@@ -110,7 +115,7 @@ export function viewOf<V, T>(s: PredictState<V, T>): PredictView<V, T> {
   }
   const ask = s.puzzle.asks[s.i];
   const asking = s.phase === 'ask';
-  const shown = s.phase === 'wrong' && ask.reveal ? ask.reveal : ask;
+  const shown = (s.phase === 'wrong' || (s.phase === 'right' && ask.revealOnRight)) && ask.reveal ? ask.reveal : ask;
   return {
     view: shown.view,
     prompt: shown.prompt,
