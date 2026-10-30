@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { Item } from '../../engine/bubble-sort';
+import type { Item } from '../../../../engine/bubble-sort';
 
 // 做：数组画成一排柱子。正在比较的一对是黄色，正在交换的是红框，站好的是绿色。逐步执行和找 bug 共用。
 const props = withDefaults(defineProps<{

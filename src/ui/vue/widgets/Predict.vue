@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import PredictFrame from '../../../components/shared/PredictFrame.vue';
 import * as flow from '../../../core/flows/predict';
 import { play } from '../../../components/shared/sound';
+import { useStageStop } from '../../../components/shared/usePlayer';
 import type { PredictRules } from '../../../core/types';
 import { useCopy } from '../i18n';
 import { rulesOf, sceneOf } from '../levels';
@@ -18,14 +19,38 @@ const st = ref(flow.startPredict(rules.puzzle(), goal));
 const v = computed(() => flow.viewOf(st.value));
 const chips = computed(() => (v.value.chips ?? []).map(([k, val]) => ({ k: tr(k), val: tr(val) })));
 
+// 有动画（Ask.anim）的问：答完后按节拍一帧帧播，播完进入下一问。定时器只在这里
+let timer: ReturnType<typeof setTimeout> | null = null;
+function clear() {
+  if (timer) clearTimeout(timer);
+  timer = null;
+}
+function set(next: typeof st.value) {
+  clear();
+  st.value = next;
+  const delay = flow.animDelay(next);
+  if (delay !== null) {
+    timer = setTimeout(() => {
+      const n = flow.tickAnim(st.value);
+      if (n) set(n);
+    }, delay);
+  }
+}
+// 切标签时动画停下；停在半路的这一题作废，换一题，免得卡在「进行中」
+useStageStop(() => {
+  if (st.value.phase === 'anim') set(flow.nextPuzzle(st.value, rules.puzzle()));
+  else clear();
+});
+onBeforeUnmount(clear);
+
 function answer(value: unknown) {
   const out = flow.answer(st.value, value);
   if (!out) return;
-  st.value = out.state;
+  set(out.state);
   if (out.sound) play(out.sound);
 }
-const proceed = () => (st.value = flow.proceed(st.value) ?? st.value);
-const next = () => (st.value = flow.nextPuzzle(st.value, rules.puzzle()));
+const proceed = () => set(flow.proceed(st.value) ?? st.value);
+const next = () => set(flow.nextPuzzle(st.value, rules.puzzle()));
 </script>
 
 <template>
@@ -52,7 +77,7 @@ const next = () => (st.value = flow.nextPuzzle(st.value, rules.puzzle()));
     </template>
     <template #answers>
       <div v-if="v.options" class="answers">
-        <button v-for="(o, k) in v.options" :key="k" type="button" class="btn small mono" @click="answer(o.value)">{{ tr(o.label) }}</button>
+        <button v-for="(o, k) in v.options" :key="k" type="button" class="btn small mono" :aria-label="o.aria ? tr(o.aria) : undefined" @click="answer(o.value)">{{ tr(o.label) }}</button>
       </div>
     </template>
   </PredictFrame>

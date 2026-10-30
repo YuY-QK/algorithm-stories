@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { mergeCopy, t } from '../src/core/i18n';
+import coreCopy from '../src/core/copy.zh.json';
+import levelCopy from '../content/algorithms/bubble-sort/copy.zh.json';
+import type { Copy } from '../src/core/types';
 import {
   BUGS, CHALLENGE_N, PREDICT_N, bugVerdict, genPredict, CODE, KID_N, ROUND_END_LINE, STORY_KIDS, rounds, buildTrace, genChallenge, distinctArray,
   genArray, inversions, isSorted, lookFrames, need, passedOver, randomKids, runBug, sameItems, shootAnswer, shootInit,
@@ -6,6 +10,7 @@ import {
 } from '../src/engine/bubble-sort';
 import { seeded } from './helpers/seeded';
 
+const copy = mergeCopy(coreCopy as Copy, levelCopy as Copy);
 const byH = (k: Kid) => k.h;
 const asc = (a: number[]) => [...a].sort((x, y) => x - y);
 
@@ -15,7 +20,7 @@ describe('冒泡排序 看：排队拍合照', () => {
     expect(rs).toHaveLength(3);
     expect(rs.map((r) => r.swaps)).toEqual([3, 1, 0]);
     expect(rs.flatMap((r) => r.compares)).toHaveLength(9);
-    expect(rs[0].top.name).toBe('小熊');
+    expect(rs[0].top.id).toBe('bear');
     expect(rs[2].quiet).toBe(true);
     expect(rs.at(-1)!.after.map((k) => k.h)).toEqual([118, 120, 132, 138, 145]);
   });
@@ -29,7 +34,8 @@ describe('冒泡排序 看：排队拍合照', () => {
       expect(last.line.map(byH)).toEqual(asc(kids.map(byH)));
       expect(last.fixedFrom).toBe(0);
       for (const f of frames) {
-        expect(f.say).not.toContain('\n');
+        expect(t(f.say, copy)).not.toContain('\n');
+        expect(t(f.say, copy)).not.toContain('⟦');
         expect(f.line).toHaveLength(kids.length);
         if (f.pair !== null) expect(f.pair + 1).toBeLessThan(f.fixedFrom);
         // 已经站好的部分不会再变
@@ -171,9 +177,9 @@ describe('冒泡排序 做：猜下一步的出题和解释', () => {
     const r = seeded(12);
     for (let k = 0; k < 200; k++) {
       for (const rd of rounds(genPredict(r), (v) => v)) {
-        expect(rd.whyTop).toContain('下标 0 到 ' + rd.end);
-        expect(rd.whyTop).toContain(String(rd.top));
-        expect(rd.why).toContain('换了 ' + rd.swaps + ' 次');
+        expect(t(rd.whyTop, copy)).toContain('下标 0 到 ' + rd.end);
+        expect(t(rd.whyTop, copy)).toContain(String(rd.top));
+        expect(t(rd.why, copy)).toContain('换了 ' + rd.swaps + ' 次');
       }
     }
   });
@@ -182,7 +188,7 @@ describe('冒泡排序 做：猜下一步的出题和解释', () => {
     const a = randomKids(5, seeded(3)), b = randomKids(5, seeded(3));
     expect(a).toEqual(b);
     const fs = lookFrames(a);
-    expect(fs.every((f) => f.say.length > 0)).toBe(true);
+    expect(fs.every((f) => t(f.say, copy).length > 0)).toBe(true);
     expect(fs.at(-1)!.photo).toBe(true);
   });
 });
@@ -191,8 +197,8 @@ describe('冒泡排序 引擎：bugVerdict', () => {
   it('没跑完是空；三个坑跑完各有各的判定', () => {
     const v = Object.fromEntries(BUGS.map((b) => {
       const tr = runBug(b);
-      expect(bugVerdict(tr[0], b)).toBe('');
-      return [b.id, bugVerdict(tr.at(-1)!, b)];
+      expect(bugVerdict(tr[0], b)).toBeNull();
+      return [b.id, t(bugVerdict(tr.at(-1)!, b)!, copy)];
     }));
     expect(v.bound).toBe('💥 下标越界，程序崩溃');
     expect(v.stable).toContain('先后顺序却反了');

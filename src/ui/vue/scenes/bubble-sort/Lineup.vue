@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue';
-import { KID_MAX_H, KID_MIN_H, type Kid } from '../../engine/bubble-sort';
-import { useStageStop } from '../../components/shared/usePlayer';
-import { SHAKE_MS } from '../../components/shared/timing';
+import { KID_MAX_H, KID_MIN_H, type Kid } from '../../../../engine/bubble-sort';
+import { useStageStop } from '../../../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../../../core/timing';
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
 
 // 排队的小伙伴：一排站着的小动物，高矮按身高画。看、玩法一、玩法二共用，只负责画，不管规则。
 // 换位置时用 TransitionGroup 让两人真的走过去。
@@ -12,19 +14,21 @@ const props = withDefaults(defineProps<{
   pair?: number | null;
   /** 从这个下标开始已经站好（⭐） */
   fixedFrom?: number;
-  /** 透光提示的小伙伴 id */
-  glow?: string | null;
+  /** 透光提示的小伙伴：[id, 第几次]，次数变了才重新亮一次 */
+  glow?: [string, number] | null;
   /** 每次变化就让这个小伙伴摇一下，格式 [id, 计数] */
   shake?: [string, number] | null;
   /** 能不能点 */
   clickable?: boolean;
   /** 拍照：闪一下 */
   photo?: boolean;
+  t: (msg: Msg) => string;
 }>(), { pair: null, fixedFrom: Infinity, glow: null, shake: null, clickable: false, photo: false });
 
 const emit = defineEmits<{ pick: [index: number, kid: Kid] }>();
 
 const shaking = ref<string | null>(null);
+const glowing = ref<string | null>(null);
 let shakeTimer: ReturnType<typeof setTimeout> | null = null;
 function stopShake() {
   if (shakeTimer) clearTimeout(shakeTimer);
@@ -37,6 +41,10 @@ watch(() => props.shake, (v) => {
   requestAnimationFrame(() => (shaking.value = v[0]));
   shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
 });
+watch(() => props.glow, (v) => {
+  glowing.value = null;
+  if (v) requestAnimationFrame(() => (glowing.value = v[0]));
+});
 // 切换标签或卸载时，晃动动画停下
 useStageStop(stopShake);
 onBeforeUnmount(stopShake);
@@ -44,7 +52,8 @@ onBeforeUnmount(stopShake);
 const frac = (h: number) => (h - KID_MIN_H) / (KID_MAX_H - KID_MIN_H);
 
 function label(k: number, kid: Kid): string {
-  return kid.name + '，' + kid.h + ' 厘米' + (k >= props.fixedFrom ? '，已经站好' : '');
+  const params = { name: m('kid.' + kid.id), h: kid.h };
+  return props.t(k >= props.fixedFrom ? m('scene.kidFixed', params) : m('scene.kid', params));
 }
 </script>
 
@@ -62,7 +71,7 @@ function label(k: number, kid: Kid): string {
         :class="{
           look: pair !== null && (k === pair || k === pair + 1),
           fixed: k >= fixedFrom,
-          glow: glow === kid.id,
+          glow: glowing === kid.id,
           shake: shaking === kid.id,
         }"
         :disabled="!clickable"
