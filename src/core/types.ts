@@ -129,6 +129,8 @@ export interface TraceRules<I, S extends Step, A> {
   summary?(input: I, step: S): Msg | null;
   /** 播放条上多一个「跳到……」按钮：往后跳到第一个 stop 为真的步骤（from 是当前步骤），找不到就停在最后一步 */
   jump?: { label: Msg; stop(step: S, from: S): boolean };
+  /** 播放条和总结之后的一行小字（图例：颜色各代表什么），可以没有 */
+  foot?: Msg;
 }
 
 /* ---------- 做：猜下一步 ---------- */
@@ -159,6 +161,11 @@ export interface Ask<V, T = unknown> {
    * frames 依次是画面的样子（第一帧马上显示，之后每帧按 core/timing 的节拍换），prompt 是播放时的题干。
    */
   anim?: { frames: V[]; prompt: Msg };
+  /**
+   * 一道题的前半问（后面还有半问）：答对不计连对、不出声，直接进入下一问；答错照常清零连对，
+   * 看完解释后跳过下一问（后半问没必要再问）。不能和 anim 同用。
+   */
+  half?: boolean;
 }
 
 /** 一道题：依次回答若干问，最后看结局 */
@@ -168,11 +175,15 @@ export interface Puzzle<V, T = unknown> {
   end: { view: V; prompt: Msg; chips?: Var[] };
   /** 最后一问答对时的结局（如多一个 ✅）；不给就用 end */
   endRight?: { view: V; prompt: Msg; chips?: Var[] };
+  /** 答完最后一问不停在结局页，界面直接换下一道题（连对保留）；end 仍要给，但看不到 */
+  endless?: boolean;
 }
 
 export interface PredictRules<V, T = unknown> {
   /** 连对几次过关，默认 5 */
   goal?: number;
+  /** 答错后「继续」按钮的字；不给就用共用的「知道了，继续」 */
+  continueLabel?: Msg;
   puzzle(rand?: Rand): Puzzle<V, T>;
 }
 
@@ -200,6 +211,8 @@ export interface BugRules<B extends BugInfo, S extends Step> {
   vars(step: S, bug: B): Var[];
   /** 播完后的判定，没播完返回 null */
   verdict(step: S, bug: B): Msg | null;
+  /** 播放条上多一个按钮，往后跳到第一个 stop 为真的步骤（如「跳到结果」），找不到就停在最后一步 */
+  jump?: { label: Msg; stop(step: S): boolean };
 }
 
 /* ---------- 玩、挑战：引导式小游戏 ---------- */

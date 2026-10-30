@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { suitOf, type SortStep } from '../../engine/insertion-sort';
+import { suitOf, type InsertionStep } from '../../../../engine/insertion-sort';
 
 // 「做」里的数组：一排格子，key 悬在空位上方，标出 i、j、正在比较的格子和排好的部分。
 // 逐步执行和找 bug 共用。suits 为真时每个元素带上花色，用来看稳定性。
-defineProps<{ step: SortStep; suits?: boolean }>();
+defineProps<{ step: InsertionStep; suits?: boolean }>();
 
-function tags(s: SortStep, k: number) {
+function tags(s: InsertionStep, k: number) {
   const t: string[] = [];
   if (k === s.i) t.push('i');
   if (k === s.j) t.push('j');

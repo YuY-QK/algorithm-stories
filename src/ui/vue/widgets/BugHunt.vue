@@ -57,7 +57,9 @@ const codeLabels = { group: ui('ui.code.group', { lang: 'KOTLIN' }), line: (n: n
     <component :is="Scene" :step="s" :bug="bug" :t="tr" />
     <VarChips :vars="vars" />
     <p class="note" aria-live="polite">{{ note }}</p>
-    <Transport :player="p" :labels="tLabels" />
+    <Transport :player="p" :labels="tLabels">
+      <button v-if="rules.jump" type="button" class="btn small" :disabled="p.atEnd.value" @click="p.jumpTo((x) => rules.jump!.stop(x))">{{ tr(rules.jump.label) }}</button>
+    </Transport>
     <p v-if="verdict" class="summary verdict">{{ tr(verdict) }}</p>
   </div>
 

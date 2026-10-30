@@ -27,6 +27,8 @@ function clear() {
 }
 function set(next: typeof st.value) {
   clear();
+  // 不停在结局页的题（Puzzle.endless）：答完最后一问直接换下一道，连对保留
+  if (next.phase === 'end' && next.puzzle.endless) next = flow.nextPuzzle(next, rules.puzzle());
   st.value = next;
   const delay = flow.animDelay(next);
   if (delay !== null) {
@@ -62,7 +64,7 @@ const next = () => set(flow.nextPuzzle(st.value, rules.puzzle()));
     :wrong="v.wrong ? tr(v.wrong) : null"
     :right="v.right ? tr(v.right) : null"
     :ended="v.ended"
-    :continue-label="ui('ui.predict.cont')"
+    :continue-label="rules.continueLabel ? tr(rules.continueLabel) : ui('ui.predict.cont')"
     :next-label="ui('ui.predict.next')"
     :streak-label="ui('ui.predict.streak')"
     :passed-label="ui('ui.predict.passed')"

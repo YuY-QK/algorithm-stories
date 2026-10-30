@@ -43,6 +43,7 @@ const codeLabels = { group: ui('ui.code.group', { lang: 'KOTLIN' }), line: (n: n
       <button v-if="rules.jump" type="button" class="btn small" :disabled="p.atEnd.value" @click="p.jumpTo((x) => rules.jump!.stop(x, s))">{{ tr(rules.jump.label) }}</button>
     </Transport>
     <p v-if="summary" class="summary">{{ tr(summary) }}</p>
+    <p v-if="rules.foot" class="small-note">{{ tr(rules.foot) }}</p>
   </div>
 
   <CodePanel :lines="rules.code" :active="s.line" lang="KOTLIN" :labels="codeLabels" />

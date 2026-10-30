@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { isRed, suitOf, type Card } from '../../engine/insertion-sort';
-import { useStageStop } from '../../components/shared/usePlayer';
-import { SHAKE_MS } from '../../components/shared/timing';
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
+import { isRed, suitOf, type Card } from '../../../../engine/insertion-sort';
+import { useStageStop } from '../../../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../../../core/timing';
 
 // 牌桌：一排位置，牌放在位置上，拿在手上的牌悬在空位上方。
 // 看、玩法一、玩法二共用，只负责画，不管规则。
@@ -16,14 +18,15 @@ const props = withDefaults(defineProps<{
   inHand?: number;
   /** 正在比大小的牌 */
   vs?: number | null;
-  /** 透光提示的牌 id；-1 表示透光的是空位 */
-  glow?: number | null;
+  /** 透光提示的牌：[牌 id, 第几次]，次数变了才重新亮一次；id 是 -1 表示透光的是空位 */
+  glow?: [number, number] | null;
   /** 每次变化就让这张牌摇一下，格式 [牌 id, 计数] */
   shake?: [number, number] | null;
   /** 显示几个能点的空隙（0 到 gaps - 1 号），0 表示不显示 */
   gaps?: number;
   /** 手里的牌和空位能不能点 */
   pickable?: boolean;
+  t: (msg: Msg) => string;
 }>(), { held: null, heldAt: 0, inHand: 0, vs: null, glow: null, shake: null, gaps: 0, pickable: false });
 
 const emit = defineEmits<{ gap: [g: number]; card: [id: number]; hole: [] }>();
@@ -36,6 +39,7 @@ const slotOf = computed(() => {
 });
 
 const shaking = ref<number | null>(null);
+const glowing = ref<number | null>(null);
 let shakeTimer: ReturnType<typeof setTimeout> | null = null;
 function stopShake() {
   if (shakeTimer) clearTimeout(shakeTimer);
@@ -48,6 +52,10 @@ watch(() => props.shake, (v) => {
   requestAnimationFrame(() => (shaking.value = v[0]));
   shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
 });
+watch(() => props.glow, (v) => {
+  glowing.value = null;
+  if (v) requestAnimationFrame(() => (glowing.value = v[0]));
+});
 useStageStop(stopShake);
 onBeforeUnmount(stopShake);
 
@@ -57,7 +65,7 @@ function where(id: number) {
 }
 
 function label(c: Card) {
-  return '牌 ' + c.v + (props.held === c.id ? '，拿在手上' : '');
+  return props.t(props.held === c.id ? m('hand.cardHeld', { v: c.v }) : m('hand.card', { v: c.v }));
 }
 </script>
 
@@ -71,9 +79,9 @@ function label(c: Card) {
             v-if="id === null && pickable"
             type="button"
             class="hole"
-            :class="{ glow: glow === -1 }"
+            :class="{ glow: glowing === -1 }"
             :style="{ '--s': s }"
-            aria-label="空位：把手上的牌放这里"
+            :aria-label="t(m('hand.hole'))"
             @click="emit('hole')"
           >⬇️</button>
           <span v-else-if="id === null" class="hole" :style="{ '--s': s }" aria-hidden="true" />
@@ -88,7 +96,7 @@ function label(c: Card) {
             up: where(c.id).lifted,
             away: inHand > 0 && where(c.id).s >= inHand && !where(c.id).lifted,
             vs: vs === c.id,
-            glow: glow === c.id,
+            glow: glowing === c.id,
             shake: shaking === c.id,
             red: isRed(c.id),
           }"
@@ -105,7 +113,7 @@ function label(c: Card) {
           type="button"
           class="gap"
           :style="{ '--s': g - 1 }"
-          :aria-label="'插在第 ' + g + ' 个位置'"
+          :aria-label="t(m('hand.gap', { g }))"
           @click="emit('gap', g - 1)"
         ><span aria-hidden="true">▼</span></button>
       </div>

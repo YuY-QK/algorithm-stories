@@ -39,9 +39,9 @@ export function nextPuzzle<V, T>(s: PredictState<V, T>, puzzle: Puzzle<V, T>): P
 }
 
 /** 进入下一问；没有下一问就看结局 */
-function step<V, T>(s: PredictState<V, T>): PredictState<V, T> {
-  const last = s.i >= s.puzzle.asks.length - 1;
-  return last ? { ...s, phase: 'end', picked: null, frame: 0 } : { ...s, i: s.i + 1, phase: 'ask', picked: null, frame: 0 };
+function step<V, T>(s: PredictState<V, T>, skip = 0): PredictState<V, T> {
+  const next = s.i + 1 + skip;
+  return next >= s.puzzle.asks.length ? { ...s, phase: 'end', picked: null, frame: 0 } : { ...s, i: next, phase: 'ask', picked: null, frame: 0 };
 }
 
 /** 这一问答完了：有动画先播动画，否则进入下一问 */
@@ -68,6 +68,8 @@ export function answer<V, T>(s: PredictState<V, T>, value: T): PredictOut<V, T> 
   if (!Object.is(value, ask.answer)) {
     return { state: { ...s, phase: 'wrong', streak: 0, lastRight: false, picked: ask.kind === 'pick' ? value : null }, sound: 'wrong' };
   }
+  // 前半问答对：不计连对、不出声，直接问后半问
+  if (ask.half) return { state: step({ ...s, lastRight: true }) };
   const streak = s.streak + 1;
   const justPassed = streak >= s.goal && !s.passed;
   const hit = { ...s, streak, lastRight: true, passed: s.passed || justPassed };
@@ -79,7 +81,9 @@ export function answer<V, T>(s: PredictState<V, T>, value: T): PredictOut<V, T> 
 
 /** 看完解释（「知道了，继续」）或看完答对的讲解（「下一题」）后往下走 */
 export function proceed<V, T>(s: PredictState<V, T>): PredictState<V, T> | null {
-  return s.phase === 'wrong' || s.phase === 'right' ? advance(s) : null;
+  if (s.phase !== 'wrong' && s.phase !== 'right') return null;
+  // 前半问答错：后半问不用再问了
+  return s.phase === 'wrong' && s.puzzle.asks[s.i].half ? step(s, 1) : advance(s);
 }
 
 /** 此刻要画的东西 */

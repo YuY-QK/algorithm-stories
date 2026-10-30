@@ -4,7 +4,14 @@ import {
   genChallenge, genPredict, insertPos, inversions, isSorted, isStable, judgeGap, lookFrames, nearlySorted, nextAction,
   rounds, runBug, showCards, simulate, stars,
 } from '../src/engine/insertion-sort';
+import { mergeCopy, t } from '../src/core/i18n';
+import type { Msg } from '../src/core/types';
+import coreCopy from '../src/core/copy.zh.json';
+import levelCopy from '../content/algorithms/insertion-sort/copy.zh.json';
 import { seeded } from './helpers/seeded';
+
+const copy = mergeCopy(coreCopy, levelCopy);
+const T = (msg: Msg | string) => t(msg, copy);
 
 const sortNum = (a: number[]) => [...a].sort((x, y) => x - y);
 
@@ -15,8 +22,8 @@ describe('插入排序 看：小熊理纸牌', () => {
       const frames = lookFrames(values);
       const last = frames.at(-1)!;
       expect(last.slots.map((id) => values[id!])).toEqual(sortNum(values));
-      expect(last.say).toContain('挪了 ' + inversions(values) + ' 次');
-      expect(frames.filter((f) => f.say.includes('往右挪'))).toHaveLength(inversions(values));
+      expect(T(last.say)).toContain('挪了 ' + inversions(values) + ' 次');
+      expect(frames.filter((f) => T(f.say).includes('往右挪'))).toHaveLength(inversions(values));
       for (const f of frames) {
         // 每张牌要么在某个位置上，要么拿在手上，不多不少
         const ids = [...f.slots.filter((x) => x !== null), ...(f.held !== null ? [f.held] : [])].sort();
@@ -194,7 +201,7 @@ describe('插入排序 做：找 bug', () => {
     expect(out.ge.outcome).toBe('unstable');
     expect(out.ge.arr).toEqual([1, 2, 3, 3]);
     expect(out['write-j'].outcome).toBe('crash');
-    expect(runBug(BUGS[2]).some((s) => s.note.includes('被盖掉'))).toBe(true);
+    expect(runBug(BUGS[2]).some((s) => T(s.note).includes('被盖掉'))).toBe(true);
     for (const b of BUGS) expect(buildTrace(b.values).at(-1)!.outcome).toBe('ok');
   });
 
@@ -247,7 +254,7 @@ describe('插入排序 引擎：台词、解释和固定种子出题', () => {
     for (let k = 0; k < 100; k++) {
       const hand = dealHand(5, r);
       const fs = lookFrames(hand);
-      expect(fs.every((f) => f.say.length > 0)).toBe(true);
+      expect(fs.every((f) => T(f.say).length > 0)).toBe(true);
       expect(fs.at(-1)!.slots.map((id) => hand[id!])).toEqual(sortNum(hand));
     }
   });
@@ -271,21 +278,21 @@ describe('插入排序 引擎：台词、解释和固定种子出题', () => {
     const r = seeded(14);
     for (let k = 0; k < 200; k++) {
       for (const rd of rounds(genPredict(r))) {
-        expect(rd.whyPos).toContain('key 落在下标 ' + rd.pos);
-        expect(rd.why).toContain('一共 ' + rd.compares + ' 次');
-        expect(rd.why).toContain('挪了 ' + rd.moves + ' 次');
+        expect(T(rd.whyPos)).toContain('key 落在下标 ' + rd.pos);
+        expect(T(rd.why)).toContain('一共 ' + rd.compares + ' 次');
+        expect(T(rd.why)).toContain('挪了 ' + rd.moves + ' 次');
       }
     }
   });
 
-  it('bugVerdict：没跑完是空，跑完按结果写', () => {
-    const text = Object.fromEntries(BUGS.map((b) => [b.id, bugVerdict(runBug(b).at(-1)!, b)]));
-    for (const b of BUGS) expect(bugVerdict(runBug(b)[0], b)).toBe('');
+  it('bugVerdict：没跑完是 null，跑完按结果写', () => {
+    const text = Object.fromEntries(BUGS.map((b) => [b.id, T(bugVerdict(runBug(b).at(-1)!, b)!)]));
+    for (const b of BUGS) expect(bugVerdict(runBug(b)[0], b)).toBeNull();
     expect(text.gt0).toBe('❌ 结果 [4, 1, 2, 3, 5]，没排好');
     expect(text.ge).toContain('不稳定');
     expect(text.ge).toContain('3♥');
     expect(text['write-j']).toBe('💥 下标越界，程序崩溃');
-    expect(bugVerdict(buildTrace([2, 1]).at(-1)!, BUGS[0])).toBe('✅ 排好了');
+    expect(T(bugVerdict(buildTrace([2, 1]).at(-1)!, BUGS[0])!)).toBe('✅ 排好了');
     expect(showCards([3, 1], [0, 1], true)).toBe('[3♥, 1♠]');
   });
 
