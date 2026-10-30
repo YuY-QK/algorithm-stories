@@ -196,4 +196,7 @@ R3 时再处理：画面注册表现在是 eager glob，15 关迁完后考虑按
 ### 7.6 R3 进行中补的接口（以代码为准）
 
 - 栈、队列（10-27）：`Control` 新增 `text`（文本框）、`transport`（播放条，配 `src/core/flows/transport.ts`，用于挑战里判断后播放演示）；按钮可带 `caption`，`look` 加 `smallPrimary`；`GameResult` 加 `art`（结算里再画一块画面），`quiz.prompt` 可省、加 `quiz.after`；`Ask` 加 `chips`，`pick` 问也可带 `options`；`Puzzle.end` 加 `chips`
+- 顺序查找、哈希查找（10-30）：`Control.number` 加 `placeholder`；`Puzzle` 加 `endRight`（最后一问答对时换一个结局）；`GameResult` 加 `foot`（按钮后的小字）、`quiz.ok`（答对后的讲解）；延伸 Markdown 里 `href="@base/…"` 换成站内地址
+- 冒泡、选择（10-30）：`TraceRules` 加 `jump`（播放条上「跳到本轮结束」）；`Ask` 加 `anim`（答完后按节拍播几帧动画）、`whyFor`（解释随点的格子变）、选项 `aria`；predict 流程加 `anim` 阶段
+- 哈希查找的两个小游戏把台词放在 state 里由画面自己画（为了保持原来的版面顺序），是目前唯一不走 Game 控件台词行的地方
 - game 块加 `sayLines: 2`（台词预留两行，原来多数小游戏如此）和 `saySize: "small"`（BFS、DFS 的小一号字）
