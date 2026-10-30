@@ -1,4 +1,9 @@
-import type { BugInfo, LookFrame, Step, Trace } from './types';
+import { m } from '../core/i18n';
+import { PAUSE_MID, PAUSE_SHORT } from '../core/timing';
+import type {
+  BugInfo, BugRules, Control, GameRules, LevelModule, LookFrame, LookRules, Msg, Outcome, PredictRules, Puzzle, Rand,
+  Step, Trace, TraceRules, Var,
+} from '../core/types';
 
 /*
  * 队列：先进先出。这里讲的是最常用的实现「循环队列」：
@@ -75,22 +80,22 @@ export interface LookPage extends LookFrame {
 type LookOp = { offer: string } | { poll: true } | { bend: true } | { glowEmpty: true };
 
 /** 看：每一页做哪些操作、说哪句话。画面由 lookFrames 真正执行这些操作得到 */
-const LOOK_SCRIPT: { ops: LookOp[]; say: (s: { last: string[]; ring: Ring<string> }) => string }[] = [
-  { ops: [], say: () => '奶茶店开门啦 🧋 门口摆着 6 把椅子' },
-  { ops: [{ offer: '🐼' }], say: () => '🐼 第一个来，坐 0 号椅子' },
-  { ops: [{ offer: '🐰' }, { offer: '🐱' }], say: () => '🐰 🐱 也来了，一个接一个往后坐' },
-  { ops: [{ poll: true }], say: ({ last }) => '店员只叫队头：' + last[0] + ' 先买到 🧋' },
-  { ops: [{ offer: '🐶' }], say: () => '新来的 🐶 坐到队尾' },
-  { ops: [{ poll: true }], say: ({ last }) => '下一个是 ' + last[0] + '，先来的先买' },
-  { ops: [{ offer: '🦊' }, { offer: '🐸' }], say: () => '🦊 🐸 坐上了最后两把椅子' },
-  { ops: [{ glowEmpty: true }], say: () => '🐨 来了：后面没椅子，前面却空着两把！' },
-  { ops: [{ bend: true }], say: () => '把椅子围成一圈 ⭕ 5 号后面就是 0 号' },
-  { ops: [{ offer: '🐨' }], say: ({ ring }) => '🐨 坐到 ' + ((ring.tail - 1 + SEATS) % SEATS) + ' 号椅子，排在 🐸 后面' },
-  { ops: [{ poll: true }], say: ({ last }) => '队头 ' + last[0] + ' 买到 🧋，队头往前挪一把' },
-  { ops: [{ offer: '🐵' }, { offer: '🐯' }], say: () => '🐵 🐯 接着坐，6 把椅子全坐满啦' },
-  { ops: [{ offer: '🐷' }], say: () => '🐷 来晚了：坐满了，请等一等 ✋' },
-  { ops: [{ poll: true }, { poll: true }, { poll: true }], say: ({ last }) => last.join(' ') + ' 依次买到 🧋，谁先来谁先买' },
-  { ops: [], say: () => '椅子转着圈用，一直有得坐：这就是循环队列 🎉' },
+const LOOK_SCRIPT: { ops: LookOp[]; say: (s: { last: string[]; ring: Ring<string> }) => Msg }[] = [
+  { ops: [], say: () => m('look.open') },
+  { ops: [{ offer: '🐼' }], say: () => m('look.first') },
+  { ops: [{ offer: '🐰' }, { offer: '🐱' }], say: () => m('look.more') },
+  { ops: [{ poll: true }], say: ({ last }) => m('look.pollFirst', { who: last[0] }) },
+  { ops: [{ offer: '🐶' }], say: () => m('look.newcomer') },
+  { ops: [{ poll: true }], say: ({ last }) => m('look.nextUp', { who: last[0] }) },
+  { ops: [{ offer: '🦊' }, { offer: '🐸' }], say: () => m('look.lastTwo') },
+  { ops: [{ glowEmpty: true }], say: () => m('look.noChair') },
+  { ops: [{ bend: true }], say: () => m('look.bend') },
+  { ops: [{ offer: '🐨' }], say: ({ ring }) => m('look.sitWrap', { i: (ring.tail - 1 + SEATS) % SEATS }) },
+  { ops: [{ poll: true }], say: ({ last }) => m('look.headMoves', { who: last[0] }) },
+  { ops: [{ offer: '🐵' }, { offer: '🐯' }], say: () => m('look.full') },
+  { ops: [{ offer: '🐷' }], say: () => m('look.late') },
+  { ops: [{ poll: true }, { poll: true }, { poll: true }], say: ({ last }) => m('look.serveAll', { who: last.join(' ') }) },
+  { ops: [], say: () => m('look.end') },
 ];
 
 /** 看：生成绘本的每一页。椅子上的状态由真实的循环队列操作得到 */
@@ -132,6 +137,13 @@ export function lookFrames(): LookPage[] {
   }
   return out;
 }
+
+/** 看：故事是固定的，「再看一次」原样重来 */
+export const lookRules: LookRules<null, LookPage> = {
+  first: null,
+  next: () => null,
+  frames: () => lookFrames(),
+};
 
 /* ---------- 玩：动物和星星 ---------- */
 
@@ -190,6 +202,117 @@ export function nextUp(line: string[]): string | null {
   return line.length ? line[0] : null;
 }
 
+/** 玩法一的操作：点一位顾客、回答「谁能先买到」、再来一局 */
+export type NextAction =
+  | { type: 'pick'; who: string }
+  | { type: 'quiz'; c: 'first' | 'last' | 'big' }
+  | { type: 'again' };
+
+export interface NextGame {
+  script: LineEvent[];
+  /** 剧本走到第几个事件 */
+  at: number;
+  /** 队伍，第一个是队头 */
+  line: string[];
+  /** 已经买到奶茶的，按顺序 */
+  served: string[];
+  /** walk：客人陆续来；ask：等孩子点；serve：买到奶茶的人正在离开；quiz：追问「谁能先买到」；done：答对了 */
+  phase: 'walk' | 'ask' | 'serve' | 'quiz' | 'done';
+  mistakes: number;
+  /** 点错的那位晃一下：[顾客, 第几次] */
+  shake: [string, number] | null;
+  /** 举手提醒的队头 */
+  raise: string | null;
+  /** 正在离开的人 */
+  leaving: string | null;
+  quiz: 'ask' | 'wrong' | 'right';
+}
+
+/** 来的顺序（剧本里所有来的人） */
+export const arrivedOf = (script: LineEvent[]): string[] => script.flatMap((e) => ('arrive' in e ? [e.arrive] : []));
+
+/** 往下走剧本：来人就排进队尾，遇到「问」就停下等孩子点；走完了就追问 */
+function nextStep(s: NextGame): Outcome<NextGame> {
+  if (s.at >= s.script.length) return { state: { ...s, phase: 'quiz', quiz: 'ask' }, say: m('next.say.quiz') };
+  const e = s.script[s.at];
+  if ('arrive' in e) {
+    const line = [...s.line, e.arrive];
+    return { state: { ...s, line, at: s.at + 1, phase: 'walk' }, say: m('next.say.arrive', { who: e.arrive, n: line.length }), sound: 'tick', after: PAUSE_SHORT };
+  }
+  return { state: { ...s, phase: 'ask' }, say: m('next.say.ask') };
+}
+
+function nextRound(prev: NextGame | null, say: string, rand?: Rand): Outcome<NextGame> {
+  return {
+    state: {
+      script: lineScript(rand), at: 0, line: [], served: [], phase: 'walk', mistakes: 0,
+      shake: prev?.shake ?? null, raise: null, leaving: null, quiz: 'ask',
+    },
+    say: m(say),
+    after: PAUSE_SHORT,
+  };
+}
+
+export const nextRules: GameRules<NextGame, NextAction> = {
+  start: (rand) => nextRound(null, 'next.say.open', rand),
+
+  act(s, a, rand) {
+    if (a.type === 'pick' && s.phase === 'ask') {
+      const right = nextUp(s.line);
+      if (a.who !== right) {
+        // 点错了：被点的晃一下，队头举手
+        return {
+          state: { ...s, mistakes: s.mistakes + 1, shake: [a.who, (s.shake?.[1] ?? 0) + 1], raise: right },
+          say: a.who === BIG ? m('next.say.big') : m('next.say.notFirst', { who: a.who }),
+          sound: 'wrong',
+        };
+      }
+      return {
+        state: { ...s, raise: null, phase: 'serve', leaving: a.who },
+        say: m('next.say.serve', { who: a.who }),
+        sound: 'right',
+        after: PAUSE_MID,
+      };
+    }
+    if (a.type === 'quiz' && s.phase === 'quiz') {
+      if (a.c === 'first') return { state: { ...s, quiz: 'right', phase: 'done' }, say: m('next.say.right'), sound: 'win' };
+      return { state: { ...s, quiz: 'wrong' }, say: m('next.say.wrong'), sound: 'wrong' };
+    }
+    if (a.type === 'again' && s.phase === 'done') return nextRound(s, 'next.say.again', rand);
+    return null;
+  },
+
+  tick(s) {
+    if (s.phase === 'serve') {
+      // 买到奶茶的人离开队伍，接着往下走剧本
+      const who = s.leaving as string;
+      return nextStep({ ...s, line: s.line.slice(1), served: [...s.served, who], leaving: null, at: s.at + 1, phase: 'walk' });
+    }
+    if (s.phase === 'walk') return nextStep(s);
+    return { state: s };
+  },
+
+  // 切标签时，客人还在来或者正在离开的局重新开一局；等孩子点或追问中的不动
+  interrupt: (s) => (s.phase === 'walk' || s.phase === 'serve' ? nextRound(s, 'next.say.again') : { state: s }),
+
+  clickable: (s) => s.phase === 'ask',
+
+  controls: (s) => (s.phase === 'done' ? [{ type: 'button', action: { type: 'again' }, label: m('next.again'), look: 'primary' }] : []),
+
+  result(s) {
+    if (s.phase !== 'quiz' && s.phase !== 'done') return null;
+    if (s.quiz === 'right') return { stars: stars(s.mistakes) };
+    const choice = (c: 'first' | 'last' | 'big', label: string, icon: string): Control<NextAction> => ({
+      type: 'button', action: { type: 'quiz', c }, label: m(label), look: 'choice', art: { scene: 'Icon', props: { icon } },
+    });
+    return {
+      // 答错了：把来的顺序和买到的顺序摆在一起比
+      art: s.quiz === 'wrong' ? { scene: 'ServedCompare', props: { arrived: arrivedOf(s.script), served: s.served } } : undefined,
+      quiz: { options: [choice('first', 'next.quiz.first', '⏰'), choice('last', 'next.quiz.last', '🏃'), choice('big', 'next.quiz.big', '🐘')] },
+    };
+  },
+};
+
 /* ---------- 玩法二：我是店员 ---------- */
 
 /** 指令卡：来了一位（要给他找椅子），或者卖出一杯（点出买到的人） */
@@ -239,6 +362,79 @@ export function cardAnswer(r: Ring<string>, card: Card): number {
 export function applyCard(r: Ring<string>, card: Card): Ring<string> {
   return 'arrive' in card ? ringOffer(r, card.arrive).ring : ringPoll(r, true).ring;
 }
+
+/** 玩法二的操作：点一把椅子、再来一局 */
+export type ClerkAction = { type: 'pick'; i: number } | { type: 'again' };
+
+export interface ClerkState {
+  game: ClerkGame;
+  ring: Ring<string>;
+  /** 做到第几张卡 */
+  at: number;
+  mistakes: number;
+  /** 点错的椅子晃一下：[椅子, 第几次] */
+  shake: [number, number] | null;
+  /** 来人点错时，正确的椅子透光：[椅子, 第几次] */
+  glow: [number, number] | null;
+  /** 卖出点错时，队头举手 */
+  raise: number | null;
+  served: string[];
+}
+
+/** 现在轮到的那张卡；做完了是 null */
+export const clerkCard = (s: ClerkState): Card | null => s.game.cards[s.at] ?? null;
+
+/** 说一句：刚才做了什么 + 现在轮到什么 */
+function clerkSay(s: ClerkState, done?: Msg): Msg {
+  const c = clerkCard(s);
+  const next = !c ? m('clerk.say.end') : 'arrive' in c ? m('clerk.say.arrive', { who: c.arrive }) : m('clerk.say.sell');
+  return done ? m('clerk.say.joined', { done, next }) : next;
+}
+
+function clerkRound(prev: ClerkState | null, rand?: Rand): Outcome<ClerkState> {
+  const game = clerkGame(rand);
+  const state: ClerkState = { game, ring: game.start, at: 0, mistakes: 0, shake: prev?.shake ?? null, glow: null, raise: null, served: [] };
+  return { state, say: clerkSay(state) };
+}
+
+export const clerkRules: GameRules<ClerkState, ClerkAction> = {
+  start: (rand) => clerkRound(null, rand),
+
+  act(s, a, rand) {
+    if (a.type === 'again') return clerkCard(s) === null ? clerkRound(s, rand) : null;
+    const c = clerkCard(s);
+    if (!c) return null;
+    const right = cardAnswer(s.ring, c);
+    if (a.i !== right) {
+      const shake: [number, number] = [a.i, (s.shake?.[1] ?? 0) + 1];
+      if ('arrive' in c) {
+        return {
+          state: { ...s, mistakes: s.mistakes + 1, shake, glow: [right, (s.glow?.[1] ?? 0) + 1] },
+          say: s.ring.cells[a.i] !== null ? m('clerk.say.taken') : m('clerk.say.follow'),
+          sound: 'wrong',
+        };
+      }
+      return { state: { ...s, mistakes: s.mistakes + 1, shake, raise: right }, say: m('clerk.say.who'), sound: 'wrong' };
+    }
+    let done: Msg;
+    let served = s.served;
+    if ('sell' in c) {
+      const who = s.ring.cells[a.i] as string;
+      served = [...served, who];
+      done = m('clerk.done.sell', { who, i: a.i });
+    } else {
+      done = m('clerk.done.arrive', { who: c.arrive, i: a.i });
+    }
+    const state: ClerkState = { ...s, glow: null, raise: null, served, ring: applyCard(s.ring, c), at: s.at + 1 };
+    return { state, say: clerkSay(state, done), sound: clerkCard(state) ? 'right' : ['right', 'win'] };
+  },
+
+  clickable: (s) => clerkCard(s) !== null,
+
+  controls: (s) => (clerkCard(s) === null ? [{ type: 'button', action: { type: 'again' }, label: m('clerk.again'), look: 'primary' }] : []),
+
+  result: (s) => (clerkCard(s) === null ? { stars: stars(s.mistakes), body: m('clerk.result', { n: SEATS - 1 }) } : null),
+};
 
 /* ---------- 做：逐步执行 ---------- */
 
@@ -361,7 +557,7 @@ export function buildTrace(cap: number, ops: Op[]): Trace<QueueStep> {
   const out: number[] = [];
   const rets: Record<number, string> = {};
   let op = -1;
-  const push = (line: number, note: string, extra: Partial<QueueStep> = {}) => {
+  const push = (line: number, note: Msg, extra: Partial<QueueStep> = {}) => {
     if (extra.ret) rets[op] = extra.ret;
     steps.push({
       line, note, done: false,
@@ -370,43 +566,38 @@ export function buildTrace(cap: number, ops: Op[]): Trace<QueueStep> {
     });
   };
 
-  push(5, '新建容量为 ' + cap + ' 的队列：数组 ' + cap + ' 格，head = tail = size = 0。');
+  push(5, m('trace.init', { cap }));
   ops.forEach((o, k) => {
     op = k;
     const name = opText(o);
     if (o.kind === 'offer') {
       if (ring.size === cap) {
-        push(8, name + '：size = ' + cap + '，和容量一样，满了，返回 false。', { ret: 'false' });
+        push(8, m('trace.offerFull', { op: name, cap }), { ret: 'false' });
         return;
       }
-      push(8, name + '：size = ' + ring.size + ' < ' + cap + '，还有空位。');
+      push(8, m('trace.offerRoom', { op: name, size: ring.size, cap }));
       const t = ring.tail;
       const r = ringOffer(ring, o.x);
       ring = { ...ring, cells: r.ring.cells };
-      push(9, '写进队尾：items[' + t + '] = ' + o.x + '。', { touched: t });
+      push(9, m('trace.write', { t, x: o.x }), { touched: t });
       ring = r.ring;
-      push(10, ring.tail === 0
-        ? 'tail = (' + t + ' + 1) % ' + cap + ' = 0，走到数组末尾，绕回 0 号格。'
-        : 'tail = (' + t + ' + 1) % ' + cap + ' = ' + ring.tail + '。');
-      push(11, 'size++，现在队里有 ' + ring.size + ' 个。');
-      push(12, '返回 true。', { ret: 'true' });
+      push(10, ring.tail === 0 ? m('trace.tailWrap', { t, cap }) : m('trace.tail', { t, cap, tail: ring.tail }));
+      push(11, m('trace.sizeUp', { size: ring.size }));
+      push(12, m('trace.retTrue'), { ret: 'true' });
     } else {
       if (ring.size === 0) {
-        push(16, name + '：size = 0，队列是空的，返回 null。', { ret: 'null' });
+        push(16, m('trace.pollEmpty', { op: name }), { ret: 'null' });
         return;
       }
-      push(16, name + '：size = ' + ring.size + '，不是空的。');
+      push(16, m('trace.pollSome', { op: name, size: ring.size }));
       const h = ring.head;
       const x = ring.cells[h] as number;
-      push(17, '读队头：x = items[' + h + '] = ' + x + '。', { touched: h });
+      push(17, m('trace.read', { h, x }), { touched: h });
       ring = ringPoll(ring).ring;
-      push(18, (ring.head === 0
-        ? 'head = (' + h + ' + 1) % ' + cap + ' = 0，绕回 0 号格。'
-        : 'head = (' + h + ' + 1) % ' + cap + ' = ' + ring.head + '。')
-        + 'items[' + h + '] 里的 ' + x + ' 不用擦，它已经不在队里了。');
-      push(19, 'size--，现在队里有 ' + ring.size + ' 个。');
+      push(18, ring.head === 0 ? m('trace.headWrap', { h, cap, x }) : m('trace.head', { h, cap, head: ring.head, x }));
+      push(19, m('trace.sizeDown', { size: ring.size }));
       out.push(x);
-      push(20, '返回 ' + x + '。', { ret: String(x) });
+      push(20, m('trace.retX', { x }), { ret: String(x) });
     }
   });
   steps[steps.length - 1].done = true;
@@ -414,10 +605,10 @@ export function buildTrace(cap: number, ops: Op[]): Trace<QueueStep> {
 }
 
 /** 几个固定的演示：绕一圈、装满、出空 */
-export const PRESETS: { id: string; label: string; cap: number; ops: Op[] }[] = [
+export const PRESETS: { id: 'wrap' | 'full'; label: Msg; cap: number; ops: Op[] }[] = [
   {
     id: 'wrap',
-    label: '绕一圈',
+    label: m('trace.which.wrap'),
     cap: 4,
     ops: [
       { kind: 'offer', x: 12 }, { kind: 'offer', x: 35 }, { kind: 'offer', x: 47 },
@@ -428,7 +619,7 @@ export const PRESETS: { id: string; label: string; cap: number; ops: Op[] }[] = 
   },
   {
     id: 'full',
-    label: '满了、空了',
+    label: m('trace.which.full'),
     cap: 3,
     ops: [
       { kind: 'offer', x: 21 }, { kind: 'offer', x: 43 }, { kind: 'offer', x: 65 }, { kind: 'offer', x: 87 },
@@ -436,6 +627,51 @@ export const PRESETS: { id: string; label: string; cap: number; ops: Op[] }[] = 
     ],
   },
 ];
+
+/* ---------- 做：逐步执行里的「随机」序列 ---------- */
+
+/** 「随机」序列的容量和操作数 */
+export const TRACE_CAP = 5;
+export const TRACE_OPS = 12;
+
+/** 逐步执行面板的输入：选了哪一组，容量，操作序列 */
+export interface TraceInput {
+  which: 'wrap' | 'full' | 'random';
+  cap: number;
+  ops: Op[];
+}
+
+export type TraceAction = { type: 'which'; which: TraceInput['which'] } | { type: 'again' };
+
+function loadTrace(which: TraceInput['which'], rand?: Rand): TraceInput {
+  const p = PRESETS.find((x) => x.id === which);
+  return p ? { which, cap: p.cap, ops: p.ops } : { which, cap: TRACE_CAP, ops: randomOps(TRACE_CAP, TRACE_OPS, rand) };
+}
+
+/** 做：逐步执行。上面是真实的数组，右边把同一个数组弯成一圈，看 head、tail 怎么绕回 */
+export const traceRules: TraceRules<TraceInput, QueueStep, TraceAction> = {
+  code: CODE,
+  start: () => loadTrace('wrap'),
+  act: (_input, a, rand) => loadTrace(a.type === 'which' ? a.which : 'random', rand),
+  controls(input) {
+    const out: Control<TraceAction>[] = [{
+      type: 'segmented', legend: m('trace.ops'), value: input.which,
+      options: [
+        { value: 'wrap', label: m('trace.which.wrap') },
+        { value: 'full', label: m('trace.which.full') },
+        { value: 'random', label: m('trace.which.random') },
+      ],
+      choose: (v) => ({ type: 'which', which: v as TraceInput['which'] }),
+    }];
+    if (input.which === 'random') out.push({ type: 'button', action: { type: 'again' }, label: m('trace.again'), look: 'small' });
+    return out;
+  },
+  trace: (input) => buildTrace(input.cap, input.ops),
+  vars: (input, s): Var[] => [
+    ['head', s.head], ['tail', s.tail], ['size', s.size], [m('vars.cap'), input.cap],
+    [m('vars.out'), s.out.length ? s.out.join(' ') : '—'],
+  ],
+};
 
 /* ---------- 做：猜下一步 ---------- */
 
@@ -458,9 +694,9 @@ export interface Round {
   after: Ring<number>;
   ret: Ret;
   /** 第一问答错时的解释 */
-  why: string;
+  why: Msg;
   /** 第二问答错时的解释；没有第二问时是 null */
-  whyNext: string | null;
+  whyNext: Msg | null;
 }
 
 export function rounds(cap: number, ops: Op[]): Round[] {
@@ -473,12 +709,12 @@ export function rounds(cap: number, ops: Op[]): Round[] {
       return r.ok
         ? {
             before, op, at: before.tail, next: ring.tail, after: ring, ret: true,
-            why: '还没满（size = ' + before.size + '），新元素写进 items[tail]，tail = ' + before.tail + '。',
-            whyNext: 'tail = (' + before.tail + ' + 1) % ' + cap + ' = ' + ring.tail + (ring.tail === 0 ? '：走到最后一格之后绕回 0 号格。' : '。'),
+            why: m('predict.why.offer', { size: before.size, tail: before.tail }),
+            whyNext: m(ring.tail === 0 ? 'predict.whyNext.tailWrap' : 'predict.whyNext.tail', { from: before.tail, cap, to: ring.tail }),
           }
         : {
             before, op, at: 'full' as const, next: null, after: ring, ret: false,
-            why: 'size = ' + before.size + '，等于容量 ' + cap + '，满了，offer 直接返回 false。',
+            why: m('predict.why.full', { size: before.size, cap }),
             whyNext: null,
           };
     }
@@ -487,16 +723,68 @@ export function rounds(cap: number, ops: Op[]): Round[] {
     return r.x !== null
       ? {
           before, op, at: before.head, next: ring.head, after: ring, ret: r.x,
-          why: '队列不空（size = ' + before.size + '），poll 读 items[head]，head = ' + before.head + '。',
-          whyNext: 'head = (' + before.head + ' + 1) % ' + cap + ' = ' + ring.head + (ring.head === 0 ? '：走到最后一格之后绕回 0 号格。' : '。'),
+          why: m('predict.why.poll', { size: before.size, head: before.head }),
+          whyNext: m(ring.head === 0 ? 'predict.whyNext.headWrap' : 'predict.whyNext.head', { from: before.head, cap, to: ring.head }),
         }
       : {
           before, op, at: 'empty' as const, next: null, after: ring, ret: null,
-          why: 'size = 0，队列是空的，poll 直接返回 null。',
+          why: m('predict.why.empty'),
           whyNext: null,
         };
   });
 }
+
+/** 猜下一步画面的样子：操作序列（做到第几个）和数组；touched 是刚写好、指针还没动的那一格 */
+export interface QueueView {
+  ops: Op[];
+  /** 每个操作的返回值（已经做完的才显示） */
+  rets: string[];
+  /** 现在轮到第几个操作；结局时等于操作个数，全部算做完 */
+  r: number;
+  cells: (number | null)[];
+  head: number;
+  tail: number;
+  size: number;
+  touched: number | null;
+}
+
+/** 第一问可以点格子，也可以点「满了」「空了」 */
+export type PredictAnswer = number | 'full' | 'empty';
+
+/** 把一串操作排成一问接一问：先点出写进或读出哪一格（满了、空了就点按钮），再点出指针接下来指向哪一格 */
+export function makePuzzle(cap: number, ops: Op[]): Puzzle<QueueView, PredictAnswer> {
+  const list = rounds(cap, ops);
+  const rets = list.map((x) => retText(x.ret));
+  const chipsOf = (size: number): Var[] => [[m('vars.cap'), cap], ['size', size]];
+  const asks = list.flatMap((x, r) => {
+    const view: QueueView = { ops, rets, r, ...x.before, touched: null };
+    const first = {
+      view, chips: chipsOf(view.size),
+      prompt: x.op.kind === 'offer' ? m('predict.at.offer', { op: opText(x.op), x: x.op.x }) : m('predict.at.poll'),
+      kind: 'pick' as const, answer: x.at as PredictAnswer, why: x.why,
+      options: [
+        { value: 'full' as PredictAnswer, label: m('predict.opt.full') },
+        { value: 'empty' as PredictAnswer, label: m('predict.opt.empty') },
+      ],
+    };
+    if (typeof x.at !== 'number') return [first];
+    // 第二问：数组已经写好，指针还没动
+    const second = {
+      view: { ...view, cells: x.after.cells, touched: x.at }, chips: chipsOf(view.size),
+      prompt: m('predict.next', { ret: retText(x.ret), ptr: x.op.kind === 'offer' ? 'tail' : 'head' }),
+      kind: 'pick' as const, answer: x.next as PredictAnswer, why: x.whyNext as Msg,
+    };
+    return [first, second];
+  });
+  const last = list[list.length - 1];
+  const end: QueueView = { ops, rets, r: list.length, ...last.after, touched: null };
+  return { asks, end: { view: end, prompt: m('predict.end', { n: last.after.size }), chips: chipsOf(end.size) } };
+}
+
+export const predictRules: PredictRules<QueueView, PredictAnswer> = {
+  goal: 6,
+  puzzle: (rand = Math.random) => makePuzzle(PREDICT_CAP, genPredict(rand)),
+};
 
 /* ---------- 做：找 bug ---------- */
 
@@ -513,7 +801,7 @@ function variant(line: number, text: string): string[] {
 export const BUGS: readonly Bug[] = [
   {
     id: 'tail-mod',
-    title: '排着排着，程序崩溃了',
+    title: m('bug.tail-mod.title'),
     code: variant(10, '        tail = tail + 1'),
     wrongLine: 10,
     fixed: '        tail = (tail + 1) % items.size',
@@ -523,12 +811,12 @@ export const BUGS: readonly Bug[] = [
       { kind: 'poll' }, { kind: 'poll' },
       { kind: 'offer', x: 44 }, { kind: 'offer', x: 55 },
     ],
-    expect: '队里最多 3 个，从没超过容量 4，每个 offer 都应该成功',
-    explain: 'tail 走到最后一格之后没有绕回 0，下一次就写到数组外面去了。数组前面明明空着两格，却用不上。加上 % items.size，走到头就回到 0 号格。',
+    expect: m('bug.tail-mod.expect'),
+    explain: m('bug.tail-mod.explain'),
   },
   {
     id: 'head-tail',
-    title: '满满一队人，却说队列是空的',
+    title: m('bug.head-tail.title'),
     code: variant(16, '        if (head == tail) return null'),
     wrongLine: 16,
     fixed: '        if (size == 0) return null',
@@ -538,12 +826,12 @@ export const BUGS: readonly Bug[] = [
       { kind: 'offer', x: 22 }, { kind: 'offer', x: 33 }, { kind: 'offer', x: 44 }, { kind: 'offer', x: 55 },
       { kind: 'poll' },
     ],
-    expect: '最后一次 poll 时队里有 4 个，应该返回队头的 22',
-    explain: '空的时候 head == tail，可是装满的时候 tail 绕了一圈追上 head，也是 head == tail。光看两个指针分不清空和满。用 size 判断；或者故意空出一格不用，满的条件改成 (tail + 1) % 容量 == head。',
+    expect: m('bug.head-tail.expect'),
+    explain: m('bug.head-tail.explain'),
   },
   {
     id: 'full-check',
-    title: '满了还往里塞，排在前面的人不见了',
+    title: m('bug.full-check.title'),
     code: variant(8, '        if (size > items.size) return false'),
     wrongLine: 8,
     fixed: '        if (size == items.size) return false',
@@ -553,8 +841,8 @@ export const BUGS: readonly Bug[] = [
       { kind: 'offer', x: 55 },
       { kind: 'poll' },
     ],
-    expect: '第 5 个 offer 时已经满了，应该返回 false；之后的 poll 应该返回最早来的 11',
-    explain: '装满时 size == 容量，size > items.size 仍是假，所以第 5 个人照样被写进去。tail 绕回来正好落在 head 上，把还没出队的 11 盖掉了。满的条件是 size == items.size。',
+    expect: m('bug.full-check.expect'),
+    explain: m('bug.full-check.explain'),
   },
 ];
 
@@ -578,7 +866,7 @@ export function runBug(bug: Bug): Trace<BugStep> {
   const out: number[] = [];
   const rets: Record<number, string> = {};
   let op = -1;
-  const push = (line: number, note: string, extra: Partial<BugStep> = {}) => {
+  const push = (line: number, note: Msg, extra: Partial<BugStep> = {}) => {
     if (extra.ret) rets[op] = extra.ret;
     steps.push({
       line, note, done: false, cells: cells.slice(), head, tail, size,
@@ -587,7 +875,7 @@ export function runBug(bug: Bug): Trace<BugStep> {
   };
   const liveAt = (k: number) => size > 0 && (k - head + cap) % cap < size;
 
-  push(5, '新建容量为 ' + cap + ' 的队列。');
+  push(5, m('bug.note.init', { cap }));
   for (let k = 0; k < bug.ops.length; k++) {
     op = k;
     const o = bug.ops[k];
@@ -597,50 +885,50 @@ export function runBug(bug: Bug): Trace<BugStep> {
       const full = bug.id === 'full-check' ? size > cap : size === cap;
       const cond = bug.id === 'full-check' ? size + ' > ' + cap : size + ' == ' + cap;
       if (full) {
-        push(8, name + '：' + cond + ' 是真，返回 false。', { ret: 'false' });
+        push(8, m('bug.note.fullYes', { op: name, cond }), { ret: 'false' });
         continue;
       }
-      push(8, name + '：' + cond + ' 是假，往里写。' + (want === false ? '可是队列已经满了！' : ''));
+      push(8, m(want === false ? 'bug.note.roomFull' : 'bug.note.room', { op: name, cond }));
       if (tail < 0 || tail >= cap) {
-        push(9, 'items[' + tail + '] = ' + o.x + '：数组只有 0～' + (cap - 1) + ' 号格，下标越界，程序崩溃！', { outcome: 'crash', done: true });
+        push(9, m('bug.note.crash', { t: tail, x: o.x, max: cap - 1 }), { outcome: 'crash', done: true });
         return steps;
       }
       const t = tail;
       const lost = liveAt(t) ? cells[t] : null;
       cells[t] = o.x;
-      push(9, 'items[' + t + '] = ' + o.x + '。' + (lost !== null ? '这一格里还没出队的 ' + lost + ' 被盖掉了！' : ''), { touched: t });
+      push(9, lost !== null ? m('bug.note.writeLost', { t, x: o.x, lost }) : m('bug.note.write', { t, x: o.x }), { touched: t });
       tail = bug.id === 'tail-mod' ? t + 1 : (t + 1) % cap;
       push(10, bug.id === 'tail-mod'
-        ? 'tail = ' + t + ' + 1 = ' + tail + '。' + (tail >= cap ? '已经走出数组了！' : '')
-        : 'tail = (' + t + ' + 1) % ' + cap + ' = ' + tail + '。');
+        ? m(tail >= cap ? 'bug.note.tailOut' : 'bug.note.tailPlain', { t, tail })
+        : m('bug.note.tailMod', { t, cap, tail }));
       size++;
-      push(11, 'size++，size = ' + size + '。');
-      push(12, '返回 true。', { ret: 'true' });
+      push(11, m('bug.note.sizeUp', { size }));
+      push(12, m('trace.retTrue'), { ret: 'true' });
     } else {
       const empty = bug.id === 'head-tail' ? head === tail : size === 0;
       const cond = bug.id === 'head-tail' ? 'head == tail（' + head + ' == ' + tail + '）' : 'size == 0';
       if (empty) {
         if (want !== null) {
-          push(16, name + '：' + cond + ' 是真，返回 null。可队里明明还有 ' + size + ' 个，应该返回 ' + want + '！', { ret: 'null', outcome: 'wrong', done: true });
+          push(16, m('bug.note.pollWrong', { op: name, cond, size, want: retText(want) }), { ret: 'null', outcome: 'wrong', done: true });
           return steps;
         }
-        push(16, name + '：' + cond + ' 是真，返回 null。', { ret: 'null' });
+        push(16, m('bug.note.pollEmpty', { op: name, cond }), { ret: 'null' });
         continue;
       }
-      push(16, name + '：' + cond + ' 是假。');
+      push(16, m('bug.note.pollSome', { op: name, cond }));
       const h = head;
       const x = cells[h] as number;
-      push(17, 'x = items[' + h + '] = ' + x + '。', { touched: h });
+      push(17, m('bug.note.read', { h, x }), { touched: h });
       head = (h + 1) % cap;
-      push(18, 'head = (' + h + ' + 1) % ' + cap + ' = ' + head + '。');
+      push(18, m('bug.note.head', { h, cap, head }));
       size--;
-      push(19, 'size--，size = ' + size + '。');
+      push(19, m('bug.note.sizeDown', { size }));
       out.push(x);
       if (x !== want) {
-        push(20, '返回 ' + x + '。可是应该返回 ' + retText(want) + '！', { ret: String(x), outcome: 'wrong', done: true });
+        push(20, m('bug.note.retWrong', { x, want: retText(want) }), { ret: String(x), outcome: 'wrong', done: true });
         return steps;
       }
-      push(20, '返回 ' + x + '。', { ret: String(x) });
+      push(20, m('trace.retX', { x }), { ret: String(x) });
     }
   }
   steps[steps.length - 1] = { ...steps[steps.length - 1], outcome: 'ok', done: true };
@@ -648,18 +936,20 @@ export function runBug(bug: Bug): Trace<BugStep> {
 }
 
 /** 找 bug 面板底部的判定文字：没跑完是空 */
-export function bugVerdict(step: BugStep, _bug: Bug): string {
-  if (!step.done) return '';
-  if (step.outcome === 'crash') return '💥 下标越界，程序崩溃';
-  if (step.outcome === 'wrong') return '❌ 返回了 ' + step.ret + '，不对';
-  return '';
+export function bugVerdict(step: BugStep, _bug?: Bug): Msg | null {
+  if (!step.done) return null;
+  if (step.outcome === 'crash') return m('bug.verdict.crash');
+  if (step.outcome === 'wrong') return m('bug.verdict.wrong', { ret: String(step.ret) });
+  return null;
 }
 
-/* ---------- 做：逐步执行里的「随机」序列 ---------- */
-
-/** 「随机」序列的容量和操作数 */
-export const TRACE_CAP = 5;
-export const TRACE_OPS = 12;
+export const bugRules: BugRules<Bug, BugStep> = {
+  bugs: BUGS,
+  run: runBug,
+  input: (bug) => m('bug.inputLine', { cap: bug.cap, expect: bug.expect }),
+  vars: (s, bug): Var[] => [['head', s.head], ['tail', s.tail], ['size', s.size], [m('vars.cap'), bug.cap]],
+  verdict: bugVerdict,
+};
 
 /* ---------- 做：挑战 ---------- */
 
@@ -678,9 +968,96 @@ export function genChallenge(rand: () => number = Math.random): Op[] {
   }
 }
 
+/** 挑战的操作：改某一格的猜测、选 head、选 tail、揭晓、换一题 */
+export type ChallengeAction =
+  | { type: 'cell'; k: number; v: string }
+  | { type: 'head'; n: number }
+  | { type: 'tail'; n: number }
+  | { type: 'reveal' }
+  | { type: 'fresh' };
+
+export interface ChallengeState {
+  ops: Op[];
+  /** 每一格的猜测：'' 表示「从没写过」 */
+  guess: string[];
+  head: number;
+  tail: number;
+  shown: boolean;
+}
+
+const challengeFresh = (rand?: Rand): ChallengeState => ({
+  ops: genChallenge(rand), guess: Array.from({ length: CHALLENGE_CAP }, () => ''), head: 0, tail: 0, shown: false,
+});
+
+/** 挑战的评分：正确的数组、每格对不对、一共对了几项（每格一项，加 head、tail） */
+export function challengeView(s: ChallengeState) {
+  const values = s.ops.flatMap((o) => (o.kind === 'offer' ? [o.x] : []));
+  const answer = simulate(CHALLENGE_CAP, s.ops).ring;
+  const okCell = (k: number) => (s.guess[k] === '' ? null : Number(s.guess[k])) === answer.cells[k];
+  let score = 0;
+  for (let k = 0; k < CHALLENGE_CAP; k++) if (okCell(k)) score++;
+  if (s.head === answer.head) score++;
+  if (s.tail === answer.tail) score++;
+  return { values, answer, okCell, score, full: CHALLENGE_CAP + 2 };
+}
+
+/** 做：挑战。不看动画，在脑子里跑完一串操作，预测数组每一格最后是什么、head 和 tail 在哪，再和真正的循环队列比一比 */
+export const challengeRules: GameRules<ChallengeState, ChallengeAction> = {
+  start: (rand) => ({ state: challengeFresh(rand) }),
+
+  act(s, a, rand) {
+    switch (a.type) {
+      case 'cell': return s.shown ? null : { state: { ...s, guess: s.guess.map((g, k) => (k === a.k ? a.v : g)) } };
+      case 'head': return { state: { ...s, head: a.n } };
+      case 'tail': return { state: { ...s, tail: a.n } };
+      case 'reveal': return s.shown ? null : { state: { ...s, shown: true } };
+      case 'fresh': return { state: challengeFresh(rand) };
+    }
+  },
+
+  clickable: () => false,
+
+  controls(s) {
+    const idx = Array.from({ length: CHALLENGE_CAP }, (_, k) => ({ value: k, label: m('chal.num', { n: k }) }));
+    const out: Control<ChallengeAction>[] = [
+      { type: 'segmented', legend: m('chal.head'), value: s.head, options: idx, choose: (v) => ({ type: 'head', n: Number(v) }) },
+      { type: 'segmented', legend: m('chal.tail'), value: s.tail, options: idx, choose: (v) => ({ type: 'tail', n: Number(v) }) },
+    ];
+    if (!s.shown) out.push({ type: 'button', action: { type: 'reveal' }, label: m('chal.reveal'), look: 'smallPrimary' });
+    out.push({ type: 'button', action: { type: 'fresh' }, label: m('chal.fresh'), look: 'small' });
+    return out;
+  },
+};
+
 /* ---------- 延伸：两种出队方式要挪动几次 ---------- */
 
 /** 用普通数组当队列、每次从头部删除：后面的 n - 1 个都要往前挪一格 */
 export function shiftCost(n: number): number {
   return n - 1;
 }
+
+/** 「为什么快」的对比图：出队一次要挪动几个元素（对数刻度画） */
+export function compareRows() {
+  return [
+    { label: '6', unit: m('compare.chairs'), n: 6 },
+    { label: '1,000', unit: m('compare.thousand'), n: 1000 },
+    { label: '1,000,000', unit: m('compare.million'), n: 1000000 },
+  ].map((r) => ({
+    label: r.label,
+    unit: r.unit,
+    bars: [
+      { name: m('compare.shift'), value: shiftCost(r.n), tone: 'muted' as const },
+      { name: m('compare.ring'), value: 0, tone: 'accent' as const },
+    ],
+  }));
+}
+
+/* ---------- 关卡模块：level.json 按名字引用这里的规则 ---------- */
+
+export const level: LevelModule = {
+  look: { story: lookRules },
+  trace: { main: traceRules },
+  predict: { main: predictRules },
+  bugs: { main: bugRules },
+  games: { next: nextRules, clerk: clerkRules, challenge: challengeRules },
+};

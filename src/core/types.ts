@@ -50,10 +50,12 @@ export type Control<A> =
       /** 读屏文字；label 只有图标时必须给 */
       aria?: Msg;
       /** pad：「玩」里的大图标按钮；primary：主按钮；choice：追问的选项；默认普通按钮 */
-      look?: 'pad' | 'primary' | 'choice' | 'small';
+      look?: 'pad' | 'primary' | 'choice' | 'small' | 'smallPrimary';
       disabled?: boolean;
       /** 按钮上的小画面：画面注册表里的组件名，和传给它的参数 */
       art?: { scene: string; props?: Record<string, unknown> };
+      /** pad 按钮图标下面的小字说明（label 是图标，caption 是字）；不给就只有图标 */
+      caption?: Msg;
     }
   | {
       type: 'number';
@@ -80,7 +82,14 @@ export type Control<A> =
       choose: (v: string | number) => A;
     }
   /** 一组小按钮，带一个小标题（如「快速设置」） */
-  | { type: 'group'; legend: Msg; items: Control<A>[] };
+  | { type: 'group'; legend: Msg; items: Control<A>[] }
+  /** 文本框（逐步执行里输入一串括号）：每次输入都提交；规则可以改写输入，界面把框里的字换成规则给的 value */
+  | { type: 'text'; label: Msg; value: string; submit: (s: string) => A }
+  /** 播放控制条（重置、上一步、播放/暂停、下一步、速度）：状态放在规则里，用 core/flows/transport.ts 处理 */
+  | { type: 'transport'; idx: number; total: number; playing: boolean; speed: number; act: (op: TransportOp) => A };
+
+/** 播放控制条上的操作 */
+export type TransportOp = 'reset' | 'prev' | 'toggle' | 'next' | { speed: number };
 
 /* ---------- 看：绘本 ---------- */
 
@@ -131,9 +140,12 @@ export interface Ask<V, T = unknown> {
   prompt: Msg;
   kind: 'pick' | 'choose';
   answer: T;
+  /** choose 必须有；pick 也可以有，作为画面旁边的补充按钮（如点格子，或者点「满了」） */
   options?: { value: T; label: Msg }[];
   /** 答错时的解释 */
   why: Msg;
+  /** 这一问时顶上的变量标签（如队里还有几个）；不给就用 Puzzle.chips */
+  chips?: Var[];
   /** 答对时也要讲一句的关卡用；有它时答对先停下显示，再点「下一题」 */
   right?: Msg;
   /** 答错、看解释时画面和题干换成这个（如点错 mid 后把 mid 亮出来）；不给就保持原样 */
@@ -144,9 +156,9 @@ export interface Ask<V, T = unknown> {
 export interface Puzzle<V, T = unknown> {
   chips?: Var[];
   asks: Ask<V, T>[];
-  end: { view: V; prompt: Msg };
+  end: { view: V; prompt: Msg; chips?: Var[] };
   /** 最后一问答对时的结局（如多一个 ✅）；不给就用 end */
-  endRight?: { view: V; prompt: Msg };
+  endRight?: { view: V; prompt: Msg; chips?: Var[] };
 }
 
 export interface PredictRules<V, T = unknown> {
@@ -191,14 +203,10 @@ export interface GameResult<A> {
   /** 按钮后面的一行小字 */
   foot?: Msg;
   /** 追问（如「点哪里最快？」） */
-  quiz?: {
-    prompt: Msg;
-    options: Control<A>[];
-    /** 选项后面的一句提示（如答错时的「再想想」，灰色小字） */
-    note?: Msg;
-    /** 追问答对后的讲解（正文大小，在选项的位置之后） */
-    ok?: Msg;
-  };
+  /** 结算里再画一小块画面（画面注册表里的组件名和参数），在文字之后、追问之前 */
+  art?: { scene: string; props?: Record<string, unknown> };
+  /** 追问；prompt 可以不给（问题已经在台词里了），after 是选项下面再补的一句（如答错后的提醒），ok 是答对后的讲解 */
+  quiz?: { prompt?: Msg; options: Control<A>[]; after?: Msg; ok?: Msg };
 }
 
 /**

@@ -2,7 +2,7 @@
  * 猜下一步的状态机：按一道 Puzzle 依次回答每一问，答对连对加一，答错清零并讲解。
  * 一道题答完看结局，再换下一道（连对和过关保留）。
  */
-import type { Msg, Puzzle, SoundName } from '../types';
+import type { Msg, Puzzle, SoundName, Var } from '../types';
 
 export type PredictPhase = 'ask' | 'wrong' | 'right' | 'end';
 
@@ -70,15 +70,17 @@ export interface PredictView<V, T> {
   ended: boolean;
   /** 画面此刻能不能点（pick 类的问在等回答） */
   pickable: boolean;
-  /** 选项（choose 类的问在等回答时才有） */
+  /** 选项（choose 类的问在等回答时才有；pick 类的问给了补充按钮时也有） */
   options: { value: T; label: Msg }[] | null;
   picked: T | null;
+  /** 这一问时顶上的变量标签；问或结局没给就用整道题的 */
+  chips: Var[] | undefined;
 }
 
 export function viewOf<V, T>(s: PredictState<V, T>): PredictView<V, T> {
   if (s.phase === 'end') {
-    const { view, prompt } = (s.lastRight && s.puzzle.endRight) || s.puzzle.end;
-    return { view, prompt, wrong: null, right: null, ended: true, pickable: false, options: null, picked: null };
+    const { view, prompt, chips } = (s.lastRight && s.puzzle.endRight) || s.puzzle.end;
+    return { view, prompt, wrong: null, right: null, ended: true, pickable: false, options: null, picked: null, chips: chips ?? s.puzzle.chips };
   }
   const ask = s.puzzle.asks[s.i];
   const asking = s.phase === 'ask';
@@ -90,7 +92,8 @@ export function viewOf<V, T>(s: PredictState<V, T>): PredictView<V, T> {
     right: s.phase === 'right' ? (ask.right ?? null) : null,
     ended: false,
     pickable: asking && ask.kind === 'pick',
-    options: asking && ask.kind === 'choose' ? (ask.options ?? []) : null,
+    options: asking && (ask.kind === 'choose' || ask.options) ? (ask.options ?? []) : null,
     picked: s.picked,
+    chips: ask.chips ?? s.puzzle.chips,
   };
 }

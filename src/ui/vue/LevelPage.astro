@@ -27,10 +27,12 @@ function sections(src: string) {
     .slice(1)
     .map((part) => {
       const [head, ...rest] = part.split('</h2>');
-      const [icon, ...title] = Array.from(head.replace(/<[^>]+>/g, '').trim());
+      // 标题第一个字（按字形算，🛠️ 这类带变体选择符的图标不能拆开）是图标
+      const text = head.replace(/<[^>]+>/g, '').trim();
+      const icon = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)][0]?.segment ?? '';
       const body = rest.join('</h2>');
       const segs = body.split(COMPARE).flatMap((seg, k, all) => (k < all.length - 1 ? [seg, COMPARE] : [seg]));
-      return { icon, title: title.join('').trim(), segs: segs.filter((s) => s.trim()) };
+      return { icon, title: text.slice(icon.length).trim(), segs: segs.filter((s) => s.trim()) };
     });
 }
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { useStageStop } from '../../components/shared/usePlayer';
-import { SHAKE_MS } from '../../components/shared/timing';
+import { useStageStop } from '../../../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../../../core/timing';
 
 // 奶茶店的椅子：排成一排或者围成一圈（两种摆法之间有动画）。
 // 看、玩法二、做的「逐步执行」共用，只负责画，不管规则。
@@ -101,7 +101,7 @@ const show = (v: string | number | null) => (v === null ? props.empty : String(v
       }"
       :style="pos(i)"
       :disabled="!clickable"
-      :aria-label="labels[i] ?? (i + ' 号椅子')"
+      :aria-label="labels[i] ?? String(i)"
       @click="emit('pick', i)"
     >
       <span v-if="tags[i]" class="flag">{{ tags[i] }}</span>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { kindOf } from '../../engine/stack';
+import { kindOf } from '../../../../engine/stack';
 
 // 一块积木（一个括号）。三种括号三种颜色，拼好的一对可以传两个字符一起画。
 const props = withDefaults(defineProps<{ c: string; small?: boolean }>(), { small: false });

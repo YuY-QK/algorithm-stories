@@ -4,6 +4,14 @@ import {
   countWraps, emptyRing, genChallenge, genPredict, isLive, lineAt, lineScript, lookFrames, nextUp, randomOps, ringItems, ringOffer,
   ringPoll, rounds, runBug, simulate, stars, type Op,
 } from '../src/engine/queue';
+import { mergeCopy, t } from '../src/core/i18n';
+import coreCopy from '../src/core/copy.zh.json';
+import queueCopy from '../content/algorithms/queue/copy.zh.json';
+import { asCopy } from './helpers/copy';
+
+/** 台词是 Msg，断言时按文案表填成文字 */
+const copy = mergeCopy(asCopy(coreCopy), asCopy(queueCopy));
+const T = (x: Parameters<typeof t>[0] | null) => (x === null ? '' : t(x, copy));
 
 /** 用 JS 数组的 push/shift 当标准答案：最朴素的队列 */
 function naive(cap: number, ops: Op[]) {
@@ -70,7 +78,7 @@ describe('队列 看：奶茶店', () => {
   it('每一页一句话，画面来自真实的入队出队', () => {
     expect(frames.length).toBeGreaterThanOrEqual(10);
     for (const f of frames) {
-      expect(f.say).not.toContain('\n');
+      expect(T(f.say)).not.toContain('\n');
       expect(f.seats).toHaveLength(SEATS);
       expect(f.seats.filter(Boolean)).toHaveLength(f.size);
       // 坐着的人从队头开始连成一段
@@ -188,7 +196,7 @@ describe('队列 做：逐步执行', () => {
     expect(CODE[17]).toContain('head = (head + 1) % items.size');
     const steps = buildTrace(4, PRESETS[0].ops);
     const wrapStep = steps.find((s) => s.line === 10 && s.tail === 0)!;
-    expect(wrapStep.note).toContain('绕回');
+    expect(T(wrapStep.note)).toContain('绕回');
   });
 
   it('预设：绕一圈的会绕回，满了、空了的会返回 false 和 null', () => {
@@ -293,11 +301,11 @@ describe('队列 迁移后的引擎导出', () => {
       const cap = PREDICT_CAP;
       const rs = rounds(cap, genPredict(seeded(k)));
       for (const r of rs) {
-        expect(r.why.length).toBeGreaterThan(0);
+        expect(T(r.why).length).toBeGreaterThan(0);
         expect(r.whyNext === null).toBe(r.next === null);
-        if (r.next === 0) expect(r.whyNext).toContain('绕回 0 号格');
-        if (r.at === 'full') expect(r.why).toContain('满了');
-        if (r.at === 'empty') expect(r.why).toContain('空的');
+        if (r.next === 0) expect(T(r.whyNext)).toContain('绕回 0 号格');
+        if (r.at === 'full') expect(T(r.why)).toContain('满了');
+        if (r.at === 'empty') expect(T(r.why)).toContain('空的');
       }
     }
   });
@@ -314,8 +322,8 @@ describe('队列 迁移后的引擎导出', () => {
   });
 
   it('bugVerdict：没跑完是空，崩溃和返回错误各有说法', () => {
-    for (const b of BUGS) expect(bugVerdict(runBug(b)[0], b)).toBe('');
-    const text = Object.fromEntries(BUGS.map((b) => [b.id, bugVerdict(runBug(b).at(-1)!, b)]));
+    for (const b of BUGS) expect(bugVerdict(runBug(b)[0], b)).toBeNull();
+    const text = Object.fromEntries(BUGS.map((b) => [b.id, T(bugVerdict(runBug(b).at(-1)!, b))]));
     expect(text['tail-mod']).toBe('💥 下标越界，程序崩溃');
     expect(text['head-tail']).toBe('❌ 返回了 null，不对');
     expect(text['full-check']).toMatch(/^❌ 返回了 \d+，不对$/);

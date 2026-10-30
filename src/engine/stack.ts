@@ -1,4 +1,11 @@
-import type { BugInfo, LookFrame, Step, Trace } from './types';
+import { m } from '../core/i18n';
+import { initPlayer, type PlayerState } from '../core/flows/player';
+import { applyTransport, resetTransport, tickTransport } from '../core/flows/transport';
+import { PAUSE_LONG, SPEEDS } from '../core/timing';
+import type {
+  BugInfo, BugRules, Control, GameRules, LevelModule, LookFrame, LookRules, Msg, Outcome, PredictRules, Puzzle, Rand,
+  Step, Trace, TraceRules, TransportOp, Var,
+} from '../core/types';
 
 /* ---------- 看、玩一：小熊叠盘子 ---------- */
 
@@ -55,23 +62,30 @@ export function lookFrames(ops: PlateOp[] = LOOK_OPS): LookPage[] {
   let popped = 0;
   const out: LookPage[] = states.map((s, k) => {
     const icon = s.moved === null ? '' : PLATE_ICONS[s.moved];
-    let say = '小熊 🐻 洗好了盘子，要一个一个叠起来 🍽️';
+    let say = m('look.start');
     if (s.op?.kind === 'push') {
-      say = pushed++ === 0 ? '先放上 ' + icon + ' 盘' : '再放 ' + icon + ' 盘，叠在最上面';
+      say = pushed++ === 0 ? m('look.pushFirst', { icon }) : m('look.pushNext', { icon });
     } else if (s.op?.kind === 'pop') {
       const prev = states[k - 1];
       const justPut = prev.op?.kind === 'push' && prev.moved === s.moved;
-      if (popped++ === 0) say = '要拿一个盘子：只能拿最上面的 ' + icon;
-      else if (s.stack.length === 0) say = '最先放的 ' + icon + '，最后才拿到';
-      else if (justPut) say = '拿走 ' + icon + '：刚放上去的，最先拿走';
-      else say = '再拿最上面的 ' + icon;
+      if (popped++ === 0) say = m('look.popFirst', { icon });
+      else if (s.stack.length === 0) say = m('look.popLast', { icon });
+      else if (justPut) say = m('look.popJustPut', { icon });
+      else say = m('look.popNext', { icon });
     }
     return { ...s, say };
   });
   const last = states[states.length - 1];
-  out.push({ ...last, say: '后放的先拿，先放的后拿：这就叫「栈」📚' });
+  out.push({ ...last, say: m('look.end') });
   return out;
 }
+
+/** 看：故事就是固定的一串放和拿，「再看一次」原样重来 */
+export const lookRules: LookRules<PlateOp[], LookPage> = {
+  first: LOOK_OPS,
+  next: (prev) => prev,
+  frames: (ops) => lookFrames(ops),
+};
 
 /** 栈顶在数组里的下标，空栈是 -1 */
 export function topIndex(stack: readonly unknown[]): number {
@@ -116,6 +130,133 @@ export function plateGame(rand: () => number = Math.random): PlateOp[] {
 export function stars(misses: number): 1 | 2 | 3 {
   return misses === 0 ? 3 : misses <= 2 ? 2 : 1;
 }
+
+/* ---------- 玩一：拿盘子（GameRules） ---------- */
+
+/** 玩的操作：点盘子、回答「最先放的盘子什么时候拿到」、再玩一局 */
+export type PlatesAction =
+  | { type: 'pick'; plate: number }
+  | { type: 'quiz'; when: 'first' | 'last' }
+  | { type: 'again' };
+
+export interface PlatesGame {
+  ops: PlateOp[];
+  /** 已经做完几个操作 */
+  at: number;
+  /** moving：小熊在放盘子；ask：等孩子点会被拿走的那个；done：全拿完了 */
+  phase: 'moving' | 'ask' | 'done';
+  misses: number;
+  /** 画面照着画的盘子（由 ops 和 at 算出） */
+  stack: number[];
+  taken: number[];
+  /** 透光提示的次数，0 是没有；点错一次加一，次数变了画面就重新亮一次 */
+  glow: number;
+  /** 晃一下：[盘子, 第几次] */
+  shake: [number, number] | null;
+  /** 追问「最先放的盘子什么时候拿到」；一开始问一次，问过就不再问 */
+  quiz: 'ask' | 'wrong' | 'right' | null;
+  asked: boolean;
+}
+
+function settlePlates(s: PlatesGame): PlatesGame {
+  const now = runPlates(s.ops)[s.at];
+  return { ...s, stack: now.stack, taken: now.taken };
+}
+
+/** 放上盘子后说清楚：放了哪个、现在叠了几个 */
+const putSay = (plate: number, n: number): Msg => m('plates.say.put', { icon: PLATE_ICONS[plate], n });
+
+/** 小熊自动往下放盘子，遇到「拿」就停下来问孩子；剧本走完就收尾 */
+function platesStep(s: PlatesGame): Outcome<PlatesGame> {
+  if (s.at >= s.ops.length) {
+    return {
+      state: { ...s, phase: 'done', glow: 0, quiz: s.asked ? null : 'ask', asked: true },
+      say: m('plates.say.done'),
+      sound: 'win',
+    };
+  }
+  const op = s.ops[s.at];
+  if (op.kind === 'push') {
+    const state = settlePlates({ ...s, at: s.at + 1 });
+    return { state, say: putSay(op.plate, state.stack.length), sound: 'tick', after: PAUSE_LONG };
+  }
+  return { state: { ...s, phase: 'ask' }, say: m('plates.say.ask') };
+}
+
+/** 新开一局，立刻放第一个盘子（和原来一样，页面一打开小熊就开始叠） */
+function platesRound(prev: PlatesGame | null, rand?: Rand): Outcome<PlatesGame> {
+  const fresh: PlatesGame = {
+    ops: plateGame(rand), at: 0, phase: 'moving', misses: 0, stack: [], taken: [], glow: 0,
+    shake: prev?.shake ?? null, quiz: null, asked: prev?.asked ?? false,
+  };
+  return platesStep(fresh);
+}
+
+/** 一局里最先放上去的盘子 */
+export function firstPlate(ops: PlateOp[]): number {
+  const op = ops.find((o) => o.kind === 'push');
+  return op && op.kind === 'push' ? op.plate : 0;
+}
+
+export const platesRules: GameRules<PlatesGame, PlatesAction> = {
+  start: (rand) => platesRound(null, rand),
+
+  act(s, a, rand) {
+    if (a.type === 'pick' && s.phase === 'ask') {
+      const top = s.stack[topIndex(s.stack)];
+      if (a.plate !== top) {
+        // 点了被压着的盘子：它晃一下，最上面的盘子透光
+        return {
+          state: { ...s, misses: s.misses + 1, shake: [a.plate, (s.shake?.[1] ?? 0) + 1], glow: s.glow + 1 },
+          say: m('plates.say.under', { icon: PLATE_ICONS[a.plate] }),
+          sound: 'wrong',
+        };
+      }
+      const state = settlePlates({ ...s, at: s.at + 1, phase: 'moving', glow: 0 });
+      const left = state.stack.length;
+      return {
+        state,
+        say: left ? m('plates.say.took', { icon: PLATE_ICONS[a.plate], n: left }) : m('plates.say.tookAll', { icon: PLATE_ICONS[a.plate] }),
+        sound: 'right',
+        after: PAUSE_LONG,
+      };
+    }
+    if (a.type === 'quiz' && s.phase === 'done' && (s.quiz === 'ask' || s.quiz === 'wrong')) {
+      const last = a.when === 'last';
+      return { state: { ...s, quiz: last ? 'right' : 'wrong' }, sound: last ? 'right' : 'wrong' };
+    }
+    if (a.type === 'again' && s.phase === 'done') return platesRound(s, rand);
+    return null;
+  },
+
+  tick: (s) => (s.phase === 'moving' ? platesStep(s) : { state: s }),
+
+  // 切标签时，小熊还在叠的局重新开一局；已经停在等孩子点或结束的就不动
+  interrupt: (s) => (s.phase === 'moving' ? platesRound(s) : { state: s }),
+
+  clickable: (s) => s.phase === 'ask',
+
+  controls: (s) => (s.phase === 'done' ? [{ type: 'button', action: { type: 'again' }, label: m('plates.again'), look: 'primary' }] : []),
+
+  result(s) {
+    if (s.phase !== 'done') return null;
+    const icon = PLATE_ICONS[firstPlate(s.ops)];
+    const choice = (when: 'first' | 'last', label: string, art: string): Control<PlatesAction> => ({
+      type: 'button', action: { type: 'quiz', when }, label: m(label), look: 'choice', art: { scene: 'Icon', props: { icon: art } },
+    });
+    let quiz;
+    if (s.quiz === 'ask' || s.quiz === 'wrong') {
+      quiz = {
+        prompt: m('plates.quiz.ask', { icon }),
+        options: [choice('first', 'plates.quiz.first', '🥇'), choice('last', 'plates.quiz.last', '🐢')],
+        after: s.quiz === 'wrong' ? m('plates.quiz.hint', { icon }) : undefined,
+      };
+    } else if (s.quiz === 'right') {
+      quiz = { prompt: m('plates.quiz.right'), options: [] };
+    }
+    return { stars: stars(s.misses), quiz };
+  },
+};
 
 /* ---------- 玩二：拼积木（括号配对） ---------- */
 
@@ -217,11 +358,11 @@ export function bracketPuzzle(kind: PuzzleKind, pairs: number, rand: () => numbe
 /** 逐步执行里括号串最多几个字符 */
 export const TRACE_MAX = 16;
 /** 逐步执行里「换一个」的按钮 */
-export const TRACE_PRESETS: readonly { label: string; kind: PuzzleKind }[] = [
-  { label: '能配上', kind: 'good' },
-  { label: '形状不对', kind: 'cross' },
-  { label: '多了左括号', kind: 'left' },
-  { label: '多了右括号', kind: 'extra' },
+export const TRACE_PRESETS: readonly { label: Msg; kind: PuzzleKind }[] = [
+  { label: m('trace.preset.good'), kind: 'good' },
+  { label: m('trace.preset.cross'), kind: 'cross' },
+  { label: m('trace.preset.left'), kind: 'left' },
+  { label: m('trace.preset.extra'), kind: 'extra' },
 ];
 
 /** 逐步执行里「换一个」按钮用的串：某一种题，3～5 对 */
@@ -234,6 +375,123 @@ export function bracketGame(rand: () => number = Math.random): string[] {
   const third: PuzzleKind = rand() < 0.5 ? 'left' : 'extra';
   return shuffle([bracketPuzzle('good', 3, rand), bracketPuzzle('cross', 3, rand), bracketPuzzle(third, 3, rand)], rand);
 }
+
+/* ---------- 玩二：拼积木（GameRules） ---------- */
+
+/** 玩的操作：放进篮子 / 拼上 / 拼不上；一串看完选「都拼好了」或「还剩下」；下一串；再玩一局 */
+export type BlocksAction =
+  | { type: 'act'; choice: Action }
+  | { type: 'finish'; choice: 'clear' | 'left' }
+  | { type: 'next' }
+  | { type: 'again' };
+
+export interface BlocksGame {
+  rounds: string[];
+  /** 第几串、这一串看到第几块 */
+  r: number;
+  i: number;
+  /** 篮子里的左半块，最后一个在最上面 */
+  basket: string[];
+  /** 拼好的整块 */
+  made: string[];
+  /** act：等孩子选做法；end：一串看完，等孩子选结论；stuck / clear / left：这一串结束了 */
+  phase: 'act' | 'end' | 'stuck' | 'clear' | 'left';
+  misses: number;
+  /** 提示动画的次数，0 是没有；点错一次加一，次数变了画面就闪一下：晃动当前块、篮子最上面一块透光、篮子透光 */
+  wiggle: number;
+  glowTop: number;
+  glowBasket: number;
+}
+
+const blocksRoundOver = (s: BlocksGame) => s.phase === 'stuck' || s.phase === 'clear' || s.phase === 'left';
+export const blocksGameOver = (s: BlocksGame) => blocksRoundOver(s) && s.r === s.rounds.length - 1;
+
+function blocksRound(s: BlocksGame, r: number): Outcome<BlocksGame> {
+  return {
+    state: { ...s, r, i: 0, basket: [], made: [], phase: 'act' },
+    say: m('blocks.say.round', { n: r + 1 }),
+  };
+}
+
+/** 点错：记一次，说一句看得见的提示，让对应的东西闪一下 */
+function blocksHint(s: BlocksGame, say: string, which: 'wiggle' | 'glowTop' | 'glowBasket'): Outcome<BlocksGame> {
+  return { state: { ...s, misses: s.misses + 1, [which]: s[which] + 1 }, say: m(say), sound: 'wrong' };
+}
+
+/** 现在这一块是哪个字符 */
+export const blockNow = (s: BlocksGame): string => s.rounds[s.r][s.i];
+
+export const blocksRules: GameRules<BlocksGame, BlocksAction> = {
+  start: (rand) => ({
+    state: { rounds: bracketGame(rand), r: 0, i: 0, basket: [], made: [], phase: 'act', misses: 0, wiggle: 0, glowTop: 0, glowBasket: 0 },
+    say: m('blocks.say.first'),
+  }),
+
+  act(s, a, rand) {
+    if (a.type === 'act' && s.phase === 'act') {
+      const c = blockNow(s);
+      const right = bracketAction(s.basket, c);
+      if (a.choice !== right) {
+        if (right === 'push') return blocksHint(s, 'blocks.hint.isLeft', 'wiggle');
+        if (a.choice === 'push') return blocksHint(s, 'blocks.hint.rightNotIn', s.basket.length ? 'glowTop' : 'glowBasket');
+        if (right === 'pop') return blocksHint(s, 'blocks.hint.compare', 'glowTop');
+        return s.basket.length ? blocksHint(s, 'blocks.hint.same', 'glowTop') : blocksHint(s, 'blocks.hint.any', 'glowBasket');
+      }
+      const calm: BlocksGame = { ...s, wiggle: 0, glowTop: 0, glowBasket: 0 };
+      if (right === 'stuck') {
+        const top = s.basket[s.basket.length - 1];
+        return {
+          state: { ...calm, phase: 'stuck' },
+          say: top !== undefined ? m('blocks.say.stuck', { c, want: pairOf(top), top }) : m('blocks.say.stuckEmpty', { c }),
+          sound: 'right',
+        };
+      }
+      let next: BlocksGame;
+      let say: Msg;
+      if (right === 'push') {
+        const basket = [...s.basket, c];
+        next = { ...calm, basket };
+        say = m('blocks.say.push', { c, n: basket.length });
+      } else {
+        const top = s.basket[s.basket.length - 1];
+        next = { ...calm, made: [...s.made, top + c], basket: s.basket.slice(0, -1) };
+        say = m('blocks.say.pop', { c, top });
+      }
+      next = { ...next, i: s.i + 1 };
+      if (next.i >= s.rounds[s.r].length) return { state: { ...next, phase: 'end' }, say: m('blocks.say.end'), sound: 'right' };
+      return { state: next, say, sound: 'right' };
+    }
+    if (a.type === 'finish' && s.phase === 'end') {
+      const right = bracketEnd(s.basket);
+      if (a.choice !== right) return blocksHint(s, right === 'clear' ? 'blocks.hint.look' : 'blocks.hint.remain', 'glowBasket');
+      const state: BlocksGame = { ...s, phase: right };
+      return {
+        state,
+        say: right === 'clear' ? m('blocks.say.clear') : m('blocks.say.left', { n: s.basket.length }),
+        sound: blocksGameOver(state) ? 'win' : 'right',
+      };
+    }
+    if (a.type === 'next' && blocksRoundOver(s) && !blocksGameOver(s)) return blocksRound(s, s.r + 1);
+    if (a.type === 'again' && blocksGameOver(s)) return blocksRound({ ...s, rounds: bracketGame(rand), misses: 0 }, 0);
+    return null;
+  },
+
+  clickable: () => false,
+
+  controls(s) {
+    const pad = (action: BlocksAction, name: string): Control<BlocksAction> => ({
+      type: 'button', action, look: 'pad', label: m('blocks.icon.' + name), caption: m('blocks.pad.' + name), aria: m('blocks.pad.' + name),
+    });
+    if (s.phase === 'act') {
+      return [pad({ type: 'act', choice: 'push' }, 'push'), pad({ type: 'act', choice: 'pop' }, 'pop'), pad({ type: 'act', choice: 'stuck' }, 'stuck')];
+    }
+    if (s.phase === 'end') return [pad({ type: 'finish', choice: 'clear' }, 'clear'), pad({ type: 'finish', choice: 'left' }, 'left')];
+    if (blocksGameOver(s)) return [{ type: 'button', action: { type: 'again' }, label: m('blocks.again'), look: 'primary' }];
+    return [{ type: 'button', action: { type: 'next' }, label: m('blocks.next'), look: 'primary' }];
+  },
+
+  result: (s) => (blocksGameOver(s) ? { stars: stars(s.misses), body: m('blocks.result') } : null),
+};
 
 /* ---------- 做：逐步执行 ---------- */
 
@@ -278,38 +536,36 @@ export function buildTrace(s: string): Trace<StackStep> {
   const steps: StackStep[] = [];
   let stack: string[] = [];
   let i = -1;
-  const add = (line: number, note: string, extra: Partial<StackStep> = {}) => {
+  const add = (line: number, note: Msg, extra: Partial<StackStep> = {}) => {
     steps.push({ line, i, stack, top: null, result: null, note, done: false, ...extra });
   };
 
-  add(2, '创建一个空栈。');
+  add(2, m('trace.init'));
   for (i = 0; i < s.length; i++) {
     const c = s[i];
-    add(3, '取第 ' + i + ' 个字符：' + c + '。');
+    add(3, m('trace.take', { i, c }));
     if (isOpener(c)) {
-      add(4, c + ' 是左括号。');
+      add(4, m('trace.isOpen', { c }));
       stack = [...stack, c];
-      add(5, c + ' 入栈，现在栈顶是 ' + c + '。');
+      add(5, m('trace.push', { c }));
       continue;
     }
-    add(4, c + ' 是右括号，要和栈顶配对。');
+    add(4, m('trace.isClose', { c }));
     if (stack.length === 0) {
-      add(7, '栈是空的，没有左括号能和 ' + c + ' 配对：返回 false。', { result: false, done: true });
+      add(7, m('trace.emptyFail', { c }), { result: false, done: true });
       return steps;
     }
     const top = stack[stack.length - 1];
     stack = stack.slice(0, -1);
-    add(7, '弹出栈顶 ' + top + '。', { top });
+    add(7, m('trace.pop', { top }), { top });
     if (pairOf(top) !== c) {
-      add(8, top + ' 要配 ' + pairOf(top) + '，来的却是 ' + c + '：返回 false。', { top, result: false, done: true });
+      add(8, m('trace.mismatch', { top, want: pairOf(top), c }), { top, result: false, done: true });
       return steps;
     }
-    add(8, top + ' 和 ' + c + ' 是一对，配上了。', { top });
+    add(8, m('trace.paired', { top, c }), { top });
   }
   i = s.length;
-  add(11, stack.length === 0
-    ? '扫完了，栈是空的，每个左括号都配上了：返回 true。'
-    : '扫完了，栈里还剩 ' + stack.length + ' 个左括号没配上：返回 false。', { result: stack.length === 0, done: true });
+  add(11, stack.length === 0 ? m('trace.endOk') : m('trace.endLeft', { n: stack.length }), { result: stack.length === 0, done: true });
   return steps;
 }
 
@@ -318,21 +574,54 @@ export function isValid(s: string): boolean {
   return buildTrace(s).at(-1)!.result === true;
 }
 
+/** 逐步执行面板的操作：改括号串，或者换一个某种题的串 */
+export type TraceAction = { type: 'text'; s: string } | { type: 'preset'; kind: PuzzleKind };
+
+/** 做：逐步执行 isValid。括号串、栈和代码行同步 */
+export const traceRules: TraceRules<string, StackStep, TraceAction> = {
+  code: CODE,
+  start: () => '{[()]}',
+  act: (_input, a, rand) => (a.type === 'text' ? clean(a.s).slice(0, TRACE_MAX) : presetString(a.kind, rand)),
+  controls: (input) => [
+    { type: 'text', label: m('trace.input', { max: TRACE_MAX }), value: input, submit: (s) => ({ type: 'text', s }) },
+    {
+      type: 'group', legend: m('trace.preset'),
+      items: TRACE_PRESETS.map((b) => ({ type: 'button' as const, action: { type: 'preset' as const, kind: b.kind }, label: b.label, look: 'small' as const })),
+    },
+  ],
+  trace: buildTrace,
+  vars(input, st): Var[] {
+    const c = st.i >= 0 && st.i < input.length ? input[st.i] : '—';
+    return [
+      ['c', c],
+      ['top', st.top ?? '—'],
+      [m('vars.stack'), m('vars.count', { n: st.stack.length })],
+      [m('vars.result'), st.result === null ? '—' : String(st.result)],
+    ];
+  },
+  summary(input, st) {
+    if (!st.done) return null;
+    return st.result
+      ? m('trace.sumTrue', { n: input.length })
+      : m('trace.sumFalse', { n: Math.max(0, ...buildTrace(input).map((y) => y.stack.length)) });
+  },
+};
+
 /* ---------- 做：猜下一步 ---------- */
 
 /** 每个字符要做的事，加上扫完以后的返回值 */
 export type Move = 'push' | 'pop' | 'fail' | 'true' | 'false';
 
 /** 每个字符三选一的按钮 */
-export const CHAR_MOVES: readonly { move: Move; text: string }[] = [
-  { move: 'push', text: 'stack.addLast(c)' },
-  { move: 'pop', text: '弹出栈顶，配上了' },
-  { move: 'fail', text: 'return false' },
+export const CHAR_MOVES: readonly { move: Move; label: Msg }[] = [
+  { move: 'push', label: m('predict.opt.push') },
+  { move: 'pop', label: m('predict.opt.pop') },
+  { move: 'fail', label: m('predict.opt.fail') },
 ];
 /** 扫完以后二选一的按钮 */
-export const END_MOVES: readonly { move: Move; text: string }[] = [
-  { move: 'true', text: 'return stack.isEmpty() → true' },
-  { move: 'false', text: 'return stack.isEmpty() → false' },
+export const END_MOVES: readonly { move: Move; label: Msg }[] = [
+  { move: 'true', label: m('predict.opt.true') },
+  { move: 'false', label: m('predict.opt.false') },
 ];
 
 export interface Round {
@@ -343,22 +632,20 @@ export interface Round {
   /** 正确答案 */
   correct: Move;
   /** 这一题的选项 */
-  options: readonly { move: Move; text: string }[];
+  options: readonly { move: Move; label: Msg }[];
   /** 答错时的解释 */
-  why: string;
+  why: Msg;
 }
 
-function whyMove(s: string, i: number, stack: string[], move: Move): string {
+function whyMove(s: string, i: number, stack: string[], move: Move): Msg {
   const c = s[i];
   const top = stack[stack.length - 1];
   switch (move) {
-    case 'push': return c + ' 是左括号，直接入栈，等后面的右括号来配。';
-    case 'pop': return c + ' 是右括号，栈顶 ' + top + ' 正好是它的另一半：弹出栈顶，配上了。';
-    case 'fail': return top === undefined
-      ? c + ' 是右括号，可栈是空的，没有左括号能配：return false。'
-      : '栈顶 ' + top + ' 要配 ' + pairOf(top) + '，来的却是 ' + c + '：return false。';
-    case 'true': return '扫完了，栈是空的，每个左括号都配上了：返回 true。';
-    default: return '扫完了，栈里还剩 ' + stack.length + ' 个左括号没配上：返回 false。';
+    case 'push': return m('why.push', { c });
+    case 'pop': return m('why.pop', { c, top });
+    case 'fail': return top === undefined ? m('why.failEmpty', { c }) : m('why.failMismatch', { top, want: pairOf(top), c });
+    case 'true': return m('why.true');
+    default: return m('why.false', { n: stack.length });
   }
 }
 
@@ -383,6 +670,36 @@ export function genPredict(rand: () => number = Math.random): string {
   return bracketPuzzle(kinds[Math.floor(rand() * kinds.length)], 3 + Math.floor(rand() * 3), rand);
 }
 
+/** 猜下一步和找 bug 的画面：括号串、当前字符、栈 */
+export interface BracketView {
+  s: string;
+  i: number;
+  stack: string[];
+  top?: string | null;
+  bad?: boolean;
+}
+
+/** 把一串括号排成一问接一问：每个字符问一次，扫完再问返回值 */
+export function makePuzzle(s: string): Puzzle<BracketView, Move> {
+  const list = rounds(s);
+  const asks = list.map((r) => ({
+    view: { s, i: r.i, stack: r.stack, bad: false },
+    prompt: r.i >= s.length ? m('predict.askEnd', { n: r.stack.length }) : m('predict.askChar', { i: r.i, c: s[r.i] }),
+    kind: 'choose' as const,
+    answer: r.correct,
+    options: r.options.map((o) => ({ value: o.move, label: o.label })),
+    why: r.why,
+  }));
+  const last = list[list.length - 1];
+  const prompt = last.correct === 'true' ? m('predict.endTrue') : last.correct === 'fail' ? m('predict.endFail', { i: last.i }) : m('predict.endLeft');
+  return { asks, end: { view: { s, i: last.i, stack: last.stack, bad: last.correct === 'fail' }, prompt } };
+}
+
+export const predictRules: PredictRules<BracketView, Move> = {
+  goal: 8,
+  puzzle: (rand = Math.random) => makePuzzle(genPredict(rand)),
+};
+
 /* ---------- 做：找 bug ---------- */
 
 export interface Bug extends BugInfo {
@@ -398,33 +715,33 @@ function variant(line: number, text: string): string[] {
 export const BUGS: readonly Bug[] = [
   {
     id: 'no-empty',
-    title: '右括号一多，程序就崩溃',
+    title: m('bug.no-empty.title'),
     code: variant(7, '            val top = stack.removeLast()'),
     wrongLine: 7,
     fixed: '            val top = stack.removeLastOrNull() ?: return false',
     input: '())',
-    expect: '多了一个右括号，应该返回 false',
-    explain: '遇到右括号时栈可能是空的：右括号比左括号多，或者开头就是右括号。ArrayDeque.removeLast() 在空栈上会抛 NoSuchElementException。要先确认栈不空，用 removeLastOrNull() 拿不到就返回 false。',
+    expect: m('bug.no-empty.expect'),
+    explain: m('bug.no-empty.explain'),
   },
   {
     id: 'no-final',
-    title: '左括号没配完，也说合法',
+    title: m('bug.no-final.title'),
     code: variant(11, '    return true'),
     wrongLine: 11,
     fixed: '    return stack.isEmpty()',
     input: '(()',
-    expect: '第一个 ( 没有配上，应该返回 false',
-    explain: '一路没出错，只说明来的右括号都配上了，不说明每个左括号都等到了伙伴。扫完以后栈里还剩左括号，就是没配完，所以最后要看栈空不空。',
+    expect: m('bug.no-final.expect'),
+    explain: m('bug.no-final.explain'),
   },
   {
     id: 'no-type',
-    title: '形状不一样，也能配上',
+    title: m('bug.no-type.title'),
     code: variant(8, '            if (top !in "([{") return false'),
     wrongLine: 8,
     fixed: '            if (pairOf(top) != c) return false',
     input: '([)]',
-    expect: '( 被 ] 关上，形状不对，应该返回 false',
-    explain: '这一行检查的是「弹出来的是不是左括号」，可栈里只放左括号，这个检查永远通过。要检查的是弹出来的左括号和 c 是不是同一种。只数个数不看种类，用一个计数器就够了，正是因为种类要对上，才需要栈。',
+    expect: m('bug.no-type.expect'),
+    explain: m('bug.no-type.explain'),
   },
 ];
 
@@ -439,57 +756,69 @@ export function runBug(bug: Bug): Trace<BugStep> {
   const steps: BugStep[] = [];
   let stack: string[] = [];
   let i = -1;
-  const add = (line: number, note: string, extra: Partial<BugStep> = {}) => {
+  const add = (line: number, note: Msg, extra: Partial<BugStep> = {}) => {
     steps.push({ line, i, stack, top: null, result: null, note, done: false, outcome: 'running', ...extra });
   };
 
-  add(2, '创建一个空栈。');
+  add(2, m('trace.init'));
   for (i = 0; i < s.length; i++) {
     const c = s[i];
-    add(3, '取第 ' + i + ' 个字符：' + c + '。');
+    add(3, m('trace.take', { i, c }));
     if (isOpener(c)) {
-      add(4, c + ' 是左括号。');
+      add(4, m('trace.isOpen', { c }));
       stack = [...stack, c];
-      add(5, c + ' 入栈，现在栈顶是 ' + c + '。');
+      add(5, m('trace.push', { c }));
       continue;
     }
-    add(4, c + ' 是右括号，要和栈顶配对。');
+    add(4, m('trace.isClose', { c }));
     if (stack.length === 0) {
       if (bug.id === 'no-empty') {
-        add(7, '栈是空的，removeLast() 抛出 NoSuchElementException，程序崩溃！', { outcome: 'crash', done: true });
+        add(7, m('bug.note.crash'), { outcome: 'crash', done: true });
       } else {
-        add(7, '栈是空的：返回 false。', { outcome: 'ok', result: false, done: true });
+        add(7, m('bug.note.emptyFalse'), { outcome: 'ok', result: false, done: true });
       }
       return steps;
     }
     const top = stack[stack.length - 1];
     stack = stack.slice(0, -1);
-    add(7, '弹出栈顶 ' + top + '。', { top });
+    add(7, m('trace.pop', { top }), { top });
     if (bug.id === 'no-type') {
-      add(8, top + ' 是左括号，检查通过，继续。', { top });
+      add(8, m('bug.note.passType', { top }), { top });
       continue;
     }
     if (pairOf(top) !== c) {
-      add(8, top + ' 要配 ' + pairOf(top) + '，来的却是 ' + c + '：返回 false。', { top, outcome: 'ok', result: false, done: true });
+      add(8, m('trace.mismatch', { top, want: pairOf(top), c }), { top, outcome: 'ok', result: false, done: true });
       return steps;
     }
-    add(8, top + ' 和 ' + c + ' 是一对，配上了。', { top });
+    add(8, m('trace.paired', { top, c }), { top });
   }
   i = s.length;
   if (bug.id === 'no-final') {
-    add(11, '扫完了，直接返回 true。栈里其实还剩 ' + stack.length + ' 个左括号。', { outcome: 'ok', result: true, done: true });
+    add(11, m('bug.note.endTrue', { n: stack.length }), { outcome: 'ok', result: true, done: true });
   } else {
-    add(11, '扫完了，栈' + (stack.length === 0 ? '是空的：返回 true。' : '里还剩 ' + stack.length + ' 个：返回 false。'), { outcome: 'ok', result: stack.length === 0, done: true });
+    add(11, stack.length === 0 ? m('bug.note.endOk') : m('bug.note.endLeft', { n: stack.length }), { outcome: 'ok', result: stack.length === 0, done: true });
   }
   return steps;
 }
 
 /** 找 bug 面板底部的判定文字：没跑完是空 */
-export function bugVerdict(step: BugStep, _bug: Bug): string {
-  if (!step.done) return '';
-  if (step.outcome === 'crash') return '💥 NoSuchElementException，程序崩溃';
-  return '❌ 返回了 ' + step.result + '，不对';
+export function bugVerdict(step: BugStep, _bug?: Bug): Msg | null {
+  if (!step.done) return null;
+  if (step.outcome === 'crash') return m('bug.verdict.crash');
+  return m('bug.verdict.wrong', { result: String(step.result) });
 }
+
+export const bugRules: BugRules<Bug, BugStep> = {
+  bugs: BUGS,
+  run: runBug,
+  input: (bug) => m('bug.inputLine', { s: bug.input, expect: bug.expect }),
+  vars: (s, bug): Var[] => [
+    ['c', s.i >= 0 && s.i < bug.input.length ? bug.input[s.i] : '—'],
+    ['top', s.top ?? '—'],
+    [m('vars.stack'), m('vars.count', { n: s.stack.length })],
+  ],
+  verdict: bugVerdict,
+};
 
 /* ---------- 做：挑战 ---------- */
 
@@ -505,7 +834,7 @@ export interface PermStep {
   /** 已经出栈的数，按顺序 */
   out: number[];
   action: 'start' | 'push' | 'pop' | 'stuck' | 'done';
-  note: string;
+  note: Msg;
   done: boolean;
 }
 
@@ -518,23 +847,23 @@ export function permTrace(n: number, want: number[]): PermStep[] {
   let next = 1;
   let stack: number[] = [];
   let out: number[] = [];
-  const add = (action: PermStep['action'], note: string, done = false) => steps.push({ next, stack, out, action, note, done });
-  add('start', '1 到 ' + n + ' 排队等着入栈，目标出栈顺序是 ' + want.join(' ') + '。');
+  const add = (action: PermStep['action'], note: Msg, done = false) => steps.push({ next, stack, out, action, note, done });
+  add('start', m('perm.start', { n, want: want.join(' ') }));
   for (const w of want) {
     while (stack[stack.length - 1] !== w && next <= n) {
       stack = [...stack, next];
       next++;
-      add('push', '想要 ' + w + '，栈顶不是它：' + (next - 1) + ' 入栈。');
+      add('push', m('perm.push', { w, x: next - 1 }));
     }
     if (stack[stack.length - 1] !== w) {
-      add('stuck', '想要 ' + w + '，可它被压在 ' + stack[stack.length - 1] + ' 下面，拿不出来：做不到。', true);
+      add('stuck', m('perm.stuck', { w, top: stack[stack.length - 1] }), true);
       return steps;
     }
     stack = stack.slice(0, -1);
     out = [...out, w];
-    add('pop', w + ' 在栈顶，出栈。');
+    add('pop', m('perm.pop', { w }));
   }
-  add('done', '全部按顺序出栈：做得到。', true);
+  add('done', m('perm.done'), true);
   return steps;
 }
 
@@ -584,3 +913,124 @@ export function permPuzzles(count: number, n = CHALLENGE_N, rand: () => number =
 export function genChallenge(rand: () => number = Math.random): number[][] {
   return permPuzzles(CHALLENGE_COUNT, CHALLENGE_N, rand);
 }
+
+/* ---------- 做：挑战（GameRules） ---------- */
+
+/** 挑战的操作：判断能不能做到；播放控制条；下一题；再来一组 */
+export type PermAction =
+  | { type: 'judge'; yes: boolean }
+  | { type: 'play'; op: TransportOp }
+  | { type: 'next' }
+  | { type: 'restart' };
+
+export interface PermGame {
+  puzzles: number[][];
+  /** 第几题 */
+  q: number;
+  /** 孩子的判断；还没判断是 null */
+  answer: boolean | null;
+  score: number;
+  /** 判断之后演一遍的播放状态 */
+  p: PlayerState;
+}
+
+/** 当前这一题的各种派生信息，画面和规则共用 */
+export function permView(s: PermGame) {
+  const want = s.puzzles[s.q];
+  const steps = permTrace(CHALLENGE_N, want);
+  const step = steps[Math.min(s.p.idx, steps.length - 1)];
+  const truth = canPop(CHALLENGE_N, want);
+  const done = s.answer !== null && step.done;
+  return {
+    want, steps, step, truth, done,
+    finished: s.q === CHALLENGE_COUNT - 1 && done,
+    /** 还在排队等入栈的数 */
+    waiting: Array.from({ length: CHALLENGE_N - step.next + 1 }, (_, k) => step.next + k),
+  };
+}
+
+function permFresh(prev: PermGame | null, rand?: Rand): PermGame {
+  const puzzles = genChallenge(rand);
+  const total = permTrace(CHALLENGE_N, puzzles[0]).length;
+  return { puzzles, q: 0, answer: null, score: 0, p: prev ? resetTransport(prev.p, total) : initPlayer(total, SPEEDS[1].ms) };
+}
+
+export const permRules: GameRules<PermGame, PermAction> = {
+  start: (rand) => ({ state: permFresh(null, rand) }),
+
+  act(s, a, rand) {
+    if (a.type === 'judge') {
+      if (s.answer !== null) return null;
+      const v = permView(s);
+      // 判断完马上开始演：先回到第一步，再播放
+      const out = applyTransport(resetTransport(s.p, v.steps.length), 'toggle');
+      return {
+        state: { ...s, answer: a.yes, score: s.score + (a.yes === v.truth ? 1 : 0), p: out.p },
+        sound: out.sound,
+        after: out.after,
+      };
+    }
+    if (a.type === 'play') {
+      if (s.answer === null) return null;
+      const out = applyTransport({ ...s.p, total: permView(s).steps.length }, a.op);
+      return { state: { ...s, p: out.p }, sound: out.sound, after: out.after };
+    }
+    if (a.type === 'next') {
+      if (!permView(s).done || s.q >= CHALLENGE_COUNT - 1) return null;
+      const q = s.q + 1;
+      return { state: { ...s, q, answer: null, p: resetTransport(s.p, permTrace(CHALLENGE_N, s.puzzles[q]).length) } };
+    }
+    if (a.type === 'restart') return permView(s).finished ? { state: permFresh(s, rand) } : null;
+    return null;
+  },
+
+  tick(s) {
+    const out = tickTransport({ ...s.p, total: permView(s).steps.length });
+    return { state: { ...s, p: out.p }, sound: out.sound, after: out.after };
+  },
+
+  // 切标签：演示停下，位置不动
+  interrupt: (s) => ({ state: { ...s, p: { ...s.p, playing: false } } }),
+
+  clickable: () => false,
+
+  controls(s) {
+    if (s.answer === null) {
+      return [
+        { type: 'button', action: { type: 'judge', yes: true }, label: m('perm.yes'), look: 'primary' },
+        { type: 'button', action: { type: 'judge', yes: false }, label: m('perm.no') },
+      ];
+    }
+    return [{
+      type: 'transport', idx: s.p.idx, total: permView(s).steps.length, playing: s.p.playing, speed: s.p.speed,
+      act: (op) => ({ type: 'play', op }),
+    }];
+  },
+};
+
+/* ---------- 延伸：为什么快 ---------- */
+
+/**
+ * 最坏情况：((((…)))) 一层套一层。用栈扫一遍是 n 步；
+ * 「反复删掉相邻的一对」每轮只删掉最里面一对，却要把剩下的串从头看一遍，约 n²/4 步。
+ */
+export function compareRows() {
+  return [10, 100, 1000, 10000].map((n) => ({
+    label: n.toLocaleString('en-US'),
+    unit: m('compare.unit'),
+    bars: [
+      { name: m('compare.slow'), value: (n * n) / 4, tone: 'muted' as const, approx: true },
+      { name: m('compare.stack'), value: n, tone: 'accent' as const },
+    ],
+  }));
+}
+
+/* ---------- 关卡模块：level.json 按名字引用这里的规则 ---------- */
+
+export const level: LevelModule = {
+  look: { story: lookRules },
+  trace: { main: traceRules },
+  predict: { main: predictRules },
+  bugs: { main: bugRules },
+  games: { plates: platesRules, blocks: blocksRules, challenge: permRules },
+};

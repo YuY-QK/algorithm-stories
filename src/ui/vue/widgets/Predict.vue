@@ -16,7 +16,7 @@ const Scene = sceneOf(props.slug, props.scene);
 const goal = rules.goal ?? 5;
 const st = ref(flow.startPredict(rules.puzzle(), goal));
 const v = computed(() => flow.viewOf(st.value));
-const chips = computed(() => (st.value.puzzle.chips ?? []).map(([k, val]) => ({ k: tr(k), val: tr(val) })));
+const chips = computed(() => (v.value.chips ?? []).map(([k, val]) => ({ k: tr(k), val: tr(val) })));
 
 function answer(value: unknown) {
   const out = flow.answer(st.value, value);

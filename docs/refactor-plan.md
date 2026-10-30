@@ -192,3 +192,8 @@ R2 过程中补的位置和接口（以代码为准）：
 - 共用文案的键以 `ui.` 开头；旧共享组件 `BookPager`、`Transport`、`CodePanel`、`PredictFrame` 加了可选的 `labels` 参数，默认中文，未迁移的关卡不受影响
 
 R3 时再处理：画面注册表现在是 eager glob，15 关迁完后考虑按关懒加载；`GameRules.act` 的 `rand` 控件里还没传；速度档的「慢中快手动」还在 tokens.json，没进文案表。
+
+### 7.6 R3 进行中补的接口（以代码为准）
+
+- 栈、队列（10-27）：`Control` 新增 `text`（文本框）、`transport`（播放条，配 `src/core/flows/transport.ts`，用于挑战里判断后播放演示）；按钮可带 `caption`，`look` 加 `smallPrimary`；`GameResult` 加 `art`（结算里再画一块画面），`quiz.prompt` 可省、加 `quiz.after`；`Ask` 加 `chips`，`pick` 问也可带 `options`；`Puzzle.end` 加 `chips`
+- game 块加 `sayLines: 2`（台词预留两行，原来多数小游戏如此）和 `saySize: "small"`（BFS、DFS 的小一号字）

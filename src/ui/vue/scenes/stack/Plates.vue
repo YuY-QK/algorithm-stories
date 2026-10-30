@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue';
-import { PLATE_ICONS, PLATE_NAMES } from '../../engine/stack';
-import { useStageStop } from '../../components/shared/usePlayer';
-import { SHAKE_MS } from '../../components/shared/timing';
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
+import { PLATE_ICONS, PLATE_NAMES } from '../../../../engine/stack';
+import { useStageStop } from '../../../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../../../core/timing';
 
 // 一摞盘子加「拿走的」一排。看、玩法一共用，只负责画，不管规则。
 const props = withDefaults(defineProps<{
@@ -12,15 +14,14 @@ const props = withDefaults(defineProps<{
   taken: number[];
   /** 盘子能不能点 */
   clickable?: boolean;
-  /** 透光提示：最上面那个 */
-  glowTop?: boolean;
+  /** 透光提示的次数：次数变了，最上面的盘子就亮一次；0 表示没有 */
+  glow?: number;
   /** 每次变化就让这个盘子晃一下，格式 [盘子, 计数] */
   shake?: [number, number] | null;
   /** 一摞最多几个，用来固定高度 */
   room?: number;
-  /** 小熊手里端着的盘子（马上要放上去） */
-  holding?: number | null;
-}>(), { clickable: false, glowTop: false, shake: null, room: 5, holding: null });
+  t: (msg: Msg) => string;
+}>(), { clickable: false, glow: 0, shake: null, room: 5 });
 
 const emit = defineEmits<{ pick: [plate: number] }>();
 
@@ -40,9 +41,17 @@ watch(() => props.shake, (v) => {
 useStageStop(stopShake);
 onBeforeUnmount(stopShake);
 
+// 透光：次数变了就先熄掉再亮，这样连着点错也会每次都亮一下
+const glowing = ref(false);
+watch(() => props.glow, (v) => {
+  glowing.value = false;
+  if (v) requestAnimationFrame(() => (glowing.value = true));
+});
+
 function label(p: number, k: number) {
+  const name = PLATE_NAMES[p];
   const top = k === props.stack.length - 1;
-  return PLATE_NAMES[p] + '盘' + (top ? '，在最上面' : '，上面压着 ' + (props.stack.length - 1 - k) + ' 个盘子');
+  return top ? props.t(m('plates.label.top', { name })) : props.t(m('plates.label.under', { name, n: props.stack.length - 1 - k }));
 }
 </script>
 
@@ -51,7 +60,6 @@ function label(p: number, k: number) {
     <div class="side">
       <div class="hand" aria-hidden="true">
         <span class="bear">🐻</span>
-        <span v-if="holding !== null" class="dish mini" :class="'c' + (holding % 4)">{{ PLATE_ICONS[holding] }}</span>
       </div>
       <TransitionGroup tag="div" name="dish" class="pile">
         <button
@@ -59,7 +67,7 @@ function label(p: number, k: number) {
           :key="p"
           type="button"
           class="dish"
-          :class="['c' + (p % 4), { top: k === stack.length - 1, glow: glowTop && k === stack.length - 1, shake: shaking === p }]"
+          :class="['c' + (p % 4), { top: k === stack.length - 1, glow: glowing && clickable && k === stack.length - 1, shake: shaking === p }]"
           :disabled="!clickable"
           :aria-label="label(p, k)"
           @click="emit('pick', p)"
@@ -68,9 +76,9 @@ function label(p: number, k: number) {
       <div class="table" aria-hidden="true" />
     </div>
     <div class="side">
-      <p class="cap">拿走的</p>
-      <TransitionGroup tag="ol" name="pop" class="taken" aria-label="拿走的顺序">
-        <li v-for="(p, k) in taken" :key="p" :aria-label="'第 ' + (k + 1) + ' 个拿走：' + PLATE_NAMES[p] + '盘'">
+      <p class="cap">{{ t(m('plates.takenCap')) }}</p>
+      <TransitionGroup tag="ol" name="pop" class="taken" :aria-label="t(m('plates.takenOrder'))">
+        <li v-for="(p, k) in taken" :key="p" :aria-label="t(m('plates.takenItem', { n: k + 1, name: PLATE_NAMES[p] }))">
           <span class="dish mini" :class="'c' + (p % 4)">{{ PLATE_ICONS[p] }}</span>
           <small>{{ k + 1 }}</small>
         </li>

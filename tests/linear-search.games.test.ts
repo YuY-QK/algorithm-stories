@@ -123,14 +123,14 @@ describe('玩法一「开箱子找小熊」', () => {
     g.act({ type: 'answer', n: 1 });
     let q = findRules.result!(g.state)!.quiz!;
     expect(g.sounds.at(-1)).toBe('wrong');
-    expect(q.note).toEqual(PLAY_QUIZ[0].why);
+    expect(q.after).toEqual(PLAY_QUIZ[0].why);
     expect(q.options).toHaveLength(3);
     expect(q.ok).toBeUndefined();
     g.act({ type: 'answer', n: 8 });
     q = findRules.result!(g.state)!.quiz!;
     expect(g.sounds.at(-1)).toBe('right');
     expect(q.options).toEqual([]);
-    expect(q.note).toBeUndefined();
+    expect(q.after).toBeUndefined();
     expect(q.ok).toEqual(m('find.quiz.ok', { text: PLAY_QUIZ[0].right }));
     // 答对以后不能再答
     expect(g.act({ type: 'answer', n: 4 })).toBe(false);
@@ -148,7 +148,7 @@ describe('玩法一「开箱子找小熊」', () => {
     expect(q.prompt).toEqual(PLAY_QUIZ[1].ask);
     expect(q.options).toHaveLength(3);
     g.act({ type: 'answer', n: 0 });
-    expect(findRules.result!(g.state)!.quiz!.note).toEqual(PLAY_QUIZ[1].why);
+    expect(findRules.result!(g.state)!.quiz!.after).toEqual(PLAY_QUIZ[1].why);
     g.act({ type: 'answer', n: 8 });
     expect(buttons(findRules.controls(g.state)).map((b) => b.label)).toEqual([m('find.again')]);
     expect(g.act({ type: 'nextQuiz' })).toBe(false);

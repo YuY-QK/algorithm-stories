@@ -346,7 +346,7 @@ export const findRules: GameRules<FindState, FindAction> = {
         options: s.quizState === 'right'
           ? []
           : q.options.map((n): Control<FindAction> => ({ type: 'button', action: { type: 'answer', n }, label: m('find.quiz.n', { n }), look: 'choice' })),
-        note: s.quizState === 'wrong' ? q.why : undefined,
+        after: s.quizState === 'wrong' ? q.why : undefined,
         ok: s.quizState === 'right' ? m('find.quiz.ok', { text: q.right }) : undefined,
       };
     }
