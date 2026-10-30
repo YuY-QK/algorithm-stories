@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue';
-import { CANDY_MAX } from '../../engine/selection-sort';
-import { useStageStop } from '../../components/shared/usePlayer';
-import { SHAKE_MS } from '../../components/shared/timing';
+import { CANDY_MAX } from '../../../../engine/selection-sort';
+import { useStageStop } from '../../../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../../../core/timing';
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
 
 // 把两颗糖果并排放大、站在同一条线上，比一比哪颗小。玩法一、二共用。
 const props = withDefaults(defineProps<{
@@ -11,16 +13,18 @@ const props = withDefaults(defineProps<{
   /** 两颗糖果上方的小标签（emoji） */
   leftTag?: string;
   rightTag?: string;
-  /** 透光提示哪一边 */
-  glow?: 'l' | 'r' | null;
+  /** 透光提示哪一边：[边, 第几次]，次数变了才重新亮一次 */
+  glow?: ['l' | 'r', number] | null;
   clickable?: boolean;
   /** 每次变化就让这一边摇一下，格式 [边, 计数] */
   shake?: ['l' | 'r', number] | null;
+  t: (msg: Msg) => string;
 }>(), { leftTag: '', rightTag: '', glow: null, clickable: false, shake: null });
 
 const emit = defineEmits<{ pick: [side: 'l' | 'r'] }>();
 
 const shaking = ref<'l' | 'r' | null>(null);
+const glowing = ref<'l' | 'r' | null>(null);
 let shakeTimer: ReturnType<typeof setTimeout> | null = null;
 function stopShake() {
   if (shakeTimer) clearTimeout(shakeTimer);
@@ -32,6 +36,10 @@ watch(() => props.shake, (v) => {
   stopShake();
   requestAnimationFrame(() => (shaking.value = v[0]));
   shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
+});
+watch(() => props.glow, (v) => {
+  glowing.value = null;
+  if (v) requestAnimationFrame(() => (glowing.value = v[0]));
 });
 // 切换标签或卸载时，晃动动画停下
 useStageStop(stopShake);
@@ -48,9 +56,9 @@ const hue = (v: number) => 'hue-rotate(' + ((v * 47) % 360) + 'deg)';
       :key="side"
       type="button"
       class="side"
-      :class="{ glow: glow === side, shake: shaking === side }"
+      :class="{ glow: glowing === side, shake: shaking === side }"
       :disabled="!clickable"
-      :aria-label="(side === 'l' ? left : right) + ' 号糖果'"
+      :aria-label="t(m('scene.pair', { v: side === 'l' ? left : right }))"
       @click="emit('pick', side)"
     >
       <span class="tagline" aria-hidden="true">{{ side === 'l' ? leftTag : rightTag }}</span>

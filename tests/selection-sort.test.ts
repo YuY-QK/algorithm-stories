@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { mergeCopy, t } from '../src/core/i18n';
+import coreCopy from '../src/core/copy.zh.json';
+import levelCopy from '../content/algorithms/selection-sort/copy.zh.json';
+import type { Copy } from '../src/core/types';
 import {
   BUGS, CANDY_MAX, bugVerdict, genPredict, lookFrames, whyMin, CODE, HAND_N, KID_N, CHALLENGE_N, STORY, buildTrace, comparesFor, fewestSwaps, genArray, genCandies,
   genChallenge, handInit, handNeed, handPlace, handRoundOver, handStep, inversions, isSorted, minFrom, rounds, runBug,
@@ -6,6 +10,7 @@ import {
 } from '../src/engine/selection-sort';
 import { seeded } from './helpers/seeded';
 
+const copy = mergeCopy(coreCopy as Copy, levelCopy as Copy);
 const sortNum = (a: number[]) => a.slice().sort((x, y) => x - y);
 const SHAPES: Shape[] = ['random', 'dups', 'sorted', 'reversed'];
 
@@ -164,7 +169,7 @@ describe('选择排序 做：找 bug', () => {
       expect(last.outcome).toBe('ok');
       expect(last.a).not.toEqual(sortNum(b.values));
       expect(buildTrace(b.values).at(-1)!.a).toEqual(sortNum(b.values));
-      expect(b.expect).toContain('[' + sortNum(b.values).join(', ') + ']');
+      expect(t(b.expect, copy)).toContain('[' + sortNum(b.values).join(', ') + ']');
       for (const s of steps) {
         expect(s.line).toBeGreaterThanOrEqual(1);
         expect(s.line).toBeLessThanOrEqual(b.code.length);
@@ -232,7 +237,7 @@ describe('选择排序 引擎：台词、解释和固定种子出题', () => {
       const a = genCandies(KID_N, r);
       const fs = lookFrames(a);
       expect(fs.length).toBe(3 + 2 * (a.length - 1));
-      expect(fs.every((f) => f.say.length > 0)).toBe(true);
+      expect(fs.every((f) => t(f.say, copy).length > 0 && !t(f.say, copy).includes('⟦'))).toBe(true);
       expect(fs.at(-1)!.values).toEqual(sortNum(a));
       expect(fs.at(-1)!.sorted).toBe(a.length);
     }
@@ -256,26 +261,26 @@ describe('选择排序 引擎：台词、解释和固定种子出题', () => {
     const r = seeded(14);
     for (let k = 0; k < 200; k++) {
       for (const rd of rounds(genPredict(r))) {
-        expect(rd.why.length).toBeGreaterThan(0);
-        if (rd.updates > 0) expect(rd.why).toContain('改了 ' + rd.updates + ' 次');
-        else expect(rd.why).toContain('一次都没改');
+        const why = t(rd.why, copy);
+        if (rd.updates > 0) expect(why).toContain('改了 ' + rd.updates + ' 次');
+        else expect(why).toContain('一次都没改');
         for (let c = 0; c < rd.before.length; c++) {
           if (c === rd.minIdx) continue;
-          expect(whyMin(rd, c)).toContain(String(rd.before[rd.minIdx]));
+          expect(t(whyMin(rd, c), copy)).toContain(String(rd.before[rd.minIdx]));
         }
       }
     }
     const rd = rounds([3, 1, 1, 2])[0];
-    expect(whyMin(rd, 2)).toContain('一样小');
-    expect(whyMin(rounds([3, 1, 2])[1], 0)).toContain('已经排好');
+    expect(t(whyMin(rd, 2), copy)).toContain('一样小');
+    expect(t(whyMin(rounds([3, 1, 2])[1], 0), copy)).toContain('已经排好');
   });
 
   it('bugVerdict：没跑完是空，跑完写出结果', () => {
     for (const b of BUGS) {
       const tr = runBug(b);
-      expect(bugVerdict(tr[0], b)).toBe('');
+      expect(bugVerdict(tr[0], b)).toBeNull();
       const end = tr.at(-1)!;
-      expect(bugVerdict(end, b)).toBe('❌ 结果是 [' + end.a.join(', ') + ']，没排好');
+      expect(t(bugVerdict(end, b)!, copy)).toBe('❌ 结果是 [' + end.a.join(', ') + ']，没排好');
     }
   });
 

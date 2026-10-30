@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue';
-import { CANDY_MAX } from '../../engine/selection-sort';
-import { useStageStop } from '../../components/shared/usePlayer';
-import { SHAKE_MS } from '../../components/shared/timing';
+import { CANDY_MAX } from '../../../../engine/selection-sort';
+import { useStageStop } from '../../../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../../../core/timing';
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
 
 // 一排糖果加上方的小熊。看、玩法一、玩法二共用，只负责画，不管规则。
 // 糖果的大小就是它的数字，各不相同，所以直接用数字当 key，交换时会滑过去换位置。
@@ -22,6 +24,7 @@ const props = withDefaults(defineProps<{
   clickable?: boolean;
   /** 每次变化就让这颗摇一下，格式 [下标, 计数] */
   shake?: [number, number] | null;
+  t: (msg: Msg) => string;
 }>(), { sorted: 0, bear: null, eye: null, glow: null, pulse: null, clickable: false, shake: null });
 
 const emit = defineEmits<{ pick: [k: number] }>();
@@ -48,7 +51,8 @@ const scale = (v: number) => (0.42 + (0.58 * v) / CANDY_MAX).toFixed(3);
 const hue = (v: number) => 'hue-rotate(' + ((v * 47) % 360) + 'deg)';
 
 function label(k: number): string {
-  return '第 ' + (k + 1) + ' 颗，' + props.values[k] + ' 号糖果' + (k < props.sorted ? '，已经排好' : '');
+  const params = { n: k + 1, v: props.values[k] };
+  return props.t(k < props.sorted ? m('scene.candyPlated', params) : m('scene.candy', params));
 }
 </script>
 
