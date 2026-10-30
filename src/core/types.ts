@@ -145,6 +145,8 @@ export interface Puzzle<V, T = unknown> {
   chips?: Var[];
   asks: Ask<V, T>[];
   end: { view: V; prompt: Msg };
+  /** 最后一问答对时的结局（如多一个 ✅）；不给就用 end */
+  endRight?: { view: V; prompt: Msg };
 }
 
 export interface PredictRules<V, T = unknown> {
@@ -186,6 +188,8 @@ export interface GameResult<A> {
   stars?: 1 | 2 | 3;
   title?: Msg;
   body?: Msg;
+  /** 按钮后面的一行小字 */
+  foot?: Msg;
   /** 追问（如「点哪里最快？」） */
   quiz?: {
     prompt: Msg;

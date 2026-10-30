@@ -16,6 +16,8 @@ export interface PredictState<V, T> {
   picked: T | null;
   streak: number;
   passed: boolean;
+  /** 刚才那一问是不是答对的（结局可以按它换一句） */
+  lastRight: boolean;
 }
 
 export interface PredictOut<V, T> {
@@ -24,7 +26,7 @@ export interface PredictOut<V, T> {
 }
 
 export function startPredict<V, T>(puzzle: Puzzle<V, T>, goal = 5, carry?: { streak: number; passed: boolean }): PredictState<V, T> {
-  return { puzzle, goal, i: 0, phase: 'ask', picked: null, streak: carry?.streak ?? 0, passed: carry?.passed ?? false };
+  return { puzzle, goal, i: 0, phase: 'ask', picked: null, streak: carry?.streak ?? 0, passed: carry?.passed ?? false, lastRight: false };
 }
 
 /** 换下一道题：连对和过关保留 */
@@ -43,11 +45,11 @@ export function answer<V, T>(s: PredictState<V, T>, value: T): PredictOut<V, T> 
   if (s.phase !== 'ask') return null;
   const ask = s.puzzle.asks[s.i];
   if (!Object.is(value, ask.answer)) {
-    return { state: { ...s, phase: 'wrong', streak: 0, picked: ask.kind === 'pick' ? value : null }, sound: 'wrong' };
+    return { state: { ...s, phase: 'wrong', streak: 0, lastRight: false, picked: ask.kind === 'pick' ? value : null }, sound: 'wrong' };
   }
   const streak = s.streak + 1;
   const justPassed = streak >= s.goal && !s.passed;
-  const hit = { ...s, streak, passed: s.passed || justPassed };
+  const hit = { ...s, streak, lastRight: true, passed: s.passed || justPassed };
   return {
     state: ask.right ? { ...hit, phase: 'right' } : advance(hit),
     sound: justPassed ? 'win' : 'right',
@@ -75,7 +77,7 @@ export interface PredictView<V, T> {
 
 export function viewOf<V, T>(s: PredictState<V, T>): PredictView<V, T> {
   if (s.phase === 'end') {
-    const { view, prompt } = s.puzzle.end;
+    const { view, prompt } = (s.lastRight && s.puzzle.endRight) || s.puzzle.end;
     return { view, prompt, wrong: null, right: null, ended: true, pickable: false, options: null, picked: null };
   }
   const ask = s.puzzle.asks[s.i];

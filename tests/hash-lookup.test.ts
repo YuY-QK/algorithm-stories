@@ -5,6 +5,13 @@ import {
   clashKey, emptyChains, emptySlots, genChallenge, genTable, lookFrames, playBooks, probeFind, probePlace, probePut,
   probeRemove, rounds, runBug, tableKey, walkHops, type Op, type Slot,
 } from '../src/engine/hash-lookup';
+import { mergeCopy, t } from '../src/core/i18n';
+import coreCopyJson from '../src/core/copy.zh.json';
+import ownCopyJson from '../content/algorithms/hash-lookup/copy.zh.json';
+import { asCopy } from './helpers/copy';
+
+const copy = mergeCopy(asCopy(coreCopyJson), asCopy(ownCopyJson));
+const say = (msg: Parameters<typeof t>[0] | null) => t(msg!, copy);
 
 /** 可复现的随机数 */
 function seeded(seed: number) {
@@ -126,10 +133,11 @@ describe('哈希查找 看', () => {
     const f = lookFrames();
     expect(f.length).toBeGreaterThanOrEqual(12);
     for (const p of f) {
-      expect(p.say.length).toBeGreaterThan(0);
+      expect(say(p.say).length).toBeGreaterThan(0);
+      expect(say(p.say)).not.toContain('⟦');
       expect(p.piles).toHaveLength(KID_CAP);
     }
-    const byNum = (frag: string) => f.find((p) => p.say.includes(frag))!;
+    const byNum = (frag: string) => f.find((p) => say(p.say).includes(frag))!;
     expect(byNum('10 号书：余 3').piles[3]).toEqual([10]);
     expect(byNum('23 号书：余 2').piles[2]).toEqual([23]);
     expect(byNum('撞啦').clash).toBe(3);
@@ -200,7 +208,8 @@ describe('哈希查找 做：逐步执行', () => {
         expect(s.line).toBeGreaterThanOrEqual(1);
         expect(s.line).toBeLessThanOrEqual(CODE.length);
         expect(s.slots).toHaveLength(cap);
-        expect(s.note.length).toBeGreaterThan(0);
+        expect(say(s.note).length).toBeGreaterThan(0);
+        expect(say(s.note)).not.toContain('⟦');
         if (s.i !== null) expect(s.i >= 0 && s.i < cap).toBe(true);
         expect(s.looks).toBeLessThanOrEqual(cap);
       }
@@ -251,8 +260,8 @@ describe('哈希查找 做：猜下一步', () => {
     let seenTomb = 0;
     for (let s = 0; s < 40; s++) {
       for (const r of rounds(50, undefined, seeded(s))) {
-        expect(r.prompt.length).toBeGreaterThan(0);
-        expect(r.why.length).toBeGreaterThan(0);
+        expect(say(r.prompt).length).toBeGreaterThan(0);
+        expect(say(r.why).length).toBeGreaterThan(0);
         expect(r.slots).toHaveLength(KID_CAP);
         expect(r.slots.filter((x) => x === null).length).toBeGreaterThanOrEqual(2);
         if (r.slots.includes(TOMB)) seenTomb++;
@@ -289,11 +298,11 @@ describe('哈希查找 做：找 bug', () => {
       expect(last.done).toBe(true);
       expect(last.outcome).not.toBe('running');
       expect(bugVerdict(last, bug)).toBe(bug.verdict);
-      expect(bugVerdict(steps[0], bug)).toBe('');
+      expect(bugVerdict(steps[0], bug)).toBeNull();
       for (const s of steps) {
         expect(s.line).toBeGreaterThanOrEqual(1);
         expect(s.line).toBeLessThanOrEqual(bug.code.length);
-        expect(s.note.length).toBeGreaterThan(0);
+        expect(say(s.note).length).toBeGreaterThan(0);
       }
     }
   });

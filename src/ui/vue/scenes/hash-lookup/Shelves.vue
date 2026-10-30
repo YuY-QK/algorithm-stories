@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { TOMB, type Pile } from '../../engine/hash-lookup';
-import { SHAKE_MS } from '../../components/shared/timing';
-import { useStageStop } from '../../components/shared/usePlayer';
+import { m } from '../../../../core/i18n';
+import { SHAKE_MS } from '../../../../core/timing';
+import type { Msg } from '../../../../core/types';
+import { TOMB, type Pile } from '../../../../engine/hash-lookup';
+import { useStageStop } from '../../../../components/shared/usePlayer';
 
 // 一排书架（桶）：每个书架上叠着书，管理员站在某个书架前。画面只管画，规则都在引擎里。
 const props = withDefaults(defineProps<{
@@ -21,6 +23,7 @@ const props = withDefaults(defineProps<{
   /** 点选中（描边） */
   picked?: number | null;
   clickable?: boolean;
+  t: (msg: Msg) => string;
 }>(), { keeper: null, hit: null, glow: null, clash: null, miss: null, shake: null, picked: null, clickable: false });
 
 const emit = defineEmits<{ pick: [i: number] }>();
@@ -42,8 +45,8 @@ useStageStop(stopShake);
 
 function label(i: number): string {
   const p = props.piles[i];
-  const what = p.length === 0 ? '空的' : p.map((b) => (b === TOMB ? '墓碑' : String(b))).join('、');
-  return i + ' 号书架：' + what;
+  const what = p.length === 0 ? props.t(m('scene.empty')) : p.map((b) => (b === TOMB ? props.t(m('scene.tomb')) : String(b))).join(props.t(m('scene.sep')));
+  return props.t(m('scene.shelf', { i, what }));
 }
 </script>
 

@@ -87,6 +87,7 @@ const controls = computed(() => rules.controls(state.value));
       </div>
       <p v-else-if="result.quiz" class="q">{{ tr(result.quiz.prompt) }}</p>
       <Controls :controls="controls" :scenes="scenes" :tr="tr" @act="onAct" />
+      <p v-if="result.foot" class="small-note">{{ tr(result.foot) }}</p>
     </div>
   </div>
 </template>
