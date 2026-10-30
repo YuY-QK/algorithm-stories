@@ -10,11 +10,12 @@ import { rulesOf, sceneOf } from '../levels';
 import Controls from './Controls.vue';
 
 // 做：逐步执行。输入由规则的 controls 修改，步骤轨迹由规则生成，这里只负责播放和排版。
-const props = defineProps<{ slug: string; rules: string; scene: string }>();
+const props = defineProps<{ slug: string; rules: string; scene: string; after?: string }>();
 const { tr, ui } = useCopy();
 
 const rules = rulesOf(props.slug, 'trace', props.rules) as TraceRules<unknown, Step, unknown>;
 const Scene = sceneOf(props.slug, props.scene);
+const After = props.after ? sceneOf(props.slug, props.after) : null;
 const input = ref(rules.start());
 const steps = computed(() => rules.trace(input.value));
 const p = usePlayer(steps);
@@ -38,6 +39,7 @@ const codeLabels = { group: ui('ui.code.group', { lang: 'KOTLIN' }), line: (n: n
   <div class="stage">
     <component :is="Scene" :input="input" :step="s" :t="tr" />
     <VarChips :vars="vars" />
+    <component :is="After" v-if="After" :input="input" :step="s" :t="tr" />
     <p class="note" aria-live="polite">{{ note }}</p>
     <Transport :player="p" :labels="tLabels">
       <button v-if="rules.jump" type="button" class="btn small" :disabled="p.atEnd.value" @click="p.jumpTo((x) => rules.jump!.stop(x, s))">{{ tr(rules.jump.label) }}</button>

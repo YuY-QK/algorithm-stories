@@ -25,7 +25,13 @@ export interface GameBlock extends Base {
   /** 台词字号：small 小一号（画面大、字多的关，如 BFS、DFS） */
   saySize?: 'small';
 }
-export interface TraceBlock extends Base { kind: 'trace'; rules: string; scene: string }
+export interface TraceBlock extends Base {
+  kind: 'trace';
+  rules: string;
+  scene: string;
+  /** 画在变量标签之后的第二块画面（如快速排序的调用栈） */
+  after?: string;
+}
 export interface PredictBlock extends Base { kind: 'predict'; rules: string; scene: string }
 export interface BugsBlock extends Base { kind: 'bugs'; rules: string; scene: string }
 export interface ExerciseBlock extends Base {

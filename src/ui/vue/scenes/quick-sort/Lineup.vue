@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { Kind } from '../../engine/quick-sort';
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
+import type { Kind } from '../../../../engine/quick-sort';
 import KidBar from './KidBar.vue';
 
 // 一排同学：每个同学按 id 固定在 DOM 里，换位置时 left 动画滑过去。
@@ -16,6 +18,7 @@ const props = withDefaults(defineProps<{
   pickable?: boolean;
   /** 透光提示的同学 id */
   glow?: number | null;
+  t: (msg: Msg) => string;
 }>(), { kinds: () => [], cmp: null, pickable: false, glow: null });
 
 const emit = defineEmits<{ pick: [id: number] }>();
@@ -39,7 +42,7 @@ const kindAt = (id: number): Kind => props.kinds[posOf.value.get(id) ?? 0] ?? 'p
       :type="pickable ? 'button' : undefined"
       class="slot"
       :style="{ '--s': posOf.get(id) }"
-      :aria-label="pickable ? '身高 ' + heights[id] + ' 的同学，选他当标杆' : undefined"
+      :aria-label="pickable ? t(m('pick.kid', { h: heights[id] })) : undefined"
       :aria-hidden="pickable ? undefined : true"
       @click="pickable && emit('pick', id)"
     >

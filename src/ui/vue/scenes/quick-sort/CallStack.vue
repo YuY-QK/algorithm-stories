@@ -1,12 +1,15 @@
 <script setup lang="ts">
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
+
 // 递归调用栈：从最外层到当前这一层，每层是一次 quickSort(lo, hi)。
-defineProps<{ stack: [number, number][] }>();
+defineProps<{ stack: [number, number][]; t: (msg: Msg) => string }>();
 </script>
 
 <template>
   <div class="cs">
-    <span class="lab">调用栈</span>
-    <span v-if="!stack.length" class="empty">（空）</span>
+    <span class="lab">{{ t(m('scene.stack')) }}</span>
+    <span v-if="!stack.length" class="empty">{{ t(m('scene.stackEmpty')) }}</span>
     <span v-for="([lo, hi], d) in stack" :key="d" class="fr" :class="{ top: d === stack.length - 1 }">
       <small v-if="d > 0">→</small>({{ lo }}, {{ hi }})
     </span>

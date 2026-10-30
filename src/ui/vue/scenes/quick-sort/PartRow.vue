@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { zoneOf, type QuickStep } from '../../engine/quick-sort';
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
+import { zoneOf, type QuickStep } from '../../../../engine/quick-sort';
 
 // 「做」里的数组：一排格子，标出 i、j、标杆，按矮队 / 高队 / 标杆 / 已站定上色，当前调用的区间 [lo, hi] 外的格子变淡。
 // 逐步执行、找 bug、猜下一步共用。pickable 时格子能点（猜下一步用）。
@@ -10,6 +12,7 @@ const props = defineProps<{
   miss?: number | null;
   /** 点对的格子 */
   hit?: number | null;
+  t: (msg: Msg) => string;
 }>();
 const emit = defineEmits<{ pick: [k: number] }>();
 
@@ -32,7 +35,7 @@ const canPick = (k: number) => props.pickable && props.step.lo !== null && k >= 
       :type="pickable ? 'button' : undefined"
       :disabled="pickable ? !canPick(k) : undefined"
       class="col"
-      :aria-label="pickable ? '下标 ' + k + '，值 ' + v : undefined"
+      :aria-label="pickable ? t(m('scene.cell', { k, v })) : undefined"
       @click="pickable && emit('pick', k)"
     >
       <span class="tg">{{ tags(step, k) }}</span>

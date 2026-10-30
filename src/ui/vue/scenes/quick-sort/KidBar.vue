@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { Kind } from '../../engine/quick-sort';
-import { animalOf } from './animals';
+import { animalOf, type Kind } from '../../../../engine/quick-sort';
 
 // 一位同学：小动物站在一根柱子上，柱子高度就是身高，下面写着数字。
 // 看和玩共用，只负责画。颜色由 kind 决定：矮队、高队、标杆、已站定、暗掉。
