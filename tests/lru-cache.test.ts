@@ -4,6 +4,12 @@ import {
   bugVerdict, buildTrace, countHits, genChallenge, genOps, genPredict, judgeChallenge, judgeEvict, lookFrames, playStars,
   refApply, refRun, rounds, runBug, simulate, trips, CHALLENGE_BOOKS, CHALLENGE_LEN, type Op,
 } from '../src/engine/lru-cache';
+import { mergeCopy, t as tr } from '../src/core/i18n';
+import coreCopy from '../src/core/copy.zh.json';
+import levelCopy from '../content/algorithms/lru-cache/copy.zh.json';
+import { asCopy } from './helpers/copy';
+
+const copy = mergeCopy(asCopy(coreCopy), asCopy(levelCopy));
 
 /* 带种子的随机数，测试可重复 */
 function rng(seed: number) {
@@ -146,7 +152,7 @@ describe('LRU 做：逐步执行', () => {
         expect(s.line).toBeLessThanOrEqual(CODE.length);
         expect(s.done).toBe(i === steps.length - 1);
         expect(s.list.length + (s.hand ? 1 : 0)).toBeLessThanOrEqual(cap + 1);
-        expect(s.note.length).toBeGreaterThan(0);
+        expect(tr(s.note, copy).length).toBeGreaterThan(0);
       });
     }
   });
@@ -168,12 +174,14 @@ describe('LRU 做：猜下一步', () => {
       qs.forEach((q, i) => {
         expect(q.before).toEqual(list);
         expect(q.options.length).toBeGreaterThanOrEqual(2);
-        expect(new Set(q.options).size).toBe(q.options.length);
+        const texts = q.options.map((o) => tr(o, copy));
+        expect(new Set(texts).size).toBe(q.options.length);
         const r = refApply(list, cap, ops[i]);
-        const ans = q.options[q.correct];
+        const ans = texts[q.correct];
         const order = (l: { k: number }[]) => l.map((x) => x.k).join(' → ');
-        if (q.prompt.includes('返回什么')) expect(ans).toBe('返回 ' + r.ret);
-        else if (q.prompt.includes('会淘汰谁')) expect(ans).toBe(r.evicted === null ? '没人被淘汰' : '淘汰 ' + r.evicted);
+        const prompt = tr(q.prompt, copy);
+        if (prompt.includes('返回什么')) expect(ans).toBe('返回 ' + r.ret);
+        else if (prompt.includes('会淘汰谁')) expect(ans).toBe(r.evicted === null ? '没人被淘汰' : '淘汰 ' + r.evicted);
         else expect(ans).toBe(order(r.list));
         list = r.list;
       });
@@ -184,11 +192,11 @@ describe('LRU 做：猜下一步', () => {
 describe('LRU 看：lookFrames', () => {
   it('台词由引擎生成：第一页讲桌子容量，最后一页数书架趟数，桌子永远不超容量', () => {
     const frames = lookFrames();
-    expect(frames[0].say).toContain('只放得下 ' + KID_CAP + ' 本');
-    expect(frames.at(-1)!.say).toContain('一共跑了 ' + trips(LOOK_SEQ, KID_CAP) + ' 趟书架');
+    expect(tr(frames[0].say, copy)).toContain('只放得下 ' + KID_CAP + ' 本');
+    expect(tr(frames.at(-1)!.say, copy)).toContain('一共跑了 ' + trips(LOOK_SEQ, KID_CAP) + ' 趟书架');
     expect(frames.at(-1)!.trips).toBe(trips(LOOK_SEQ, KID_CAP));
     for (const f of frames) {
-      expect(f.say.length).toBeGreaterThan(0);
+      expect(tr(f.say, copy).length).toBeGreaterThan(0);
       expect(f.desk.length).toBeLessThanOrEqual(KID_CAP);
     }
     // 趟数不会减少
@@ -203,7 +211,7 @@ describe('LRU 做：genPredict', () => {
     expect(a).toEqual(genPredict(rng(8)));
     expect(a.ops).toHaveLength(14);
     for (let t = 0; t < 50; t++) expect([2, 3]).toContain(genPredict(rng(t)).cap);
-    expect(rounds(a.cap, a.ops, rng(1)).every((q) => q.why.length > 0)).toBe(true);
+    expect(rounds(a.cap, a.ops, rng(1)).every((q) => tr(q.why, copy).length > 0)).toBe(true);
   });
 });
 
@@ -220,7 +228,7 @@ describe('LRU 做：找 bug（运行）', () => {
   it('bug 版本真的出错：返回值或内容和标准答案对不上', () => {
     for (const b of BUGS) {
       const steps = runBug(b);
-      expect(bugVerdict(steps.at(-1)!, b)).not.toBe('');
+      expect(bugVerdict(steps.at(-1)!, b)).not.toBeNull();
       expect(steps.at(-1)!.done).toBe(true);
       expect(steps.some((s) => s.bad)).toBe(true);
       // 没有 bug 的版本是正常的
@@ -229,7 +237,7 @@ describe('LRU 做：找 bug（运行）', () => {
   });
 
   it('三个 bug 的具体症状', () => {
-    const [a, g, d] = BUGS.map((b) => ({ steps: runBug(b), verdict: bugVerdict(runBug(b).at(-1)!, b) }));
+    const [a, g, d] = BUGS.map((b) => ({ steps: runBug(b), verdict: tr(bugVerdict(runBug(b).at(-1)!, b)!, copy) }));
     expect(a.verdict).toBe('❌ get(1) 返回了 -1，应该是 1');
     expect(g.verdict).toBe('❌ get(1) 返回了 1，应该是 -1');
     // 幽灵：哈希表里有 3 个 key，容量只有 2
@@ -240,11 +248,11 @@ describe('LRU 做：找 bug（运行）', () => {
     expect(d.verdict).toBe('❌ get(2) 返回了 -1，应该是 2');
   });
 
-  it('bugVerdict 没跑完是空串；每步的 note 不为空', () => {
+  it('bugVerdict 没跑完是 null', () => {
     for (const b of BUGS) {
       const steps = runBug(b);
-      expect(bugVerdict(steps[0], b)).toBe('');
-      for (const s of steps.slice(0, -1)) expect(bugVerdict(s, b)).toBe('');
+      expect(bugVerdict(steps[0], b)).toBeNull();
+      for (const s of steps.slice(0, -1)) expect(bugVerdict(s, b)).toBeNull();
     }
   });
 

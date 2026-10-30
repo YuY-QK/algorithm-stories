@@ -1,4 +1,7 @@
-import type { BugInfo, LookFrame, Step, Trace } from './types';
+import { m } from '../core/i18n';
+import type {
+  BugInfo, BugRules, Control, GameRules, LevelModule, LookFrame, LookRules, Msg, PredictRules, Puzzle, Rand, Step, Trace, TraceRules, Var,
+} from '../core/types';
 
 /* ---------- 看、玩：书桌上的书 ---------- */
 
@@ -67,6 +70,7 @@ export interface BookFrame extends LookFrame {
   trips: number;
 }
 
+/** 书的名字，如「📕1 号」：图案加编号，是数据不是文案 */
 const bookName = (b: number) => BOOK_EMOJI[b] + b + ' 号';
 
 /** 「看」的全部页：真的跑一遍 simulate，台词和画面都由结果生成 */
@@ -74,40 +78,46 @@ export function lookFrames(seq: number[] = LOOK_SEQ, cap: number = KID_CAP): Boo
   const acc = simulate(seq, cap);
   const out: BookFrame[] = [];
   let tripCount = 0;
-  const add = (say: string, desk: number[], extra: Partial<BookFrame> = {}) =>
+  const add = (say: Msg, desk: number[], extra: Partial<BookFrame> = {}) =>
     out.push({ say, desk, pulse: null, glow: null, trips: tripCount, ...extra });
 
-  add('书桌只放得下 ' + cap + ' 本书 📚 书架在很远的地方 🚶', []);
+  add(m('look.start', { cap }), []);
   tripCount = cap;
-  add('先借了 ' + acc.slice(0, cap).map((a) => a.book).join(' ') + ' 号，桌子满了', acc[cap - 1].desk);
+  add(m('look.first', { books: acc.slice(0, cap).map((a) => a.book).join(' ') }), acc[cap - 1].desk);
 
   let firstHit = true;
   let firstMiss = true;
   for (const a of acc.slice(cap)) {
     if (a.hit) {
       if (firstHit) {
-        add('要 ' + bookName(a.book) + '：桌上有！✅', a.before, { pulse: a.book });
-        add('拿起来看一看，放到最右边 👉', a.desk);
+        add(m('look.hit1', { book: bookName(a.book) }), a.before, { pulse: a.book });
+        add(m('look.hit1b'), a.desk);
         firstHit = false;
       } else {
-        add('要 ' + bookName(a.book) + '：桌上有 ✅ 放到最右边', a.desk);
+        add(m('look.hit', { book: bookName(a.book) }), a.desk);
       }
       continue;
     }
     tripCount++;
     if (firstMiss) {
-      add('要 ' + bookName(a.book) + '：桌上没有，只好去书架 🚶', a.before, { pulse: a.book });
-      add('桌子满了！' + bookName(a.evicted!) + '最久没碰，放回书架', a.before, { glow: a.evicted });
-      add(bookName(a.book) + '坐到最右边', a.desk);
+      add(m('look.miss1', { book: bookName(a.book) }), a.before, { pulse: a.book });
+      add(m('look.full1', { ev: bookName(a.evicted!) }), a.before, { glow: a.evicted });
+      add(m('look.sit', { book: bookName(a.book) }), a.desk);
       firstMiss = false;
     } else {
-      add('要 ' + bookName(a.book) + '：没有 🚶 放回最久没碰的 ' + bookName(a.evicted!), a.before, { glow: a.evicted, pulse: a.book });
-      add(bookName(a.book) + '坐到最右边', a.desk);
+      add(m('look.miss', { book: bookName(a.book), ev: bookName(a.evicted!) }), a.before, { glow: a.evicted, pulse: a.book });
+      add(m('look.sit', { book: bookName(a.book) }), a.desk);
     }
   }
-  add('最久没碰的在左边，刚碰过的在右边 🎉 一共跑了 ' + tripCount + ' 趟书架', acc[acc.length - 1].desk);
+  add(m('look.end', { n: tripCount }), acc[acc.length - 1].desk);
   return out;
 }
+
+const lookRules: LookRules<null, BookFrame> = {
+  first: null,
+  next: () => null,
+  frames: () => lookFrames(),
+};
 
 /** 玩法一：4 次要放回书架。第 2 次放回的是 3 号而不是 2 号，因为 2 号刚被翻过 */
 export const EVICT_SEQ = [1, 2, 3, 4, 5, 2, 6, 3, 5, 1];
@@ -137,6 +147,166 @@ export function playStars(mistakes: number): 1 | 2 | 3 {
 export function trips(seq: number[], cap: number): number {
   return simulate(seq, cap).filter((a) => !a.hit).length;
 }
+
+/* ---------- 玩法一：当管理员（GameRules） ---------- */
+
+const EVICT_ACC = simulate(EVICT_SEQ, KID_CAP);
+
+export interface EvictGame {
+  /** 现在在借第几本 */
+  i: number;
+  desk: number[];
+  /** fetch：把要的书拿上桌（或翻一翻）；evict：桌子满了，挑一本放回书架；done：借完了 */
+  phase: 'fetch' | 'evict' | 'done';
+  mistakes: number;
+  /** 已经放回对的次数 */
+  evicted: number;
+  /** 透光提示：桌上最久没碰的那本 */
+  glow: number | null;
+  /** 点错的书摇一下，格式 [书, 计数] */
+  shake: [number, number] | null;
+}
+
+export type EvictAction = { type: 'desk'; book: number } | { type: 'shelf'; book: number } | { type: 'again' };
+
+/** 现在要借的这一次（借完以后停在最后一次） */
+export const evictAccess = (g: EvictGame): Access => EVICT_ACC[Math.min(g.i, EVICT_ACC.length - 1)];
+/** 每一本的借书记录，画面画进度条用 */
+export const EVICT_BOOKS_SEQ = EVICT_ACC.map((a) => a.book);
+
+/** 刻度「最久没碰 ←→ 刚碰过」：点错过一次，或已经放回对了两次以后才出现 */
+export const evictRuler = (g: EvictGame) => g.mistakes > 0 || g.evicted >= 2;
+
+/** 第 i 本要借时的台词和阶段 */
+function askEvict(i: number): { phase: 'fetch' | 'evict'; say: Msg } {
+  const a = EVICT_ACC[i];
+  const book = bookName(a.book);
+  if (a.hit) return { phase: 'fetch', say: m('evict.ask.hit', { book }) };
+  if (a.evicted !== null) return { phase: 'evict', say: m('evict.ask.full', { book }) };
+  return { phase: 'fetch', say: m('evict.ask.shelf', { book }) };
+}
+
+function startEvict(): { state: EvictGame; say: Msg } {
+  const a = askEvict(0);
+  return { state: { i: 0, desk: [], phase: a.phase, mistakes: 0, evicted: 0, glow: null, shake: null }, say: a.say };
+}
+
+/** 借好了这一本：桌子换成借之后的样子，进入下一本（或借完）。prefix 是这一步的结果，接在下一句前面 */
+function advanceEvict(g: EvictGame, prefix: Msg): { state: EvictGame; say: Msg; sound: 'right' | 'win' } {
+  const a = evictAccess(g);
+  const desk = a.desk;
+  if (g.i >= EVICT_ACC.length - 1) {
+    return { state: { ...g, desk, phase: 'done', glow: null }, say: m('evict.join', { a: prefix, b: m('evict.done') }), sound: 'win' };
+  }
+  const next = askEvict(g.i + 1);
+  return { state: { ...g, desk, i: g.i + 1, phase: next.phase, glow: null }, say: m('evict.join', { a: prefix, b: next.say }), sound: 'right' };
+}
+
+export const evictRules: GameRules<EvictGame, EvictAction> = {
+  start: () => startEvict(),
+  act(g, a) {
+    if (a.type === 'again') return g.phase === 'done' ? startEvict() : null;
+    if (g.phase === 'done') return null;
+    const cur = evictAccess(g);
+    const book = bookName(cur.book);
+    const wiggle = (extra: Partial<EvictGame>, say: Msg) => ({
+      state: { ...g, ...extra, shake: [a.book, (g.shake?.[1] ?? 0) + 1] as [number, number] },
+      say,
+      sound: 'wrong' as const,
+    });
+    if (g.phase === 'fetch') {
+      if (cur.hit && a.type === 'desk' && a.book === cur.book) return advanceEvict(g, m('evict.say.hit', { book }));
+      if (!cur.hit && a.type === 'shelf' && a.book === cur.book) return advanceEvict(g, m('evict.say.shelf', { book }));
+      // 点错了书：不扣分，晃一下，提示一闪一闪的那本
+      return wiggle({}, m('evict.say.want', { book }));
+    }
+    if (a.type !== 'desk') return null;
+    const v = judgeEvict(g.desk, a.book);
+    if (v === 'right') {
+      const out = advanceEvict({ ...g, evicted: g.evicted + 1 }, m('evict.say.evict', { ev: bookName(cur.evicted!), book }));
+      return out;
+    }
+    // 点错了要放回的书：透出桌上最久没碰的那本
+    return wiggle({ mistakes: g.mistakes + 1, glow: g.desk[0] }, m(v === 'just-touched' ? 'evict.say.touched' : 'evict.say.again'));
+  },
+  clickable: (g) => g.phase !== 'done',
+  controls: (g): Control<EvictAction>[] =>
+    g.phase === 'done' ? [{ type: 'button', action: { type: 'again' }, label: m('again'), look: 'primary' }] : [],
+  result: (g) => {
+    if (g.phase !== 'done') return null;
+    const stars = playStars(g.mistakes);
+    return { stars, art: { scene: 'EvictDone', props: { retry: stars < 3 } } };
+  },
+};
+
+/* ---------- 玩法二：猜猜去几趟书架（GameRules） ---------- */
+
+export interface TripsGame {
+  /** 书桌放得下几本：小书桌或大书桌 */
+  cap: number;
+  /** 现在在借第几本 */
+  i: number;
+  desk: number[];
+  /** 已经去了几趟书架 */
+  count: number;
+  /** 一闪一闪：其实在桌上的那本 */
+  pulse: number | null;
+  /** 猜错的那个按钮晃一下，格式 [哪个, 第几次]，猜对了清掉 */
+  wrong: ['hit' | 'miss', number] | null;
+  /** 小书桌借完时的趟数，拿来和大书桌比 */
+  small: number | null;
+}
+
+export type TripsAction = { type: 'guess'; g: 'hit' | 'miss' } | { type: 'start'; cap: number };
+
+const tripsAcc = (cap: number) => simulate(TRIP_SEQ, cap);
+export const tripsDone = (g: TripsGame) => g.i >= TRIP_SEQ.length;
+export const tripsSaved = (g: TripsGame) => (g.small === null ? 0 : g.small - g.count);
+
+function startTrips(cap: number, small: number | null, wrong: TripsGame['wrong']): { state: TripsGame; say: Msg } {
+  return {
+    state: { cap, i: 0, desk: [], count: 0, pulse: null, wrong, small },
+    say: m('trips.say.start', { book: bookName(TRIP_SEQ[0]) }),
+  };
+}
+
+export const tripsRules: GameRules<TripsGame, TripsAction> = {
+  start: () => startTrips(TRIP_CAP, null, null),
+  act(g, a) {
+    if (a.type === 'start') return startTrips(a.cap, g.small, g.wrong);
+    if (tripsDone(g)) return null;
+    const cur = tripsAcc(g.cap)[g.i];
+    if ((a.g === 'hit') === cur.hit) {
+      const i = g.i + 1;
+      const count = cur.hit ? g.count : g.count + 1;
+      const done = i >= TRIP_SEQ.length;
+      const state: TripsGame = { ...g, i, desk: cur.desk, count, pulse: null, wrong: null, small: done && g.cap === TRIP_CAP ? count : g.small };
+      const book = bookName(cur.book);
+      return {
+        state,
+        say: done ? m('trips.say.done') : m(cur.hit ? 'trips.say.hit' : 'trips.say.miss', { book, next: bookName(TRIP_SEQ[i]) }),
+        sound: done ? 'win' : 'right',
+      };
+    }
+    // 猜错不扣分：被猜错的按钮晃一下；书其实在桌上时它一闪一闪，其实不在时提醒再数数桌上的书
+    const wrong: TripsGame['wrong'] = [a.g, (g.wrong?.[1] ?? 0) + 1];
+    return {
+      state: { ...g, wrong, pulse: cur.hit ? cur.book : null },
+      say: cur.hit ? m('trips.say.look') : m('trips.say.count', { book: bookName(cur.book) }),
+      sound: 'wrong',
+    };
+  },
+  clickable: (g) => !tripsDone(g),
+  controls: (g): Control<TripsAction>[] => {
+    if (!tripsDone(g)) return [];
+    const small = g.cap === TRIP_CAP;
+    const out: Control<TripsAction>[] = [];
+    if (small) out.push({ type: 'button', action: { type: 'start', cap: TRIP_BIG_CAP }, label: m('trips.big'), look: 'primary' });
+    out.push({ type: 'button', action: { type: 'start', cap: TRIP_CAP }, label: m('trips.small'), look: small ? undefined : 'primary' });
+    return out;
+  },
+  result: (g) => (tripsDone(g) ? { art: { scene: 'TripsDone', props: { count: g.count, big: g.cap !== TRIP_CAP, saved: tripsSaved(g), hasSmall: g.small !== null } } } : null),
+};
 
 /* ---------- 做：逐步执行 ---------- */
 
@@ -245,6 +415,8 @@ export interface LruStep extends Step {
   ret: number | null;
   /** 这个操作的最后一步 */
   opEnd: boolean;
+  /** 到这一步为止，已经做完的 get 的返回值（下标是第几个操作） */
+  rets: Record<number, number>;
   /** 操作结束时，和正确的 LRU 对不上（只会出现在 bug 版本里） */
   bad: boolean;
 }
@@ -335,8 +507,9 @@ function traceOf(cap: number, ops: Op[], bug?: BugId): Trace<LruStep> {
   let focus: number | null = null;
   let evicted: number | null = null;
   let ret: number | null = null;
+  const rets: Record<number, number> = {};
 
-  const push = (line: number, note: string, extra: Partial<LruStep> = {}) => {
+  const push = (line: number, note: Msg, extra: Partial<LruStep> = {}) => {
     steps.push({
       line,
       note,
@@ -350,6 +523,7 @@ function traceOf(cap: number, ops: Op[], bug?: BugId): Trace<LruStep> {
       evicted,
       ret,
       opEnd: false,
+      rets: { ...rets },
       bad: false,
       ...extra,
     });
@@ -358,10 +532,10 @@ function traceOf(cap: number, ops: Op[], bug?: BugId): Trace<LruStep> {
   const touch = (n: SimNode, remLine: number, addLine: number) => {
     hand = n;
     remove(n);
-    push(remLine, 'remove(n)：把节点 ' + n.key + ' 从链表上摘下来（它前后两个邻居直接连在一起）。');
+    push(remLine, m('trace.note.remove', { k: n.key }));
     hand = null;
     addLast(n);
-    push(addLine, 'addLast(n)：把节点 ' + n.key + ' 接到 tail 前面，它现在是最近用过的。');
+    push(addLine, m('trace.note.addLast', { k: n.key }));
   };
 
   ops.forEach((op, i) => {
@@ -372,84 +546,85 @@ function traceOf(cap: number, ops: Op[], bug?: BugId): Trace<LruStep> {
     ret = null;
     hand = null;
     const r = refApply(ref, cap, op);
-    const finish = (line: number, note: string) => {
+    const finish = (line: number, note: Msg) => {
       const list = walk();
       const same = list.length === r.list.length && list.every((x, j) => x.k === r.list[j].k && x.v === r.list[j].v);
       const mapOk = map.size === list.length && list.every((x) => map.has(x.k));
       const retOk = op.t !== 'get' || ret === r.ret;
+      if (op.t === 'get' && ret !== null) rets[i] = ret;
       push(line, note, { opEnd: true, bad: !(same && mapOk && retOk) });
       ref = r.list;
     };
 
     if (op.t === 'get') {
-      push(L.getFun, '调用 ' + label + '。');
+      push(L.getFun, m('trace.note.call', { op: label }));
       const n = map.get(op.k);
       if (!n) {
         ret = -1;
-        finish(L.getFind, 'map[' + op.k + '] 没有，直接 return -1。哈希表一步就知道有没有。');
+        finish(L.getFind, m('trace.note.getMiss', { k: op.k }));
         return;
       }
-      push(L.getFind, 'map[' + op.k + '] 找到节点（值 ' + n.value + '），不用一个个找，O(1)。');
+      push(L.getFind, m('trace.note.getFound', { k: op.k, v: n.value }));
       if (bug === 'no-touch') {
-        push(L.getTouch, '（bug 版本）这一行只是注释，什么也没做：节点 ' + op.k + ' 还留在原来的位置。');
+        push(L.getTouch, m('trace.note.getNoTouch', { k: op.k }));
       } else {
-        push(L.getTouch, 'touch(n)：用过了，要挪到最右边。');
+        push(L.getTouch, m('trace.note.getTouch'));
         touch(n, L.touchRemove, L.touchAdd);
       }
       ret = n.value;
-      finish(L.getReturn, 'return ' + n.value + '。');
+      finish(L.getReturn, m('trace.note.getReturn', { v: n.value }));
       return;
     }
 
-    push(L.putFun, '调用 ' + label + '。');
+    push(L.putFun, m('trace.note.call', { op: label }));
     const old = map.get(op.k);
-    push(L.putFind, old ? 'map[' + op.k + '] 已经有了。' : 'map[' + op.k + '] 没有，是新 key。');
+    push(L.putFind, m(old ? 'trace.note.putHas' : 'trace.note.putNone', { k: op.k }));
     let returned = false;
     if (old) {
-      push(L.putIf, 'old 不是 null：key 已存在，只需要更新，不用新建。');
+      push(L.putIf, m('trace.note.putOld'));
       old.value = op.v;
-      push(L.putSet, 'old.value = ' + op.v + '：更新值。');
-      push(L.putTouch, 'touch(old)：更新也算用过，要挪到最右边。');
+      push(L.putSet, m('trace.note.putSet', { v: op.v }));
+      push(L.putTouch, m('trace.note.putTouch'));
       touch(old, L.touchRemove, L.touchAdd);
       if (bug !== 'dup') {
-        finish(L.putReturn, 'return：更新完毕，不会淘汰任何人。');
+        finish(L.putReturn, m('trace.note.putReturn'));
         returned = true;
       } else {
-        push(L.putReturn, '（bug 版本）这一行只是注释，没有 return：代码继续往下走，当成新 key 处理！');
+        push(L.putReturn, m('trace.note.putNoReturn'));
       }
     } else {
-      push(L.putIf, 'old 是 null：新 key，往下走。');
+      push(L.putIf, m('trace.note.putNew'));
     }
     if (returned) return;
 
     const full = map.size === cap;
-    push(L.putFull, 'map.size = ' + map.size + (full ? ' 等于 ' : ' 不等于 ') + 'capacity = ' + cap + (full ? '：满了，必须先淘汰一个。' : '：还有空位。'));
+    push(L.putFull, m(full ? 'trace.note.putFull' : 'trace.note.putRoom', { size: map.size, cap }));
     if (full) {
       const eldest = head.next!;
       focus = eldest.key;
-      push(L.putEldest, 'head.next 就是最久没用的：节点 ' + eldest.key + '。');
+      push(L.putEldest, m('trace.note.putEldest', { k: eldest.key }));
       hand = eldest;
       remove(eldest);
-      push(L.putRemove, 'remove(eldest)：把它从链表上摘下来。');
+      push(L.putRemove, m('trace.note.putRemove'));
       if (bug === 'ghost') {
         map.delete(op.k);
         evicted = eldest.key;
         hand = null;
-        push(L.putMapRemove, '（bug 版本）map.remove(key) 删的是新来的 ' + op.k + '，它还不在 map 里，什么也没删。节点 ' + eldest.key + ' 虽然离开了链表，哈希表里还留着它！');
+        push(L.putMapRemove, m('trace.note.putGhost', { k: op.k, e: eldest.key }));
       } else {
         map.delete(eldest.key);
         evicted = eldest.key;
         hand = null;
-        push(L.putMapRemove, 'map.remove(eldest.key)：哈希表里也要删掉 ' + eldest.key + '，两边都删才算淘汰。');
+        push(L.putMapRemove, m('trace.note.putMapRemove', { e: eldest.key }));
       }
       focus = op.k;
     }
     const n = mk(op.k, op.v);
-    push(L.putNew, '新建节点 ' + op.k + '，值 ' + op.v + '。');
+    push(L.putNew, m('trace.note.putNewNode', { k: op.k, v: op.v }));
     map.set(op.k, n);
-    push(L.putMap, 'map[' + op.k + '] = n：哈希表记下它。');
+    push(L.putMap, m('trace.note.putMap', { k: op.k }));
     addLast(n);
-    finish(L.putAdd, 'addLast(n)：接到最右边，' + label + ' 完成。');
+    finish(L.putAdd, m('trace.note.putAdd', { op: label }));
   });
 
   if (steps.length) steps[steps.length - 1].done = true;
@@ -477,17 +652,21 @@ export interface Round {
   before: Item[];
   /** 操作 */
   op: Op;
-  prompt: string;
-  options: string[];
+  prompt: Msg;
+  options: Msg[];
   correct: number;
   /** 答完（对或错）都显示的解释 */
-  why: string;
+  why: Msg;
 }
 
-const orderText = (l: Item[]) => (l.length ? l.map((x) => x.k).join(' → ') : '（空）');
+/** 链表从最久到最近的顺序，如「1 → 2 → 3」（出题时链表不会是空的） */
+const orderMsg = (l: Item[]) => m('predict.order', { s: l.map((x) => x.k).join(' → ') });
 
-function shuffleIn(correct: string, wrong: string[], rand: () => number): { options: string[]; correct: number } {
-  const uniq = [...new Set(wrong.filter((w) => w !== correct))];
+/** 把正确答案插进错误选项里的随机位置；文字一样的选项只留一个 */
+function shuffleIn(correct: Msg, wrong: Msg[], rand: () => number): { options: Msg[]; correct: number } {
+  const key = (x: Msg) => JSON.stringify(x);
+  const seen = new Set([key(correct)]);
+  const uniq = wrong.filter((w) => !seen.has(key(w)) && (seen.add(key(w)), true));
   const at = Math.floor(rand() * (uniq.length + 1));
   const options = [...uniq.slice(0, at), correct, ...uniq.slice(at)];
   return { options, correct: at };
@@ -509,50 +688,70 @@ export function rounds(cap: number, ops: Op[], rand: () => number = Math.random)
     const exists = list.some((x) => x.k === op.k);
     let q: Omit<Round, 'before' | 'op'>;
     if (op.t === 'get' && !exists) {
-      const s = shuffleIn('返回 -1', ['返回 ' + (op.k + 1)], rand);
-      q = { prompt: label + ' 返回什么？', ...s, why: 'map 里没有 ' + op.k + '，直接 return -1，链表不动。' };
+      const s = shuffleIn(m('predict.ret', { v: -1 }), [m('predict.ret', { v: op.k + 1 })], rand);
+      q = { prompt: m('predict.getRet', { op: label }), ...s, why: m('predict.why.getMiss', { k: op.k }) };
     } else if (op.t === 'get') {
       const wrongOld = [op.k, ...list.filter((x) => x.k !== op.k).map((x) => x.k)];
-      const correct = orderText(r.list);
-      const s = shuffleIn(correct, [orderText(list), wrongOld.join(' → '), orderText([...r.list, { k: op.k + 1, v: 0 }])], rand);
-      q = {
-        prompt: label + ' 命中了。之后链表从最久到最近的顺序是？',
-        ...s,
-        why: '命中就是用过了：' + op.k + ' 挪到最右边（最近用过），其他的顺序不变。',
-      };
+      const correct = orderMsg(r.list);
+      const s = shuffleIn(correct, [orderMsg(list), m('predict.order', { s: wrongOld.join(' → ') }), orderMsg([...r.list, { k: op.k + 1, v: 0 }])], rand);
+      q = { prompt: m('predict.getHit', { op: label }), ...s, why: m('predict.why.getHit', { k: op.k }) };
     } else if (exists && list.length === cap) {
-      const s = shuffleIn('没人被淘汰', list.map((x) => '淘汰 ' + x.k), rand);
-      q = {
-        prompt: '桌子满了。' + label + '，key 已经存在，会淘汰谁？',
-        ...s,
-        why: op.k + ' 已经在里面了，只更新值并挪到最右边，一个都不用淘汰。',
-      };
+      const s = shuffleIn(m('predict.noEvict'), list.map((x) => m('predict.evict', { k: x.k })), rand);
+      q = { prompt: m('predict.putSame', { op: label }), ...s, why: m('predict.why.putSame', { k: op.k }) };
     } else if (!exists && list.length === cap) {
-      const s = shuffleIn('淘汰 ' + list[0].k, [...list.slice(1).map((x) => '淘汰 ' + x.k), '没人被淘汰'], rand);
-      q = {
-        prompt: '满了。' + label + '，key 是新的，会淘汰谁？',
-        ...s,
-        why: '淘汰最久没用的，也就是链表最左边的 ' + list[0].k + '。新来的 ' + op.k + ' 放到最右边。',
-      };
+      const s = shuffleIn(m('predict.evict', { k: list[0].k }), [...list.slice(1).map((x) => m('predict.evict', { k: x.k })), m('predict.noEvict')], rand);
+      q = { prompt: m('predict.putFull', { op: label }), ...s, why: m('predict.why.putFull', { eldest: list[0].k, k: op.k }) };
     } else {
-      const correct = orderText(r.list);
-      const wrong = [orderText([{ k: op.k, v: op.t === 'put' ? op.v : 0 }, ...list.filter((x) => x.k !== op.k)])];
-      if (exists) wrong.push(orderText(list));
-      wrong.push(orderText([...r.list.slice().reverse()]), orderText([...r.list, { k: op.k + 1, v: 0 }]));
+      const correct = orderMsg(r.list);
+      const wrong = [orderMsg([{ k: op.k, v: op.t === 'put' ? op.v : 0 }, ...list.filter((x) => x.k !== op.k)])];
+      if (exists) wrong.push(orderMsg(list));
+      wrong.push(orderMsg([...r.list.slice().reverse()]), orderMsg([...r.list, { k: op.k + 1, v: 0 }]));
       const s = shuffleIn(correct, wrong, rand);
-      q = {
-        prompt: label + ' 之后，链表从最久到最近的顺序是？',
-        ...s,
-        why: exists
-          ? op.k + ' 已存在：更新值，并挪到最右边。'
-          : '还有空位，不用淘汰。新来的 ' + op.k + ' 放到最右边（最近用过）。',
-      };
+      q = { prompt: m('predict.putAfter', { op: label }), ...s, why: m(exists ? 'predict.why.putUpdate' : 'predict.why.putNew', { k: op.k }) };
     }
     out.push({ before: list, op, ...q });
     list = r.list;
   }
   return out;
 }
+
+/** 猜下一步一问时画面的样子：操作之前的链表，和下一个操作。focus 是答完以后亮出来的那个 key */
+export interface PredictView {
+  before: Item[];
+  cap: number;
+  op: Op;
+  focus: number | null;
+}
+
+/** 一道题：随机出一局的 14 题里的一题。答对答错都讲解，答完直接换下一题 */
+function makePuzzle(rand?: Rand): Puzzle<PredictView, number> {
+  const g = genPredict(rand);
+  const list = rounds(g.cap, g.ops, rand);
+  const q = list[Math.floor((rand ?? Math.random)() * list.length)];
+  const view = (focus: number | null): PredictView => ({ before: q.before, cap: g.cap, op: q.op, focus });
+  const reveal = { view: view(q.op.k), prompt: q.prompt };
+  return {
+    chips: [['capacity', g.cap]],
+    skipEnd: true,
+    end: reveal,
+    asks: [{
+      view: view(null),
+      prompt: q.prompt,
+      kind: 'choose',
+      answer: q.correct,
+      options: q.options.map((label, value) => ({ value, label })),
+      why: q.why,
+      right: q.why,
+      reveal,
+      revealOnRight: true,
+    }],
+  };
+}
+
+export const predictRules: PredictRules<PredictView, number> = {
+  goal: 5,
+  puzzle: (rand) => makePuzzle(rand),
+};
 
 /* ---------- 做：找 bug ---------- */
 
@@ -570,7 +769,7 @@ function variant(line: number, text: string): string[] {
 export const BUGS: readonly Bug[] = [
   {
     id: 'no-touch',
-    title: '刚用过的书，却被先淘汰了',
+    title: m('bug.no-touch.title'),
     code: variant(L.getTouch, '        // 找到了，直接返回'),
     wrongLine: L.getTouch,
     fixed: '        touch(n)',
@@ -582,12 +781,12 @@ export const BUGS: readonly Bug[] = [
       { t: 'put', k: 3, v: 3 },
       { t: 'get', k: 1 },
     ],
-    expect: '容量 2。get(1) 刚用过 1，put(3) 应该淘汰 2，最后 get(1) 应该返回 1',
-    explain: 'get 命中以后忘了 touch，链表顺序没变，1 还是最左边（最久没用）。put(3) 就把刚用过的 1 淘汰了。没有这一步，LRU 退化成了 FIFO。',
+    expect: m('bug.no-touch.expect'),
+    explain: m('bug.no-touch.explain'),
   },
   {
     id: 'ghost',
-    title: '明明淘汰了，却还能 get 到',
+    title: m('bug.ghost.title'),
     code: variant(L.putMapRemove, '            map.remove(key)'),
     wrongLine: L.putMapRemove,
     fixed: '            map.remove(eldest.key)',
@@ -598,12 +797,12 @@ export const BUGS: readonly Bug[] = [
       { t: 'put', k: 3, v: 3 },
       { t: 'get', k: 1 },
     ],
-    expect: '容量 2。put(3) 淘汰了 1，之后 get(1) 应该返回 -1',
-    explain: '淘汰要两边一起删：链表里摘掉，哈希表里也要删被淘汰的 eldest.key。这里删的是新来的 key（根本不在 map 里），哈希表里留下了 1 的「幽灵」：get(1) 还能查到，还把它接回了链表，缓存里有了 3 个，超过容量。',
+    expect: m('bug.ghost.expect'),
+    explain: m('bug.ghost.explain'),
   },
   {
     id: 'dup',
-    title: 'put 同一个 key，书反而少了一本',
+    title: m('bug.dup.title'),
     code: variant(L.putReturn, '            // 更新完了'),
     wrongLine: L.putReturn,
     fixed: '            return',
@@ -614,8 +813,8 @@ export const BUGS: readonly Bug[] = [
       { t: 'put', k: 1, v: 10 },
       { t: 'get', k: 2 },
     ],
-    expect: '容量 2。put(1, 10) 只是更新 1 的值，get(2) 应该返回 2',
-    explain: '更新完忘了 return，代码接着往下走，把 1 当成新 key 再插一遍：缓存已满，于是淘汰了无辜的 2，链表里还有了两个 1。',
+    expect: m('bug.dup.expect'),
+    explain: m('bug.dup.explain'),
   },
 ];
 
@@ -624,18 +823,26 @@ export function runBug(bug: Bug): Trace<LruStep> {
   return traceOf(bug.cap, bug.ops, bug.id);
 }
 
-/** 找 bug 面板底部的判定文字：跑到最后一步才有，指出第一个返回值不对的 get；返回值都对就看内容 */
-export function bugVerdict(step: LruStep, bug: Bug): string {
-  if (!step.done) return '';
+/** 找 bug 面板底部的判定：跑到最后一步才有，指出第一个返回值不对的 get；返回值都对就看内容；没跑完是 null */
+export function bugVerdict(step: LruStep, bug: Bug): Msg | null {
+  if (!step.done) return null;
   const steps = runBug(bug);
   const expected = refRun(bug.cap, bug.ops);
   for (let i = 0; i < bug.ops.length; i++) {
     if (bug.ops[i].t !== 'get') continue;
     const end = steps.find((s) => s.op === i && s.opEnd)!;
-    if (end.ret !== expected.rets[i]) return '❌ ' + opText(bug.ops[i]) + ' 返回了 ' + end.ret + '，应该是 ' + expected.rets[i];
+    if (end.ret !== expected.rets[i]) return m('bug.verdict.ret', { op: opText(bug.ops[i]), got: end.ret ?? '—', want: expected.rets[i] ?? '—' });
   }
-  return step.bad ? '❌ 缓存的内容和正确的 LRU 对不上' : '';
+  return step.bad ? m('bug.verdict.bad') : null;
 }
+
+const bugRules: BugRules<Bug, LruStep> = {
+  bugs: BUGS,
+  run: runBug,
+  input: (bug) => m('bug.input', { expect: bug.expect }),
+  vars: (s, bug): Var[] => [[m('trace.v.op'), s.opLabel], ['capacity', bug.cap], [m('trace.v.ret'), s.ret ?? '—']],
+  verdict: bugVerdict,
+};
 
 /* ---------- 做：挑战 ---------- */
 
@@ -670,3 +877,128 @@ export function judgeChallenge(c: Challenge, guess: number): Verdict {
   const lru = countHits(c.seq, c.cap, 'lru');
   return { lru, fifo: countHits(c.seq, c.cap, 'fifo'), diff: Math.abs(guess - lru) };
 }
+
+/** 猜中几题过关 */
+export const CHALLENGE_GOAL = 3;
+
+export interface ChallengeState {
+  c: Challenge;
+  /** 揭晓过了没有 */
+  shown: boolean;
+  /** 孩子猜的数（揭晓以后才有意义） */
+  guess: number;
+  /** 猜中（一次不差）的题数 */
+  wins: number;
+  /** 输入不对时的提醒，没有就是 null */
+  msg: Msg | null;
+  /** 每提交一次、换一题加一；输入框看到它变了就清空 */
+  round: number;
+}
+
+export type ChallengeAction = { type: 'guess'; n: number } | { type: 'invalid' } | { type: 'next' };
+
+const rangeMsg = () => m('chal.range', { max: CHALLENGE_LEN });
+
+/** 揭晓以后的数据：LRU 和 FIFO 各命中几次、每本书是否命中，和一句比较 */
+export function challengeReveal(s: ChallengeState) {
+  const v = judgeChallenge(s.c, s.guess);
+  const compare = v.lru > v.fifo ? m('chal.cmp.more', { n: v.lru - v.fifo }) : v.lru < v.fifo ? m('chal.cmp.less', { n: v.fifo - v.lru }) : m('chal.cmp.same');
+  return {
+    ...v,
+    compare,
+    lruRow: simulate(s.c.seq, s.c.cap, 'lru').map((a) => a.hit),
+    fifoRow: simulate(s.c.seq, s.c.cap, 'fifo').map((a) => a.hit),
+  };
+}
+
+export const challengeRules: GameRules<ChallengeState, ChallengeAction> = {
+  start: (rand) => ({ state: { c: genChallenge(rand), shown: false, guess: 0, wins: 0, msg: null, round: 0 } }),
+  act(s, a, rand) {
+    if (a.type === 'next') {
+      return s.shown ? { state: { ...s, c: genChallenge(rand), shown: false, msg: null, round: s.round + 1 } } : null;
+    }
+    if (s.shown) return null;
+    if (a.type === 'invalid' || a.n < 0 || a.n > CHALLENGE_LEN) return { state: { ...s, msg: rangeMsg() } };
+    const win = judgeChallenge(s.c, a.n).diff === 0;
+    return { state: { ...s, shown: true, guess: a.n, wins: s.wins + (win ? 1 : 0), msg: null, round: s.round + 1 } };
+  },
+  clickable: () => false,
+  controls: (s): Control<ChallengeAction>[] =>
+    s.shown
+      ? []
+      : [{
+        type: 'number', label: m('chal.guessLabel'), placeholder: m('chal.guessPlaceholder'), min: 0, max: CHALLENGE_LEN,
+        submit: (n) => ({ type: 'guess', n }), submitLabel: m('chal.reveal'), invalid: { type: 'invalid' }, clearOn: s.round,
+      }],
+};
+
+/* ---------- 做：逐步执行（TraceRules） ---------- */
+
+/** 「经典例子」：容量 2，涵盖命中、更新、淘汰 */
+export const CLASSIC: Op[] = [
+  { t: 'put', k: 1, v: 1 }, { t: 'put', k: 2, v: 2 }, { t: 'get', k: 1 }, { t: 'put', k: 3, v: 3 },
+  { t: 'get', k: 2 }, { t: 'put', k: 4, v: 4 }, { t: 'get', k: 1 }, { t: 'get', k: 3 }, { t: 'get', k: 4 },
+];
+
+export interface TraceInput {
+  cap: number;
+  ops: Op[];
+}
+export type TraceAction = { type: 'cap'; n: number } | { type: 'classic' } | { type: 'random' };
+
+export const traceRules: TraceRules<TraceInput, LruStep, TraceAction> = {
+  code: CODE,
+  start: () => ({ cap: 2, ops: CLASSIC }),
+  act(input, a, rand) {
+    switch (a.type) {
+      // 换容量：容量 2 回到经典例子，别的容量随机一串
+      case 'cap': return a.n === input.cap ? input : { cap: a.n, ops: a.n === 2 ? CLASSIC : genOps(9, a.n + 2, rand) };
+      case 'classic': return { cap: 2, ops: CLASSIC };
+      case 'random': return { ...input, ops: genOps(9, input.cap + 2, rand) };
+    }
+  },
+  controls: (input) => [
+    {
+      type: 'segmented', legend: m('trace.cap'), value: input.cap,
+      options: [2, 3].map((n) => ({ value: n, label: m('num', { n }) })),
+      choose: (v) => ({ type: 'cap', n: Number(v) }),
+    },
+    {
+      type: 'group', legend: m('trace.ops'),
+      items: [
+        { type: 'button', action: { type: 'classic' }, label: m('trace.classic'), look: 'small' },
+        { type: 'button', action: { type: 'random' }, label: m('trace.random'), look: 'small' },
+      ],
+    },
+  ],
+  trace: (input) => buildTrace(input.cap, input.ops),
+  vars: (input, s): Var[] => [[m('trace.v.op'), s.opLabel], ['capacity', input.cap], ['map.size', s.mapKeys.length], [m('trace.v.ret'), s.ret ?? '—']],
+};
+
+/* ---------- 延伸：对比图 ---------- */
+
+/** 「为什么要两个数据结构」的对比图：每次操作要「找一找」的次数，列表从头找最坏看遍所有 n 个，哈希表一步 */
+export function compareRows() {
+  return [
+    { label: '100', unit: m('compare.books'), n: 100 },
+    { label: '10,000', unit: m('compare.tenK'), n: 10_000 },
+    { label: '1,000,000', unit: m('compare.million'), n: 1_000_000 },
+  ].map((r) => ({
+    label: r.label,
+    unit: r.unit,
+    bars: [
+      { name: m('compare.listOnly'), value: r.n, tone: 'muted' as const },
+      { name: m('compare.hashList'), value: 1, tone: 'accent' as const },
+    ],
+  }));
+}
+
+/* ---------- 关卡模块：level.json 按名字引用这里的规则 ---------- */
+
+export const level: LevelModule = {
+  look: { story: lookRules },
+  trace: { main: traceRules },
+  predict: { main: predictRules },
+  bugs: { main: bugRules },
+  games: { evict: evictRules, trips: tripsRules, challenge: challengeRules },
+};

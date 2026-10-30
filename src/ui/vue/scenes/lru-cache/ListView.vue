@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { Item } from '../../engine/lru-cache';
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
+import type { Item } from '../../../../engine/lru-cache';
 
 // 链表和哈希表：逐步执行、猜下一步、找 bug 共用，只负责画。
 // 链表左边是最久没用的（head.next），右边是最近用过的（tail.prev）。
@@ -17,6 +19,7 @@ const props = withDefaults(defineProps<{
   clickable?: boolean;
   /** 盖住值，只显示 key（猜下一步用不到值时） */
   hideValues?: boolean;
+  t: (msg: Msg) => string;
 }>(), { mapKeys: null, hand: null, focus: null, evicted: null, clickable: false, hideValues: false });
 
 const emit = defineEmits<{ pick: [k: number] }>();
@@ -27,8 +30,8 @@ const over = computed(() => props.list.length > props.cap || (props.mapKeys?.len
 
 <template>
   <div class="lv">
-    <div class="ends" aria-hidden="true"><span>⬅️ 最久没用</span><span>最近用过 ➡️</span></div>
-    <div class="chain" role="list" aria-label="双向链表，从最久没用到最近用过">
+    <div class="ends" aria-hidden="true"><span>{{ t(m('scene.endsOld')) }}</span><span>{{ t(m('scene.endsNew')) }}</span></div>
+    <div class="chain" role="list" :aria-label="t(m('scene.chainAria'))">
       <span class="sent" role="listitem">head</span>
       <template v-for="(n, i) in list" :key="i">
         <span class="arrow" aria-hidden="true">⇄</span>
@@ -38,7 +41,7 @@ const over = computed(() => props.list.length > props.cap || (props.mapKeys?.len
           class="node"
           :class="{ focus: n.k === focus, can: clickable }"
           role="listitem"
-          :aria-label="'节点 ' + n.k + (hideValues ? '' : '，值 ' + n.v)"
+          :aria-label="hideValues ? t(m('scene.nodeKey', { k: n.k })) : t(m('scene.node', { k: n.k, v: n.v }))"
           @click="clickable && emit('pick', n.k)"
         >{{ n.k }}<small v-if="!hideValues">={{ n.v }}</small></component>
       </template>
@@ -46,15 +49,15 @@ const over = computed(() => props.list.length > props.cap || (props.mapKeys?.len
       <span class="sent" role="listitem">tail</span>
     </div>
     <p class="status" aria-live="polite">
-      <template v-if="hand">✋ 手里拿着节点 {{ hand.k }}，它暂时不在链表上</template>
-      <template v-else-if="evicted !== null">👋 {{ evicted }} 被淘汰了</template>
+      <template v-if="hand">{{ t(m('scene.hand', { k: hand.k })) }}</template>
+      <template v-else-if="evicted !== null">{{ t(m('scene.gone', { k: evicted })) }}</template>
       <template v-else>&nbsp;</template>
     </p>
     <div v-if="mapKeys" class="map">
       <span class="cap-label">HashMap</span>
-      <span v-for="k in mapKeys" :key="k" class="mk" :class="{ ghost: ghosts.includes(k) }">{{ k }} → 节点<template v-if="ghosts.includes(k)"> 👻</template></span>
-      <span v-if="!mapKeys.length" class="cap-label">（空）</span>
-      <span class="size" :class="{ over }">size {{ mapKeys.length }} / 容量 {{ cap }}</span>
+      <span v-for="k in mapKeys" :key="k" class="mk" :class="{ ghost: ghosts.includes(k) }">{{ t(m('scene.mapNode', { k })) }}<template v-if="ghosts.includes(k)">{{ t(m('scene.ghost')) }}</template></span>
+      <span v-if="!mapKeys.length" class="cap-label">{{ t(m('scene.mapEmpty')) }}</span>
+      <span class="size" :class="{ over }">{{ t(m('scene.size', { n: mapKeys.length, cap })) }}</span>
     </div>
   </div>
 </template>

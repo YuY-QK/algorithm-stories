@@ -1,0 +1,19 @@
+{
+  "look": [
+    { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookDesk" }
+  ],
+  "play": [
+    { "id": "evict", "kind": "game", "icon": "🧑‍🏫", "rules": "evict", "scene": "PlayEvict", "sayLines": 2, "saySize": "small" },
+    { "id": "trips", "kind": "game", "icon": "🚶", "rules": "trips", "scene": "PlayTrips", "sayLines": 2, "saySize": "small" }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceLru" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictLru" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugLru" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "Lru.kt", "package": "lru" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "ChallengeSeq", "after": "ChallengeReveal", "frame": "stage" }
+  ],
+  "more": [
+    { "kind": "markdown", "src": "more" }
+  ]
+}
