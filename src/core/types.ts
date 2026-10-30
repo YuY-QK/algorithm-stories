@@ -127,6 +127,8 @@ export interface TraceRules<I, S extends Step, A> {
   vars(input: I, step: S): Var[];
   /** 播到最后一步时的总结，可以没有 */
   summary?(input: I, step: S): Msg | null;
+  /** 播放条上多一个「跳到……」按钮：往后跳到第一个 stop 为真的步骤（from 是当前步骤），找不到就停在最后一步 */
+  jump?: { label: Msg; stop(step: S, from: S): boolean };
 }
 
 /* ---------- 做：猜下一步 ---------- */
@@ -141,15 +143,22 @@ export interface Ask<V, T = unknown> {
   kind: 'pick' | 'choose';
   answer: T;
   /** choose 必须有；pick 也可以有，作为画面旁边的补充按钮（如点格子，或者点「满了」） */
-  options?: { value: T; label: Msg }[];
+  options?: { value: T; label: Msg; /** 读屏文字；label 只有数字、图标时给 */ aria?: Msg }[];
   /** 答错时的解释 */
   why: Msg;
+  /** 解释随答错的内容而变时用（pick 类的问：点的是哪一格）；给了就代替 why */
+  whyFor?: (picked: T) => Msg;
   /** 这一问时顶上的变量标签（如队里还有几个）；不给就用 Puzzle.chips */
   chips?: Var[];
   /** 答对时也要讲一句的关卡用；有它时答对先停下显示，再点「下一题」 */
   right?: Msg;
   /** 答错、看解释时画面和题干换成这个（如点错 mid 后把 mid 亮出来）；不给就保持原样 */
   reveal?: { view: V; prompt: Msg };
+  /**
+   * 这一问答完（答对，或答错看完解释点了继续）以后先播一段动画，播完才进入下一问或结局。
+   * frames 依次是画面的样子（第一帧马上显示，之后每帧按 core/timing 的节拍换），prompt 是播放时的题干。
+   */
+  anim?: { frames: V[]; prompt: Msg };
 }
 
 /** 一道题：依次回答若干问，最后看结局 */

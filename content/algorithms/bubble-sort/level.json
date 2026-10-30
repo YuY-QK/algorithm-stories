@@ -1,0 +1,19 @@
+{
+  "look": [
+    { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookLineup" }
+  ],
+  "play": [
+    { "id": "shoot", "kind": "game", "icon": "📷", "rules": "shoot", "scene": "PlayShoot", "sayLines": 2 },
+    { "id": "guess", "kind": "game", "icon": "🫧", "rules": "guess", "scene": "PlayGuess", "sayLines": 2 }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceBars" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictCells" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugBars" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "BubbleSort.kt", "package": "bubblesort" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "ChallengeTrack", "frame": "stage" }
+  ],
+  "more": [
+    { "kind": "markdown", "src": "more" }
+  ]
+}
