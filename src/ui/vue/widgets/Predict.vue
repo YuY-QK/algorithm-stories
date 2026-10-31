@@ -76,6 +76,7 @@ const next = () => set(flow.nextPuzzle(st.value, rules.puzzle()));
     </template>
     <template #board>
       <component :is="Scene" :view="v.view" :picked="v.picked" :pickable="v.pickable" v-bind="v.got.length ? { got: v.got } : {}" :t="tr" @act="answer" />
+      <p v-if="v.praise" class="good">✅ {{ tr(v.praise) }}</p>
     </template>
     <template #answers>
       <div v-if="v.options" class="answers">
@@ -87,4 +88,5 @@ const next = () => set(flow.nextPuzzle(st.value, rules.puzzle()));
 
 <style scoped>
 .mono { font-family: var(--mono); }
+.good { color: var(--accent); font-size: 15px; }
 </style>

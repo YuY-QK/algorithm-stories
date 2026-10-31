@@ -24,6 +24,8 @@ export interface PredictState<V, T> {
   frame: number;
   /** 这一问（Ask.collect）里已经点对的 */
   got: T[];
+  /** 上一次答对时留下的那句话（Ask.praise），答错或换题清掉 */
+  praise: Msg | null;
 }
 
 export interface PredictOut<V, T> {
@@ -32,7 +34,7 @@ export interface PredictOut<V, T> {
 }
 
 export function startPredict<V, T>(puzzle: Puzzle<V, T>, goal = 5, carry?: { streak: number; passed: boolean }): PredictState<V, T> {
-  return { puzzle, goal, i: 0, phase: 'ask', picked: null, streak: carry?.streak ?? 0, passed: carry?.passed ?? false, lastRight: false, frame: 0, got: [] };
+  return { puzzle, goal, i: 0, phase: 'ask', picked: null, streak: carry?.streak ?? 0, passed: carry?.passed ?? false, lastRight: false, frame: 0, got: [], praise: null };
 }
 
 /** 换下一道题：连对和过关保留 */
@@ -76,7 +78,7 @@ export function answer<V, T>(s: PredictState<V, T>, value: T): PredictOut<V, T> 
   if (s.phase !== 'ask') return null;
   const ask = s.puzzle.asks[s.i];
   if (ask.collect ? !ask.collect.some((x) => Object.is(x, value)) : !Object.is(value, ask.answer)) {
-    return { state: { ...s, phase: 'wrong', streak: 0, lastRight: false, picked: ask.kind === 'pick' ? value : null }, sound: 'wrong' };
+    return { state: { ...s, phase: 'wrong', streak: 0, lastRight: false, picked: ask.kind === 'pick' ? value : null, praise: null }, sound: 'wrong' };
   }
   if (ask.collect) {
     // 要点齐几样：点过的再点没反应；还没点齐先记下，不出声
@@ -89,7 +91,7 @@ export function answer<V, T>(s: PredictState<V, T>, value: T): PredictOut<V, T> 
   if (ask.half) return { state: step({ ...s, lastRight: true }) };
   const streak = s.streak + 1;
   const justPassed = streak >= s.goal && !s.passed;
-  const hit = { ...s, streak, lastRight: true, passed: s.passed || justPassed };
+  const hit = { ...s, streak, lastRight: true, passed: s.passed || justPassed, praise: ask.praise ?? null };
   return {
     state: ask.right ? { ...hit, phase: 'right' } : advance(hit),
     sound: justPassed ? 'win' : 'right',
@@ -119,17 +121,19 @@ export interface PredictView<V, T> {
   got: T[];
   /** 这一问时顶上的变量标签；问或结局没给就用整道题的 */
   chips: Var[] | undefined;
+  /** 画面下面留着的那句「✅ ……」（Ask.praise） */
+  praise: Msg | null;
 }
 
 export function viewOf<V, T>(s: PredictState<V, T>): PredictView<V, T> {
   if (s.phase === 'anim') {
     const ask = s.puzzle.asks[s.i];
     const a = ask.anim!;
-    return { view: a.frames[s.frame], prompt: a.prompt, wrong: null, right: null, ended: false, pickable: false, options: null, picked: null, got: [], chips: ask.chips ?? s.puzzle.chips };
+    return { view: a.frames[s.frame], prompt: a.prompt, wrong: null, right: null, ended: false, pickable: false, options: null, picked: null, got: [], chips: ask.chips ?? s.puzzle.chips, praise: null };
   }
   if (s.phase === 'end') {
     const { view, prompt, chips } = (s.lastRight && s.puzzle.endRight) || s.puzzle.end;
-    return { view, prompt, wrong: null, right: null, ended: true, pickable: false, options: null, picked: null, got: [], chips: chips ?? s.puzzle.chips };
+    return { view, prompt, wrong: null, right: null, ended: true, pickable: false, options: null, picked: null, got: [], chips: chips ?? s.puzzle.chips, praise: s.praise };
   }
   const ask = s.puzzle.asks[s.i];
   const asking = s.phase === 'ask';
@@ -145,5 +149,6 @@ export function viewOf<V, T>(s: PredictState<V, T>): PredictView<V, T> {
     picked: s.picked,
     got: s.got,
     chips: ask.chips ?? s.puzzle.chips,
+    praise: s.phase === 'wrong' ? null : s.praise,
   };
 }

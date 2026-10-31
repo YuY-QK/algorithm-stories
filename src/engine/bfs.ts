@@ -1,4 +1,7 @@
-import type { BugInfo, LookFrame, Step, Trace } from './types';
+import { m as msg } from '../core/i18n';
+import type {
+  BugInfo, BugRules, Control, GameRules, LevelModule, LookFrame, LookRules, Msg, PredictRules, Puzzle, Rand, Step, Trace, TraceRules, Var,
+} from '../core/types';
 
 /*
  * 广度优先搜索（BFS）：小老鼠走迷宫。
@@ -149,10 +152,13 @@ export const KID_MAZES: string[][] = [
 
 /* ---------- 看：绘本 ---------- */
 
-/** 看里格子的色调：走过的、这一圈、最短路（Maze.vue 的 Tone 包含这三个） */
+/** 格子的色调（画面 Maze.vue 按它上色）；看里只用走过的、这一圈、最短路 */
+export type Tone = 'old' | 'ring' | 'path' | 'mine' | 'queued' | 'cur' | 'nb' | 'pick' | 'best' | 'miss';
 export type LookTone = 'old' | 'ring' | 'path';
 
 export interface LookPage extends LookFrame {
+  /** 迷宫本身（画面据此画格子） */
+  rows: string[];
   tones: Record<number, LookTone>;
   /** 格子里写的数字：离起点几步 */
   labels: Record<number, number>;
@@ -165,8 +171,9 @@ export function lookFrames(m: Maze): LookPage[] {
   const wv = waves(m);
   const best = wv.dist[m.end];
   const out: LookPage[] = [];
-  out.push({ say: '小老鼠 🐭 闻到了奶酪 🧀 的香味，可是迷宫弯弯绕绕', tones: {}, labels: {}, mouse: m.start });
-  out.push({ say: '它的秘诀：像水波 🌊 一样，一圈一圈往外找', tones: { [m.start]: 'ring' }, labels: { [m.start]: 0 }, mouse: m.start });
+  const rows = m.rows;
+  out.push({ say: msg('look.open'), rows, tones: {}, labels: {}, mouse: m.start });
+  out.push({ say: msg('look.secret'), rows, tones: { [m.start]: 'ring' }, labels: { [m.start]: 0 }, mouse: m.start });
   const tones: Record<number, LookTone> = { [m.start]: 'old' };
   const labels: Record<number, number> = { [m.start]: 0 };
   for (let k = 1; k < wv.rings.length; k++) {
@@ -178,7 +185,8 @@ export function lookFrames(m: Maze): LookPage[] {
     }
     const hit = ring.includes(m.end);
     out.push({
-      say: hit ? '第 ' + k + ' 圈碰到奶酪啦 🧀！' : k === 1 ? '走 1 步能到这 ' + ring.length + ' 格' : '再走 1 步：第 ' + k + ' 圈有 ' + ring.length + ' 格',
+      say: hit ? msg('look.hit', { k }) : k === 1 ? msg('look.first', { n: ring.length }) : msg('look.more', { k, n: ring.length }),
+      rows,
       tones: now,
       labels: { ...labels },
       mouse: m.start,
@@ -188,8 +196,8 @@ export function lookFrames(m: Maze): LookPage[] {
   const path = pathTo(wv, m.end);
   const pathTones: Record<number, LookTone> = { ...tones };
   for (const id of path) pathTones[id] = 'path';
-  out.push({ say: '从奶酪倒着数回去：' + Array.from({ length: best + 1 }, (_, k) => best - k).join(' → '), tones: pathTones, labels: { ...labels }, mouse: m.start });
-  out.push({ say: '沿着这条路，' + best + ' 步就吃到奶酪 🎉 没有更近的路了', tones: pathTones, labels: { ...labels }, mouse: m.end });
+  out.push({ say: msg('look.back', { seq: Array.from({ length: best + 1 }, (_, k) => best - k).join(' → ') }), rows, tones: pathTones, labels: { ...labels }, mouse: m.start });
+  out.push({ say: msg('look.end', { best }), rows, tones: pathTones, labels: { ...labels }, mouse: m.end });
   return out;
 }
 
@@ -391,28 +399,27 @@ function simulate(m: Maze, f: Flavor): BfsStep[] {
   const queue: number[] = [];
   let pushes = 0;
   let cur: number | null = null;
-  const push = (line: number, note: string, extra: Partial<BfsStep> = {}) => {
+  const push = (line: number, note: Msg, extra: Partial<BfsStep> = {}) => {
     steps.push({
       line, note, done: false, queue: [...queue], visited: [...visited], dist: [...dist],
       cur, nb: null, result: null, pushes, outcome: 'running', ...extra,
     });
   };
   const c = (id: number) => coord(m, id);
+  const nameOf = (k: number, nr: number, nc: number) => msg('trace.nb', { dir: msg('dir.' + k), r: nr, c: nc });
 
   queue.push(m.start);
   pushes++;
   visited[m.start] = true;
-  push(L.init, '起点 ' + c(m.start) + ' 入队，标记 visited，dist = 0。');
+  push(L.init, msg('trace.init', { c: c(m.start) }));
 
   while (steps.length < MAX_STEPS) {
-    push(L.loop, queue.length
-      ? '队列里还有 ' + queue.length + ' 个格子，继续。'
-      : '队列空了：能走到的格子都走遍了，没碰到终点。');
+    push(L.loop, queue.length ? msg('trace.loopMore', { n: queue.length }) : msg('trace.loopEmpty'));
     if (!queue.length) break;
     cur = f.take === 'first' ? queue.shift()! : queue.pop()!;
-    push(L.pop, (f.take === 'first' ? '从队首' : '从队尾') + '取出 ' + c(cur) + '，它离起点 ' + dist[cur] + ' 步。');
+    push(L.pop, msg(f.take === 'first' ? 'trace.popFirst' : 'trace.popLast', { c: c(cur), d: dist[cur] }));
     if (cur === m.end) {
-      push(L.isEnd, c(cur) + ' 是终点 E，返回 dist = ' + dist[cur] + '。', { result: dist[cur], outcome: 'ok', done: true });
+      push(L.isEnd, msg('trace.end', { c: c(cur), d: dist[cur] }), { result: dist[cur], outcome: 'ok', done: true });
       return steps;
     }
     const r = rowOf(m, cur);
@@ -420,45 +427,46 @@ function simulate(m: Maze, f: Flavor): BfsStep[] {
     for (let k = 0; k < 4; k++) {
       const nr = r + DIRS[k][0];
       const nc = cc + DIRS[k][1];
-      const name = DIR_NAMES[k] + '边 (' + nr + ',' + nc + ')';
+      const name = nameOf(k, nr, nc);
       const inRange = (v: number, size: number) => v >= 0 && (f.range === 'until' ? v < size : v <= size);
       if (!inRange(nr, m.h) || !inRange(nc, m.w)) {
-        push(L.bounds, name + ' 出界了，跳过。');
+        push(L.bounds, msg('trace.out', { name }));
         continue;
       }
       if (nr >= m.h || nc >= m.w) {
-        push(L.skip, '读 grid[' + nr + '][' + nc + ']：' + (nr >= m.h ? '第 ' + nr + ' 行' : '第 ' + nc + ' 列') + '不存在，下标越界，程序崩溃！', {
+        push(L.skip, msg('trace.crash', { nr, nc, what: nr >= m.h ? msg('trace.row', { n: nr }) : msg('trace.col', { n: nc }) }), {
           outcome: 'crash', done: true,
         });
         return steps;
       }
       const id = nr * m.w + nc;
       if (isWall(m, id) || (f.checkVisited && visited[id])) {
-        push(L.skip, name + (isWall(m, id) ? ' 是墙，跳过。' : ' 已经访问过，跳过。'), { nb: id });
+        push(L.skip, msg(isWall(m, id) ? 'trace.wall' : 'trace.seen', { name }), { nb: id });
         continue;
       }
       const again = visited[id];
       visited[id] = true;
-      push(L.mark, name + (again ? ' 又一次被标记 visited（它早就访问过了）。' : ' 是新格子，标记 visited。'), { nb: id });
+      push(L.mark, msg(again ? 'trace.markAgain' : 'trace.markNew', { name }), { nb: id });
       const before = dist[id];
       dist[id] = dist[cur] + 1;
-      push(L.dist, 'dist' + c(id) + ' = ' + dist[cur] + ' + 1 = ' + dist[id] + (again && before !== dist[id] ? '（原来是 ' + before + '，被改掉了）' : '') + '。', { nb: id });
+      const changed = again && before !== dist[id];
+      push(L.dist, msg(changed ? 'trace.distChanged' : 'trace.dist', { c: c(id), a: dist[cur], b: dist[id], before }), { nb: id });
       queue.push(id);
       pushes++;
       if (queue.length > EXPLODE_AT) {
-        push(L.push, c(id) + ' 入队。队列已经有 ' + queue.length + ' 个了，迷宫才 ' + openCount(m) + ' 个空格子：队列爆炸！', {
+        push(L.push, msg('trace.explode', { c: c(id), n: queue.length, open: openCount(m) }), {
           nb: id, outcome: 'explode', done: true,
         });
         return steps;
       }
-      push(L.push, c(id) + ' 入队，排在队尾。', { nb: id });
+      push(L.push, msg('trace.push', { c: c(id) }), { nb: id });
     }
   }
   if (steps.length >= MAX_STEPS) {
-    push(L.loop, '跑了太多步还没停：判定为跑不完。', { outcome: 'explode', done: true });
+    push(L.loop, msg('trace.tooLong'), { outcome: 'explode', done: true });
     return steps;
   }
-  push(L.fail, '返回 -1：走不到终点。', { result: -1, outcome: 'ok', done: true });
+  push(L.fail, msg('trace.fail'), { result: -1, outcome: 'ok', done: true });
   return steps;
 }
 
@@ -473,10 +481,10 @@ export function buildTrace(m: Maze): Trace<BfsStep> {
 }
 
 /** 逐步执行用的迷宫：三个看和玩里的迷宫，再加一个奶酪被墙围住、走不到的 */
-export const TRACE_MAZES: { label: string; rows: string[] }[] = [
-  ...KID_MAZES.map((rows, k) => ({ label: '迷宫 ' + (k + 1), rows })),
+export const TRACE_MAZES: { label: Msg; rows: string[] }[] = [
+  ...KID_MAZES.map((rows, k) => ({ label: msg('trace.maze', { n: k + 1 }), rows })),
   {
-    label: '走不到',
+    label: msg('trace.mazeNone'),
     rows: [
       '...#...',
       '.#.#.#.',
@@ -512,20 +520,20 @@ export interface Round {
   pushed: number[];
   checks: Check[];
   /** 答错时的解释：四个方向逐个讲，一行一个方向（用换行分隔） */
-  why: string;
+  why: Msg;
 }
 
 /** 一次出队的解释：终点直接返回，否则四个方向逐个看 */
-function explainRound(m: Maze, cur: number, isEnd: boolean, dist: number[], checks: Check[]): string {
-  if (isEnd) return '不对，' + coord(m, cur) + ' 就是终点 E：第 ' + L.isEnd + ' 行直接返回 dist = ' + dist[cur] + '，不再看邻居。';
+function explainRound(m: Maze, cur: number, isEnd: boolean, dist: number[], checks: Check[]): Msg {
+  if (isEnd) return msg('predict.why.end', { c: coord(m, cur), line: L.isEnd, d: dist[cur] });
   const lines = checks.map((c) => {
-    const name = DIR_NAMES[c.dir] + '边' + (c.id === null ? '' : ' ' + coord(m, c.id));
-    if (c.why === 'out') return name + '：出界，跳过。';
-    if (c.why === 'wall') return name + '：墙，跳过。';
-    if (c.why === 'seen') return name + '：已经 visited（它在队列里或者早就出过队），跳过。';
-    return name + '：新格子，入队，dist = ' + (dist[cur] + 1) + '。';
+    const name = c.id === null ? msg('predict.name.edge', { dir: msg('dir.' + c.dir) }) : msg('predict.name', { dir: msg('dir.' + c.dir), c: coord(m, c.id) });
+    if (c.why === 'out') return msg('predict.why.out', { name });
+    if (c.why === 'wall') return msg('predict.why.wall', { name });
+    if (c.why === 'seen') return msg('predict.why.seen', { name });
+    return msg('predict.why.new', { name, d: dist[cur] + 1 });
   });
-  return '不对，四个方向逐个看：\n' + lines.join('\n');
+  return msg('predict.why.dirs', { l0: lines[0], l1: lines[1], l2: lines[2], l3: lines[3] });
 }
 
 export function rounds(m: Maze): Round[] {
@@ -572,7 +580,7 @@ const FLAVORS: Record<Bug['id'], Flavor> = {
 export const BUGS: readonly Bug[] = [
   {
     id: 'no-visited',
-    title: '队列越排越长',
+    title: msg('bug.noVisited.title'),
     code: variant(L.skip, "            if (grid[nr][nc] == '#') continue"),
     wrongLine: L.skip,
     fixed: CODE[L.skip - 1],
@@ -583,12 +591,12 @@ export const BUGS: readonly Bug[] = [
       '.....',
       '....E',
     ],
-    expect: '5×5 的空房间，最短 8 步',
-    explain: '只挡了墙，没挡走过的格子。每个格子都会把邻居（包括刚刚来的那一格）再塞进队列，同一个格子一遍遍入队，队列长度指数增长，dist 也被反复改写。visited 虽然标了，却没人看它。',
+    expect: msg('bug.noVisited.expect'),
+    explain: msg('bug.noVisited.explain'),
   },
   {
     id: 'stack',
-    title: '找到了，但不是最短',
+    title: msg('bug.stack.title'),
     code: variant(L.pop, '        val (r, c) = queue.removeLast()'),
     wrongLine: L.pop,
     fixed: CODE[L.pop - 1],
@@ -598,12 +606,12 @@ export const BUGS: readonly Bug[] = [
       '....',
       'E...',
     ],
-    expect: '奶酪就在正下方，最短 3 步',
-    explain: '从队尾取就成了栈：总是先走最新发现的格子，一条路钻到底（这就是深度优先）。格子第一次被发现时 dist 就定下来了，可那时走的不一定是最近的路。BFS 必须先进先出，离起点近的格子先处理，第一次碰到终点才一定是最短。',
+    expect: msg('bug.stack.expect'),
+    explain: msg('bug.stack.explain'),
   },
   {
     id: 'range',
-    title: '走到边上就崩溃',
+    title: msg('bug.range.title'),
     code: variant(L.bounds, '            if (nr !in 0..h || nc !in 0..w) continue'),
     wrongLine: L.bounds,
     fixed: CODE[L.bounds - 1],
@@ -613,8 +621,8 @@ export const BUGS: readonly Bug[] = [
       '....',
       '....',
     ],
-    expect: '最短 4 步',
-    explain: '0..h 包括 h，0 until h 才不包括。下标只能是 0 到 h − 1，走到最下面一行再往下看一格，nr = h 通过了检查，读 grid[h] 就越界了。',
+    expect: msg('bug.range.expect'),
+    explain: msg('bug.range.explain'),
   },
 ];
 
@@ -622,10 +630,369 @@ export function runBug(bug: Bug): Trace<BfsStep> {
   return simulate(parseMaze(bug.maze), FLAVORS[bug.id]);
 }
 
-/** 找 bug 面板底部的判定文字：没跑完是空 */
-export function bugVerdict(step: BfsStep, bug: Bug): string {
-  if (!step.done) return '';
-  if (step.outcome === 'explode') return '💥 队列爆炸：' + step.queue.length + ' 个格子在排队，入队了 ' + step.pushes + ' 次，还在涨';
-  if (step.outcome === 'crash') return '💥 下标越界，程序崩溃';
-  return '❌ 返回了 ' + step.result + '，可是最短只要 ' + bestSteps(parseMaze(bug.maze)) + ' 步';
+/** 找 bug 面板底部的判定：没跑完是 null */
+export function bugVerdict(step: BfsStep, bug: Bug): Msg | null {
+  if (!step.done) return null;
+  if (step.outcome === 'explode') return msg('bug.verdict.explode', { n: step.queue.length, pushes: step.pushes });
+  if (step.outcome === 'crash') return msg('bug.verdict.crash');
+  return msg('bug.verdict.wrong', { r: step.result!, best: bestSteps(parseMaze(bug.maze)) });
 }
+
+/* ---------- 关卡模块：规则（level.json 按名字引用） ---------- */
+
+const mazeOf = (rows: string[]) => parseMaze(rows);
+
+/* 看 */
+
+export const lookRules: LookRules<number, LookPage> = {
+  first: 0,
+  next: (prev) => (prev + 1) % KID_MAZES.length,
+  frames: (which) => lookFrames(parseMaze(KID_MAZES[which])),
+};
+
+/* 玩法一「下一圈」：孩子当水波，一圈一圈涂格子 */
+
+export interface RingsState {
+  which: number;
+  /** 正在涂第几圈（ring 步能到的格子） */
+  ring: number;
+  /** 这一圈已经涂好的格子 */
+  painted: number[];
+  misses: number;
+  done: boolean;
+  /** 摇头的格子，[格子, 第几次]；画面据此晃一下 */
+  shake: [number, number] | null;
+  /** 透光提示的格子；glowKey 每加一次就重新闪一遍 */
+  glow: number[];
+  glowKey: number;
+}
+export type RingsAction = { type: 'tap'; id: number } | { type: 'again' };
+
+function ringsFresh(which: number, prev?: RingsState): RingsState {
+  return { which, ring: 1, painted: [], misses: 0, done: false, shake: prev?.shake ?? null, glow: [], glowKey: prev?.glowKey ?? 0 };
+}
+
+/** 玩法一画面要画的东西：迷宫、格子的色调和数字、这一圈一共几格 */
+export function ringsView(s: RingsState) {
+  const maze = mazeOf(KID_MAZES[s.which]);
+  const wv = waves(maze);
+  const cells = wv.rings[s.ring] ?? [];
+  const tones: Record<number, Tone> = {};
+  const labels: Record<number, number> = {};
+  for (let k = 0; k < s.ring; k++) {
+    for (const id of wv.rings[k]) {
+      tones[id] = 'old';
+      labels[id] = k;
+    }
+  }
+  for (const id of s.painted) {
+    tones[id] = 'ring';
+    labels[id] = s.ring;
+  }
+  if (s.done) for (const id of pathTo(wv, maze.end)) tones[id] = 'path';
+  else tones[maze.start] = 'old';
+  return { maze, tones, labels, total: cells.length, mouse: s.done ? maze.end : maze.start };
+}
+
+export const ringsRules: GameRules<RingsState, RingsAction> = {
+  start: () => ({ state: ringsFresh(0), say: msg('rings.start') }),
+  act(s, a) {
+    if (a.type === 'again') {
+      if (!s.done) return null;
+      return { state: ringsFresh((s.which + 1) % KID_MAZES.length, s), say: msg('rings.start') };
+    }
+    if (s.done) return null;
+    const maze = mazeOf(KID_MAZES[s.which]);
+    const wv = waves(maze);
+    const cells = wv.rings[s.ring] ?? [];
+    const j = judgeRingTap(maze, wv.dist, s.ring, new Set(s.painted), a.id);
+    const shake: [number, number] = [a.id, (s.shake?.[1] ?? 0) + 1];
+    if (j === 'painted') return { state: { ...s, shake }, say: msg('rings.painted'), sound: 'wrong' };
+    if (j === 'wall') return { state: { ...s, shake, misses: s.misses + 1 }, say: msg('rings.wall'), sound: 'wrong' };
+    if (j === 'far') {
+      return {
+        state: { ...s, shake, misses: s.misses + 1, glow: wv.rings[s.ring - 1] ?? [], glowKey: s.glowKey + 1 },
+        say: msg('rings.far', { k: s.ring - 1 }),
+        sound: 'wrong',
+      };
+    }
+    const painted = [...s.painted, a.id];
+    if (j === 'cheese') return { state: { ...s, painted, done: true }, say: msg('rings.cheese', { k: s.ring }), sound: 'win' };
+    if (painted.length === cells.length) {
+      return { state: { ...s, painted: [], ring: s.ring + 1 }, say: msg('rings.ringDone', { k: s.ring }) };
+    }
+    return { state: { ...s, painted }, say: msg('rings.some', { n: painted.length, total: cells.length }), sound: 'right' };
+  },
+  clickable: (s) => !s.done,
+  controls: (s): Control<RingsAction>[] => (s.done ? [{ type: 'button', action: { type: 'again' }, label: msg('rings.again'), look: 'primary' }] : []),
+  result: (s) => (s.done ? { stars: ringStars(s.misses), body: msg('rings.win', { k: s.ring }) } : null),
+};
+
+/* 玩法二「抄近路」：自己点出一条路，和水波找到的最短路比一比 */
+
+export interface DrawState {
+  which: number;
+  path: number[];
+  done: boolean;
+  /** 带着水波数字走 */
+  numbers: boolean;
+  shake: [number, number] | null;
+}
+export type DrawAction = { type: 'tap'; id: number } | { type: 'undo' } | { type: 'retry'; numbers: boolean } | { type: 'next' };
+
+const drawStart = (which: number, numbers = false, shake: DrawState['shake'] = null): DrawState => ({
+  which, path: [parseMaze(KID_MAZES[which]).start], done: false, numbers, shake,
+});
+
+/** 玩法二画面要画的东西 */
+export function drawView(s: DrawState) {
+  const maze = mazeOf(KID_MAZES[s.which]);
+  const wv = waves(maze, false);
+  const best = wv.dist[maze.end];
+  const steps = s.path.length - 1;
+  const tones: Record<number, Tone> = {};
+  const labels: Record<number, number> = {};
+  if (s.numbers) {
+    wv.dist.forEach((d, id) => {
+      if (d > 0) {
+        tones[id] = 'old';
+        labels[id] = d;
+      }
+    });
+  } else s.path.slice(1).forEach((id, k) => (labels[id] = k + 1));
+  if (s.done && steps > best) for (const id of pathTo(wv, maze.end)) tones[id] = 'path';
+  for (const id of s.path.slice(1)) tones[id] = 'mine';
+  return { maze, tones, labels, steps, best };
+}
+
+export const drawRules: GameRules<DrawState, DrawAction> = {
+  start: () => ({ state: drawStart(1), say: msg('draw.start') }),
+  act(s, a) {
+    if (a.type === 'undo') {
+      if (s.done || s.path.length < 2) return null;
+      return { state: { ...s, path: s.path.slice(0, -1) } };
+    }
+    if (a.type === 'retry') {
+      if (!s.done) return null;
+      return { state: drawStart(s.which, a.numbers, s.shake), say: msg(a.numbers ? 'draw.retryNum' : 'draw.retry') };
+    }
+    if (a.type === 'next') {
+      if (!s.done) return null;
+      return { state: drawStart((s.which + 1) % KID_MAZES.length, false, s.shake), say: msg('draw.next') };
+    }
+    if (s.done) return null;
+    const maze = mazeOf(KID_MAZES[s.which]);
+    const j = judgeDrawTap(maze, s.path, a.id);
+    if (j === 'wall' || j === 'far') {
+      return { state: { ...s, shake: [a.id, (s.shake?.[1] ?? 0) + 1] }, say: msg(j === 'wall' ? 'draw.wall' : 'draw.far'), sound: 'wrong' };
+    }
+    const path = applyDrawTap(maze, s.path, a.id);
+    if (j === 'back') return { state: { ...s, path }, say: msg('draw.back'), sound: 'tap' };
+    const steps = path.length - 1;
+    const best = waves(maze, false).dist[maze.end];
+    if (a.id === maze.end) {
+      return {
+        state: { ...s, path, done: true },
+        say: steps <= best ? msg('draw.best', { s: steps }) : msg('draw.longer', { s: steps, b: best }),
+        sound: 'win',
+      };
+    }
+    return { state: { ...s, path }, say: msg('draw.step', { s: steps }), sound: 'right' };
+  },
+  clickable: (s) => !s.done,
+  controls(s): Control<DrawAction>[] {
+    if (!s.done) return [];
+    const { steps, best } = drawView(s);
+    if (steps > best) {
+      return [
+        { type: 'button', action: { type: 'retry', numbers: false }, label: msg('draw.retryBtn'), look: 'primary' },
+        { type: 'button', action: { type: 'retry', numbers: true }, label: msg('draw.numBtn') },
+      ];
+    }
+    return [{ type: 'button', action: { type: 'next' }, label: msg('draw.nextBtn'), look: 'primary' }];
+  },
+  result(s) {
+    if (!s.done) return null;
+    const { steps, best } = drawView(s);
+    return { stars: routeStars(steps, best), body: steps > best ? msg('draw.body') : undefined };
+  },
+};
+
+/* 挑战：11×11 的迷宫，不看水波，自己点出一条路 */
+
+export interface ChallengeState {
+  rows: string[];
+  path: number[];
+  phase: 'play' | 'win' | 'lose';
+  shake: [number, number] | null;
+  /** 点错时的提示 */
+  hint: Msg | null;
+  wins: number;
+}
+export type ChallengeAction = { type: 'tap'; id: number } | { type: 'retry' } | { type: 'fresh' };
+
+const challengeFresh = (rand: Rand | undefined, prev?: ChallengeState): ChallengeState => {
+  const rows = genChallenge(rand);
+  return { rows, path: [parseMaze(rows).start], phase: 'play', shake: prev?.shake ?? null, hint: null, wins: prev?.wins ?? 0 };
+};
+
+/** 挑战画面要画的东西 */
+export function challengeView(s: ChallengeState) {
+  const maze = mazeOf(s.rows);
+  const wv = waves(maze);
+  const best = wv.dist[maze.end];
+  const tones: Record<number, Tone> = {};
+  if (s.phase !== 'play') for (const id of pathTo(wv, maze.end)) tones[id] = 'best';
+  for (const id of s.path.slice(1)) tones[id] = 'mine';
+  return { maze, tones, best, steps: s.path.length - 1 };
+}
+
+export const challengeRules: GameRules<ChallengeState, ChallengeAction> = {
+  start: (rand) => ({ state: challengeFresh(rand) }),
+  act(s, a, rand) {
+    if (a.type === 'fresh') return { state: challengeFresh(rand, s) };
+    if (a.type === 'retry') {
+      if (s.phase !== 'lose') return null;
+      return { state: { ...s, path: [parseMaze(s.rows).start], phase: 'play', hint: null } };
+    }
+    if (s.phase !== 'play') return null;
+    const maze = mazeOf(s.rows);
+    const j = judgeDrawTap(maze, s.path, a.id);
+    if (j === 'wall' || j === 'far') {
+      return { state: { ...s, shake: [a.id, (s.shake?.[1] ?? 0) + 1], hint: msg(j === 'wall' ? 'chal.wall' : 'chal.far') } };
+    }
+    const path = applyDrawTap(maze, s.path, a.id);
+    const next: ChallengeState = { ...s, path, hint: null };
+    if (a.id === maze.end) {
+      const steps = path.length - 1;
+      if (steps <= waves(maze).dist[maze.end]) return { state: { ...next, phase: 'win', wins: s.wins + 1 } };
+      return { state: { ...next, phase: 'lose' } };
+    }
+    return { state: next };
+  },
+  clickable: (s) => s.phase === 'play',
+  controls(s): Control<ChallengeAction>[] {
+    if (s.phase === 'win') return [{ type: 'button', action: { type: 'fresh' }, label: msg('chal.again'), look: 'small' }];
+    if (s.phase === 'lose') {
+      return [
+        { type: 'button', action: { type: 'retry' }, label: msg('chal.retry'), look: 'small' },
+        { type: 'button', action: { type: 'fresh' }, label: msg('chal.fresh'), look: 'small' },
+      ];
+    }
+    return [];
+  },
+  result(s) {
+    if (s.phase === 'play') return null;
+    const { steps, best } = challengeView(s);
+    return s.phase === 'win'
+      ? { title: msg('chal.win', { s: steps }), body: msg('chal.winBody') }
+      : { title: msg('chal.lose', { s: steps, b: best }), body: msg('chal.loseBody') };
+  },
+};
+
+/* 做：逐步执行 */
+
+export interface TraceInput { which: number }
+export type TraceAction = { type: 'which'; which: number };
+
+const traceMaze = (input: TraceInput) => parseMaze(TRACE_MAZES[input.which].rows);
+
+export const traceRules: TraceRules<TraceInput, BfsStep, TraceAction> = {
+  code: CODE,
+  start: () => ({ which: 0 }),
+  act: (_input, a) => ({ which: a.which }),
+  controls: (input): Control<TraceAction>[] => [{
+    type: 'segmented', legend: msg('trace.mazeLegend'), value: input.which,
+    options: TRACE_MAZES.map((t, k) => ({ value: k, label: t.label })),
+    choose: (v) => ({ type: 'which', which: Number(v) }),
+  }],
+  trace: (input) => buildTrace(traceMaze(input)),
+  vars(input, s): Var[] {
+    const mz = traceMaze(input);
+    return [
+      ['(r, c)', s.cur === null ? '—' : coord(mz, s.cur)],
+      ['dist[r][c]', s.cur === null ? '—' : s.dist[s.cur]],
+      [msg('trace.var.len'), s.queue.length],
+      [msg('trace.var.pushes'), s.pushes],
+    ];
+  },
+  summary(_input, s) {
+    if (!s.done) return null;
+    return s.result! >= 0
+      ? msg('trace.sumOk', { r: s.result!, pushes: s.pushes })
+      : msg('trace.sumNo', { n: s.visited.filter(Boolean).length });
+  },
+  jump: { label: msg('trace.jumpPop'), stop: (x) => x.line === L.pop },
+  foot: msg('trace.foot'),
+};
+
+/* 做：猜下一步 */
+
+/** 猜下一步每一问时画面的样子 */
+export interface PredictView {
+  rows: string[];
+  cur: number;
+  /** 出队之前的队列（cur 在队首） */
+  queue: number[];
+  visited: boolean[];
+  dist: number[];
+  /** 会入队的格子（答错后亮出来） */
+  pushed: number[];
+}
+
+/** 点出来的格子凑成的答案：从小到大用逗号连起来，一个也没有是空字符串；「是终点」的答案是 'end' */
+export const predictKey = (ids: Iterable<number>): string => [...ids].sort((a, b) => a - b).join(',');
+
+export const predictRules: PredictRules<PredictView, string> = {
+  goal: 5,
+  puzzle(rand): Puzzle<PredictView, string> {
+    const rows = genPredict(rand);
+    const mz = parseMaze(rows);
+    const list = rounds(mz);
+    const viewOf = (r: Round): PredictView => ({ rows, cur: r.cur, queue: r.queue, visited: r.visited, dist: r.dist, pushed: r.pushed });
+    const chips = (k: number): Var[] => [['第', msg('predict.chip', { n: k + 1 })]];
+    const last = list.length - 1;
+    const views = list.map(viewOf);
+    return {
+      asks: list.map((r, k) => ({
+        view: views[k],
+        prompt: msg('predict.ask', { c: coord(mz, r.cur), d: r.dist[r.cur] }),
+        kind: 'pick',
+        answer: r.isEnd ? 'end' : predictKey(r.pushed),
+        why: r.why,
+        chips: chips(k),
+      })),
+      end: {
+        view: views[last],
+        prompt: list[last].isEnd ? msg('predict.endOk', { d: list[last].dist[list[last].cur] }) : msg('predict.endNo'),
+        chips: chips(last),
+      },
+    };
+  },
+};
+
+/* 做：找 bug */
+
+export const bugRules: BugRules<Bug, BfsStep> = {
+  bugs: BUGS,
+  run: runBug,
+  input: (bug) => msg('bug.input', { expect: bug.expect }),
+  vars: (s, bug): Var[] => [
+    ['(r, c)', s.cur === null ? '—' : coord(parseMaze(bug.maze), s.cur)],
+    [msg('trace.var.len'), s.queue.length],
+    [msg('trace.var.pushes'), s.pushes],
+  ],
+  verdict: bugVerdict,
+  jumps: [
+    { label: msg('trace.jumpPop'), stop: (x) => x.line === L.pop },
+    { label: msg('bug.jumpEnd'), stop: (x) => x.done },
+  ],
+};
+
+export const level: LevelModule = {
+  look: { story: lookRules },
+  trace: { main: traceRules },
+  predict: { main: predictRules },
+  bugs: { main: bugRules },
+  games: { rings: ringsRules, draw: drawRules, challenge: challengeRules },
+};

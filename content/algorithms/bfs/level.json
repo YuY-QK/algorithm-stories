@@ -1,0 +1,19 @@
+{
+  "look": [
+    { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookMaze" }
+  ],
+  "play": [
+    { "id": "rings", "kind": "game", "icon": "🌊", "rules": "rings", "scene": "PlayRings", "sayLines": 2, "saySize": "small" },
+    { "id": "draw", "kind": "game", "icon": "🐭", "rules": "draw", "scene": "PlayDraw", "sayLines": 2, "saySize": "small" }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceMaze" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictMaze" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugMaze" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "Bfs.kt", "package": "bfs" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "ChallengeMaze", "frame": "stage" }
+  ],
+  "more": [
+    { "kind": "markdown", "src": "more" }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "look": [
+    { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookGrid" }
+  ],
+  "play": [
+    { "id": "explore", "kind": "game", "icon": "🧭", "rules": "explore", "scene": "PlayExplore", "sayLines": 2, "saySize": "small" },
+    { "id": "islands", "kind": "game", "icon": "🏝️", "rules": "islands", "scene": "PlayIslands", "sayLines": 2, "saySize": "small" }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceGrid" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictGrid" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugGrid" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "Dfs.kt", "package": "dfs" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "ChallengeGrid", "frame": "stage" }
+  ],
+  "more": [
+    { "kind": "markdown", "src": "more" }
+  ]
+}

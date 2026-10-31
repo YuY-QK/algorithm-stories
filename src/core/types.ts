@@ -175,6 +175,8 @@ export interface Ask<V, T = unknown> {
    * 看完解释后跳过下一问（后半问没必要再问）。不能和 anim 同用。
    */
   half?: boolean;
+  /** 答对后留在下一问画面下面的一句「✅ ……」（直到答错或换题）；前半问（half）答对时不换，保留上一句 */
+  praise?: Msg;
 }
 
 /** 一道题：依次回答若干问，最后看结局 */
@@ -222,6 +224,8 @@ export interface BugRules<B extends BugInfo, S extends Step> {
   verdict(step: S, bug: B): Msg | null;
   /** 播放条上多一个按钮，往后跳到第一个 stop 为真的步骤（如「跳到结果」），找不到就停在最后一步 */
   jump?: { label: Msg; stop(step: S): boolean };
+  /** 播放条上要更多按钮时用（如「下一次出队」加「跳到结尾」），规则同 jump，排在 jump 后面 */
+  jumps?: { label: Msg; stop(step: S): boolean }[];
 }
 
 /* ---------- 玩、挑战：引导式小游戏 ---------- */

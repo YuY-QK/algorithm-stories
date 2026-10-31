@@ -1,5 +1,4 @@
-import { L, type BfsStep } from '../../engine/bfs';
-import type { Tone } from './Maze.vue';
+import { L, type BfsStep, type Tone } from '../../../../engine/bfs';
 
 /** 逐步执行和找 bug 共用：把一步的状态画成格子的色调 */
 export function stepTones(s: BfsStep): Record<number, Tone> {

@@ -1,22 +1,24 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
 
 // 调用栈：栈底在左，栈顶（正在执行的这一层）在右。每一层写成 (行,列)，出界的格子也照样写。太深时只画最近的 max 层。
-const props = withDefaults(defineProps<{ stack: [number, number][]; max?: number }>(), { max: 14 });
+const props = withDefaults(defineProps<{ stack: [number, number][]; max?: number; t: (msg: Msg) => string }>(), { max: 14 });
 const shown = computed(() => props.stack.slice(-props.max));
 const hidden = computed(() => props.stack.length - shown.value.length);
 </script>
 
 <template>
-  <div class="srow" :aria-label="'调用栈有 ' + stack.length + ' 层'">
-    <span class="shead">栈底 →</span>
-    <span v-if="!stack.length" class="sempty">（空）</span>
-    <span v-if="hidden > 0" class="smore">… 前面 {{ hidden }} 层</span>
+  <div class="srow" :aria-label="t(m('stack.label', { n: stack.length }))">
+    <span class="shead">{{ t(m('stack.bottom')) }}</span>
+    <span v-if="!stack.length" class="sempty">{{ t(m('stack.empty')) }}</span>
+    <span v-if="hidden > 0" class="smore">{{ t(m('stack.more', { n: hidden })) }}</span>
     <span
       v-for="(f, k) in shown" :key="hidden + k" class="sitem"
       :class="{ top: hidden + k === stack.length - 1 }"
     >({{ f[0] }},{{ f[1] }})</span>
-    <span v-if="stack.length" class="shead">← 栈顶</span>
+    <span v-if="stack.length" class="shead">{{ t(m('stack.top')) }}</span>
   </div>
 </template>
 
