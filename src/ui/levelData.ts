@@ -11,7 +11,7 @@ const mores = import.meta.glob<{ compiledContent(): string | Promise<string> }>(
 
 const path = (slug: string, file: string) => '/content/algorithms/' + slug + '/' + file;
 
-/** 这一关有没有迁移到 level.json（没有就还用 src/demos/<slug>/Demo.astro） */
+/** 这一关有没有 level.json */
 export const hasLevel = (slug: string) => path(slug, 'level.json') in levels;
 
 export interface LevelData {

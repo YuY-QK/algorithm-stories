@@ -220,3 +220,12 @@ R3 时再处理：画面注册表现在是 eager glob，15 关迁完后考虑按
 - BFS：猜下一步「就这些（N 个）」「它是终点」两个按钮挪到题干上面；逐步执行的图例小字挪到播放条后面；找 bug 的「输入：」和说明并成一行
 - DFS：「回溯」「是宝藏」按钮换成等宽字体
 - 顺手修的旧 bug：动态规划猜下一步和两个小游戏的计时器泄漏；哈希查找借书动画中途切标签会卡住；「小熊的手」赢后切标签会重置；插入排序挑战计时器泄漏；LRU 挑战一打开就多出一段假的揭晓结果
+
+### 7.8 R4 结果（2026-10-31）
+
+- 删掉 `src/demos/`（只剩自动收集 `Demo.astro` 的 `index.ts`）和没人用的旧共享组件 `BugHunt.vue`、`useStreak.ts`、`components/shared/timing.ts`（转发到 `core/timing.ts`，5 处引用改成直接引用 core）
+- 其余底层组件（`usePlayer`、`Transport`、`CodePanel`、`VarChips`、`Segmented`、`BookPager`、`PredictFrame`、`Block`、`LogCompare`、`SoundToggle`、`sound`）还在被新控件和画面用，整体移到 `src/ui/vue/shared/`，`src/components/` 不再存在。这样「和平台有关的代码都在 `src/ui/`」成立
+- `src/pages/algo/[slug].astro` 只走 `LevelPage`，缺 `level.json` 直接报错
+- 文档：`level-spec.md` 的「新增一个算法」改成配置 + 规则 + 画面，末节改成现行分层；`AGENTS.md` 的「三层结构」改成「分层」；`README.md` 目录表、`demo-builder`、`content-reviewer` 同步
+- 检查：853 个测试、check、build、整站 check-pages 两种宽度全过
+- 遗留：几处中文还写在引擎和组件里（列表见 `progress.md` 待办），7.5 的三条也没做，都不影响页面

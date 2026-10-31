@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import Segmented from '../../../../components/shared/Segmented.vue';
+import Segmented from '../../shared/Segmented.vue';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';
 import { CHALLENGE_N, challengeNote, challengePeekable, challengeTarget, type ChallengeAction, type ChallengeState } from '../../../../engine/merge-sort';

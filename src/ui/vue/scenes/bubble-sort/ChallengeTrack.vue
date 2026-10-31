@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import VarChips from '../../../../components/shared/VarChips.vue';
+import VarChips from '../../shared/VarChips.vue';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';
 import { inversions, isSorted, type ChallengeAction, type ChallengeState } from '../../../../engine/bubble-sort';

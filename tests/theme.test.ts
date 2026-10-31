@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import tokens from '../src/theme/tokens.json';
 import * as timing from '../src/core/timing';
-import * as oldTiming from '../src/components/shared/timing';
 
 const { generate, outFile } = createRequire(import.meta.url)('../scripts/gen-theme.cjs');
 
@@ -24,11 +23,9 @@ describe('主题变量', () => {
 });
 
 describe('timing', () => {
-  it('常量来自 tokens.json，旧路径转出同一份', () => {
+  it('常量来自 tokens.json', () => {
     expect(timing.SPEEDS).toEqual(tokens.motion.speeds);
     expect(timing.SPEEDS.find((s) => s.ms === timing.MANUAL)).toBeTruthy();
     expect(timing.PAUSE_LONG).toBe(tokens.motion.PAUSE_LONG);
-    expect(oldTiming.SPEEDS).toBe(timing.SPEEDS);
-    expect(oldTiming.SHAKE_MS).toBe(timing.SHAKE_MS);
   });
 });

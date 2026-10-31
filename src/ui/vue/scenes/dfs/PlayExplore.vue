@@ -4,7 +4,7 @@ import { m } from '../../../../core/i18n';
 import { FLASH_MS, SHAKE_MS } from '../../../../core/timing';
 import type { Msg } from '../../../../core/types';
 import { BACK, DIR_ARROWS, exploreView, type Choice, type ExploreAction, type ExploreState } from '../../../../engine/dfs';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 import Grid from './Grid.vue';
 
 // 玩法一「下一步往哪走」的画面：走了几步、退回几次，山洞，和 ↑←→↓ 加「退回」五个键。

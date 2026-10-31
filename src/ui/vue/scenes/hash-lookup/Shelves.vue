@@ -4,7 +4,7 @@ import { m } from '../../../../core/i18n';
 import { SHAKE_MS } from '../../../../core/timing';
 import type { Msg } from '../../../../core/types';
 import { TOMB, type Pile } from '../../../../engine/hash-lookup';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 
 // 一排书架（桶）：每个书架上叠着书，管理员站在某个书架前。画面只管画，规则都在引擎里。
 const props = withDefaults(defineProps<{

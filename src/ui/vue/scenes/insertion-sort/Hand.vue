@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';
 import { isRed, suitOf, type Card } from '../../../../engine/insertion-sort';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 import { SHAKE_MS } from '../../../../core/timing';
 
 // 牌桌：一排位置，牌放在位置上，拿在手上的牌悬在空位上方。

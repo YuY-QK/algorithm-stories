@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, shallowRef } from 'vue';
-import VarChips from '../../../components/shared/VarChips.vue';
-import { play } from '../../../components/shared/sound';
-import { useStageStop } from '../../../components/shared/usePlayer';
+import VarChips from '../shared/VarChips.vue';
+import { play } from '../shared/sound';
+import { useStageStop } from '../shared/usePlayer';
 import { actGame, interruptGame, resultOf, startGame, tickGame, type GameRun, type GameStep } from '../../../core/flows/game';
 import type { GameRules } from '../../../core/types';
 import { useCopy } from '../i18n';

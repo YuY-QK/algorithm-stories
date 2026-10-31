@@ -3,7 +3,7 @@ import { onBeforeUnmount, ref, watch } from 'vue';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';
 import { BIG, type NextAction, type NextGame } from '../../../../engine/queue';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 import { SHAKE_MS } from '../../../../core/timing';
 
 // 玩法一「谁先买到？」的画面：柜台、排队的顾客（被点的用 act 交给规则）、已经买到奶茶的。

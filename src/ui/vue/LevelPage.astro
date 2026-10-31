@@ -1,12 +1,12 @@
 ---
 /**
- * 读 content/algorithms/<slug>/level.json，按四步和块的类型挂控件，取代每关一份的 Demo.astro。
+ * 读 content/algorithms/<slug>/level.json，按四步和块的类型挂控件。
  * 页面结构和文案在内容目录里，规则在 src/engine，画面在 src/ui/vue/scenes，这里不认识任何具体算法。
  */
 import AlgoLayout from '../../layouts/AlgoLayout.astro';
-import Block from '../../components/shared/Block.astro';
-import CodePanel from '../../components/shared/CodePanel.vue';
-import LogCompare from '../../components/shared/LogCompare.astro';
+import Block from './shared/Block.astro';
+import CodePanel from './shared/CodePanel.vue';
+import LogCompare from './shared/LogCompare.astro';
 import { t } from '../../core/i18n';
 import type { Msg } from '../../core/types';
 import { loadLevel } from '../levelData';

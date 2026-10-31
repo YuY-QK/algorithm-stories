@@ -5,7 +5,7 @@ import { m } from '../../../../core/i18n';
 import { SHAKE_MS } from '../../../../core/timing';
 import type { Msg } from '../../../../core/types';
 import { kidOf } from '../../../../engine/merge-sort';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 
 // 一队小动物，站在一条地线上，从左到右是队头到队尾。队头可以当按钮点。
 const props = withDefaults(defineProps<{

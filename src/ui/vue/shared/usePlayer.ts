@@ -1,7 +1,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue';
 import { play } from './sound';
-import { SPEEDS, type Speed } from '../../core/timing';
-import * as flow from '../../core/flows/player';
+import { SPEEDS, type Speed } from '../../../core/timing';
+import * as flow from '../../../core/flows/player';
 
 export type { Speed };
 

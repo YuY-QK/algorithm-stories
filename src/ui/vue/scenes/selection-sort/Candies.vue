@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { CANDY_MAX } from '../../../../engine/selection-sort';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 import { SHAKE_MS } from '../../../../core/timing';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';

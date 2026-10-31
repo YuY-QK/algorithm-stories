@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import VarChips from '../../../../components/shared/VarChips.vue';
+import VarChips from '../../shared/VarChips.vue';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';
 import { CHALLENGE_COUNT, permView, type PermGame } from '../../../../engine/stack';

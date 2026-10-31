@@ -2,8 +2,8 @@
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';
-import { SHAKE_MS } from '../../../../components/shared/timing';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../../../core/timing';
+import { useStageStop } from '../../shared/usePlayer';
 import { memoCalls, naiveCalls, notesLookups, notesRoot, ways, type NotesAction, type NotesGame } from '../../../../engine/dynamic-programming';
 import CallTree from './CallTree.vue';
 

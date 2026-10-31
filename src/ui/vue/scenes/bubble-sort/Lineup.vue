@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { KID_MAX_H, KID_MIN_H, type Kid } from '../../../../engine/bubble-sort';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 import { SHAKE_MS } from '../../../../core/timing';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';

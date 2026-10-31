@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import CodePanel from '../../../components/shared/CodePanel.vue';
-import Transport from '../../../components/shared/Transport.vue';
-import VarChips from '../../../components/shared/VarChips.vue';
-import { usePlayer } from '../../../components/shared/usePlayer';
+import CodePanel from '../shared/CodePanel.vue';
+import Transport from '../shared/Transport.vue';
+import VarChips from '../shared/VarChips.vue';
+import { usePlayer } from '../shared/usePlayer';
 import type { Step, TraceRules } from '../../../core/types';
 import { useCopy } from '../i18n';
 import { rulesOf, sceneOf } from '../levels';

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { muted, play, setBackend, setMuted, synthBackend, type SoundName } from '../src/components/shared/sound';
+import { muted, play, setBackend, setMuted, synthBackend, type SoundName } from '../src/ui/vue/shared/sound';
 
 describe('sound', () => {
   afterEach(() => {

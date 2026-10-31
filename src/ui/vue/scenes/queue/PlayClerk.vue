@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';
 import { clerkCard, type Card, type ClerkAction, type ClerkState } from '../../../../engine/queue';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 import Seats from './Seats.vue';
 import { seatLabel, tagText } from './seatLabel';
 

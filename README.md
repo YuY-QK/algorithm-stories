@@ -55,12 +55,13 @@ npm run build      # 构建静态网站到 dist/
 
 | 目录 | 内容 |
 |---|---|
-| `content/algorithms/<slug>/` | 每个算法的内容：`meta.json`、`story.md`、Python 参考实现 |
+| `content/algorithms/<slug>/` | 每个算法的配置和内容：`meta.json`、`level.json`（页面结构）、`copy.zh.json`（文案）、`more.zh.md`（延伸阅读）、`story.md`（故事稿）；早期关卡有 Python 参考实现 |
 | `exercises/` | Kotlin 练习项目：「亲手写」的函数框架、测试和参考答案 |
-| `src/engine/` | 算法引擎：纯函数，输出每一步的状态 |
-| `src/demos/<slug>/` | 每个算法的关卡页和四步的交互组件 |
-| `src/components/shared/` | 共享组件：播放控制、代码面板、对比图等 |
-| `tests/` | 引擎测试和 Python 对拍 |
+| `src/engine/` | 每个算法的规则：纯函数，输出每一步的状态和小游戏的规则 |
+| `src/core/` | 共享的流程：翻页、逐步执行、猜下一步、找 bug、小游戏的状态机，文案和配置校验 |
+| `src/theme/` | 主题变量（颜色、圆角、速度）的唯一来源 |
+| `src/ui/` | 页面：按 `level.json` 组装关卡页，通用控件和每关的画面 |
+| `tests/` | 规则、流程、文案的测试和 Python 对拍 |
 | `prototypes/` | 最早的单文件原型，留作参考 |
 
 新增一个算法的步骤见 `docs/level-spec.md`。

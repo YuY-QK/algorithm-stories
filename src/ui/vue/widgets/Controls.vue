@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, useId, watch, type Component } from 'vue';
-import Segmented from '../../../components/shared/Segmented.vue';
+import Segmented from '../shared/Segmented.vue';
 import { m } from '../../../core/i18n';
 import { SPEEDS } from '../../../core/timing';
 import type { Control, TransportOp } from '../../../core/types';

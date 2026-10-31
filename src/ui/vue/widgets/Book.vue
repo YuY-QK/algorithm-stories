@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import BookPager from '../../../components/shared/BookPager.vue';
+import BookPager from '../shared/BookPager.vue';
 import type { LookRules } from '../../../core/types';
 import { useCopy } from '../i18n';
 import { rulesOf, sceneOf } from '../levels';

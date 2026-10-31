@@ -3,7 +3,7 @@
  * 按 level.json 里一个块的类型，挂上对应的控件，外面包一个 Block 卡片。
  * 标题、说明、目标提示按约定从文案表取：<id>.title、<id>.intro、<id>.goal。
  */
-import Block from '../../components/shared/Block.astro';
+import Block from './shared/Block.astro';
 import type { Block as LevelBlock } from '../../core/level';
 import type { Copy } from '../../core/types';
 import { renderMiniMd } from '../mini-md';

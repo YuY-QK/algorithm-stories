@@ -4,7 +4,7 @@ import { m } from '../../../../core/i18n';
 import { FLASH_MS, SHAKE_MS } from '../../../../core/timing';
 import type { Msg } from '../../../../core/types';
 import { colOf, isWall, rowOf, type Maze, type Tone } from '../../../../engine/bfs';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 
 // 迷宫：看、玩、做共用，只负责画，不管规则。
 // 每个格子可以有一个色调（tones）和一个小字（labels，通常是离起点几步）。

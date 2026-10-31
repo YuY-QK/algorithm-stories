@@ -4,7 +4,7 @@ import { m } from '../../../../core/i18n';
 import { FLASH_MS, SHAKE_MS } from '../../../../core/timing';
 import type { Msg } from '../../../../core/types';
 import type { Tone } from '../../../../engine/dfs';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 
 // 方格地图：看、玩、做共用，只负责画，不管规则。
 // 每个格子可以有一个色调（tones）、一个 emoji（emojis）和一个小字（labels，通常是访问的先后）。

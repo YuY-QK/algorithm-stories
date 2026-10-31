@@ -2,8 +2,8 @@
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';
-import { SHAKE_MS } from '../../../../components/shared/timing';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../../../core/timing';
+import { useStageStop } from '../../shared/usePlayer';
 
 // 小熊的小卖部：上面是「还要找多少」，中间是钱盒里的硬币，下面是找零盘。
 // 看、玩法一、玩法二共用，只负责画，不管规则。

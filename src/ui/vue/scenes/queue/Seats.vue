@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 import { SHAKE_MS } from '../../../../core/timing';
 
 // 奶茶店的椅子：排成一排或者围成一圈（两种摆法之间有动画）。

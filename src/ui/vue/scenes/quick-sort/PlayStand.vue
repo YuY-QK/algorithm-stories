@@ -4,7 +4,7 @@ import { m } from '../../../../core/i18n';
 import { WIGGLE_MS } from '../../../../core/timing';
 import type { Msg } from '../../../../core/types';
 import { STAND_MAX, standDone, standHeights, type StandAction, type StandState } from '../../../../engine/quick-sort';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 import KidBar from './KidBar.vue';
 
 // 玩法一「站两边」的画面：排队的同学，当前这位头上有 👆；两个大按钮选站哪边；下面是左右两队和标杆。

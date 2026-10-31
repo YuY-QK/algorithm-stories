@@ -1,6 +1,6 @@
 # 进度
 
-更新：2026-10-26。每完成一个阶段或一批关卡就更新，保持精简；规则不写在这里（见 `AGENTS.md`、`docs/level-spec.md`）。
+更新：2026-10-31。每完成一个阶段或一批关卡就更新，保持精简；规则不写在这里（见 `AGENTS.md`、`docs/level-spec.md`）。
 
 ## 现状
 
@@ -13,9 +13,7 @@
 - 算法思想：贪心找零、动态规划
 - 工程常用：LRU 缓存
 
-共享部分：绘本翻页（`BookPager`）、猜下一步（`useStreak` + `PredictFrame`）、找 bug（`BugHunt`）、播放器（`usePlayer` + `Transport`）、速度表（`timing.ts`，含「手动」档）、音效层（`sound.ts`，可换成人声库）、卡片布局（`Block.astro`），配色、圆角、阴影都在 `theme.css` 的变量里。
-
-**已知的架构缺口**：每关的步骤、台词、说明、题目和数据还散在各关的引擎和 Vue 组件里，新增一关要写一整套组件；换平台要全部重写。下一阶段 R 解决。
+结构（阶段 R 完成）：每关 = 配置（`level.json`、`copy.zh.json`、`more.zh.md`）+ 规则（`src/engine/<slug>.ts`）+ 画面（`src/ui/vue/scenes/<slug>/`）；流程（翻页、逐步执行、猜下一步、找 bug、小游戏）都在 `src/core/`，主题在 `src/theme/tokens.json`。分层和新增一关的步骤见 `docs/level-spec.md`。
 
 ## 计划
 
@@ -25,8 +23,8 @@
 | B 做架构 ✅ | 共享组件和引擎数据格式（规格见 `level-spec.md` 末节），13 关迁移 | 10-25 完成 |
 | A 试玩 ✅ | 四条反馈（声音、每步说明、速度、布局）都改在共享部分；再试玩结论「还可以」 | 10-26 完成 |
 | C 新关卡 · 第一批 ✅ | 顺序查找 + 哈希查找：资料 → 故事稿 → 关卡 → 统一审校，审校结论已落实 | 10-26 完成 |
-| R 架构重构（进行中） | 数据、流程、文案和界面分开：每个算法的步骤、台词、说明、题目、数据写成配置，新增算法只加配置；换平台、换语言只重写页面，配置、逻辑和主题复用。方案见 `refactor-plan.md`；R3 完成，15 关全部迁完；下一步 R4 收尾 | 方案确认；试做关通过；全部迁移后测试和 check-pages 全部通过 |
-| C 新关卡 · 后续 | 重构完成后再做，两个相近的一组；候选：链表 + 二叉搜索树、堆 + Dijkstra、递归 + 分治 | 每批：CI、check-pages、清单和 README 更新 |
+| R 架构重构 ✅ | 数据、流程、文案和界面分开：每个算法的步骤、台词、说明、题目、数据写成配置，新增算法只加配置；换平台、换语言只重写页面，配置、逻辑和主题复用。方案和过程记录见 `refactor-plan.md`；15 关全部迁完，R4 删掉旧结构、文档改成新分层（10-31） | 方案确认；试做关通过；全部迁移后测试和 check-pages 全部通过 |
+| C 新关卡 · 后续（下一步） | 两个相近的一组；候选：链表 + 二叉搜索树、堆 + Dijkstra、递归 + 分治 | 每批：CI、check-pages、清单和 README 更新 |
 
 长期路线见 `project-plan.md` 第 7 节。
 
@@ -40,7 +38,9 @@
 - [x] R3 前五组（10-31）：顺序查找、哈希查找、栈、队列、冒泡、选择、插入、快速、归并、LRU 已迁，加上二分查找共 11 关在新结构上
 - [x] R3 后两组（10-31）：BFS、DFS、贪心、动态规划已迁，15 关全部在新结构上。整站 check-pages（15 关每个标签 + 首页 + 故事集，两种宽度）全过，`npm test` 65 个文件 853 个测试
 - [x] R3 迁移后的小差别：Yumor 决定只补插入排序「挪一挪」数错时的晃动提示（已补），其余保持现状（列表见 `refactor-plan.md` 7.7）
-- [ ] R4：4 关迁完后删 `src/demos/` 和旧共享组件，改 `level-spec.md`、`AGENTS.md`、agent 说明
+- [x] R4（10-31）：删掉 `src/demos/`、没人用的旧共享组件（`BugHunt.vue`、`useStreak.ts`、`timing.ts` 转发）；其余底层组件移到 `src/ui/vue/shared/`；`level-spec.md`、`AGENTS.md`、`README.md`、`demo-builder` 和 `content-reviewer` 的说明改成新分层
+- [ ] 迁移遗留的中文（应进文案表）：`engine/bfs.ts`、`engine/dfs.ts` 的 `DIR_NAMES` 和 BFS 猜下一步的「第」、`engine/stack.ts` 的 `PLATE_NAMES`、`engine/lru-cache.ts` 的「号」、`scenes/dynamic-programming/Stairs.vue` 的「地」、`SoundToggle` 的读屏文字、`BookPager`/`CodePanel`/`PredictFrame`/`Transport` 的默认中文 `labels`（新控件都传了，默认值可删）
+- [ ] `refactor-plan.md` 7.5 留下的：画面注册表改成按关懒加载；`GameRules.act` 的 `rand` 控件里还没传；速度档名字还没进文案表
 - [ ] 人声旁白：音效层已留好接口（`SoundBackend`），选定第三方库后接入
 - [ ] `project-plan.md` 第 9 节的待定问题：网站域名、博客首发平台、初级年龄段、是否做英文版
 - [ ] 应用名最终确认（推荐「算法小镇 AlgoTown」，博客系列名「算法小故事」），商标和域名还没查
@@ -49,9 +49,8 @@
 
 ## 最近一次整站检查
 
-2026-10-26，阶段 A 和第一批新关卡收尾时：
+2026-10-31，阶段 R4 收尾时：
 
-- `npm test` 31 个文件 350 个测试通过；`npm run check` 0 错误 0 警告；`npm run build` 32 页
-- `cd exercises && ./gradlew test -Psolutions` 全绿（不带 `-Psolutions` 时框架能编译、测试失败等着写）
-- `npm run test:py` 通过
-- `scripts/check-pages.cjs` 对 15 关（每个标签都点开）、首页、故事集，在 1100px 浅色和 375px 深色下全部通过
+- `npm test` 65 个文件 853 个测试通过；`npm run check` 0 错误 0 警告（4 条提示在 `scripts/`、`tests/` 里，早已存在）；`npm run build` 32 页
+- `scripts/check-pages.cjs` 对 15 关（每个标签都点开）、首页、故事集，在 1100px 浅色和 375px 深色下共 154 项全部通过
+- Kotlin 练习和 `test:py` 这次没有改动，没重跑，交给 CI

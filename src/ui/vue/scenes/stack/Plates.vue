@@ -3,7 +3,7 @@ import { onBeforeUnmount, ref, watch } from 'vue';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';
 import { PLATE_ICONS, PLATE_NAMES } from '../../../../engine/stack';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 import { SHAKE_MS } from '../../../../core/timing';
 
 // 一摞盘子加「拿走的」一排。看、玩法一共用，只负责画，不管规则。

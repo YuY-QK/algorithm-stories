@@ -4,7 +4,7 @@ import { m } from '../../../../core/i18n';
 import { SHAKE_MS } from '../../../../core/timing';
 import type { Msg } from '../../../../core/types';
 import { BOOK_EMOJI } from '../../../../engine/lru-cache';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 
 // 书桌和书架：看、玩法一、玩法二共用，只负责画，不管规则。
 // 桌上的书从左到右按「最近碰过」排：最左边最久没碰，最右边刚碰过。

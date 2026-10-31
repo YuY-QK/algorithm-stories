@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import CodePanel from '../../../components/shared/CodePanel.vue';
-import Segmented from '../../../components/shared/Segmented.vue';
-import Transport from '../../../components/shared/Transport.vue';
-import VarChips from '../../../components/shared/VarChips.vue';
-import { play } from '../../../components/shared/sound';
-import { usePlayer } from '../../../components/shared/usePlayer';
+import CodePanel from '../shared/CodePanel.vue';
+import Segmented from '../shared/Segmented.vue';
+import Transport from '../shared/Transport.vue';
+import VarChips from '../shared/VarChips.vue';
+import { play } from '../shared/sound';
+import { usePlayer } from '../shared/usePlayer';
 import * as flow from '../../../core/flows/bughunt';
 import type { BugInfo, BugRules, Step } from '../../../core/types';
 import { useCopy } from '../i18n';

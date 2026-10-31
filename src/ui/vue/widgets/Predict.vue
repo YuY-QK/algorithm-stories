@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
-import PredictFrame from '../../../components/shared/PredictFrame.vue';
+import PredictFrame from '../shared/PredictFrame.vue';
 import * as flow from '../../../core/flows/predict';
-import { play } from '../../../components/shared/sound';
-import { useStageStop } from '../../../components/shared/usePlayer';
+import { play } from '../shared/sound';
+import { useStageStop } from '../shared/usePlayer';
 import type { PredictRules } from '../../../core/types';
 import { useCopy } from '../i18n';
 import { rulesOf, sceneOf } from '../levels';

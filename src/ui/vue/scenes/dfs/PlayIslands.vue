@@ -4,7 +4,7 @@ import { m } from '../../../../core/i18n';
 import { SHAKE_MS } from '../../../../core/timing';
 import type { Msg } from '../../../../core/types';
 import { islandsView, type IslandsAction, type IslandsState } from '../../../../engine/dfs';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 import Grid from './Grid.vue';
 
 // 玩法二「数一数小岛」的画面：海图（涂到哪一格由 state.filling 决定），涂完后数岛的三个数字按钮。

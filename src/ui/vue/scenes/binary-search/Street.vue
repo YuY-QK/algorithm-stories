@@ -3,7 +3,7 @@ import { onBeforeUnmount, ref, watch } from 'vue';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';
 import type { Dir } from '../../../../engine/binary-search';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 import { SHAKE_MS } from '../../../../core/timing';
 
 // 信箱街：一排信箱加上方的小邮差。看、玩法一、玩法二共用，只负责画，不管规则。

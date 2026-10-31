@@ -3,7 +3,7 @@ import { onBeforeUnmount, reactive, watch } from 'vue';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';
 import type { BlocksGame } from '../../../../engine/stack';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { useStageStop } from '../../shared/usePlayer';
 import { FLASH_MS } from '../../../../core/timing';
 import Piece from './Piece.vue';
 

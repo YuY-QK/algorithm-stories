@@ -2,8 +2,8 @@
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';
-import { SHAKE_MS } from '../../../../components/shared/timing';
-import { useStageStop } from '../../../../components/shared/usePlayer';
+import { SHAKE_MS } from '../../../../core/timing';
+import { useStageStop } from '../../shared/usePlayer';
 import { KID_N, countFinding, countLevel, noteOptions, pathSum, ways, type CountAction, type CountGame } from '../../../../engine/dynamic-programming';
 import Stairs from './Stairs.vue';
 
