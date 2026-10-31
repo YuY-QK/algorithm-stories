@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { useStageStop } from '../../components/shared/usePlayer';
-import { FLASH_MS, SHAKE_MS } from '../../components/shared/timing';
+import { m } from '../../../../core/i18n';
+import { FLASH_MS, SHAKE_MS } from '../../../../core/timing';
+import type { Msg } from '../../../../core/types';
+import type { Tone } from '../../../../engine/dfs';
+import { useStageStop } from '../../../../components/shared/usePlayer';
 
 // 方格地图：看、玩、做共用，只负责画，不管规则。
 // 每个格子可以有一个色调（tones）、一个 emoji（emojis）和一个小字（labels，通常是访问的先后）。
 // 山洞里的岩石是 walls；海图没有岩石，海和陆地靠 tones 的 sea / land / i0～i3 区分。
-export type Tone =
-  | 'crumb' | 'path' | 'cur' | 'nb' | 'best' | 'pick' | 'miss' | 'dim'
-  | 'sea' | 'land' | 'i0' | 'i1' | 'i2' | 'i3';
-
 const props = withDefaults(defineProps<{
   w: number;
   h: number;
@@ -25,11 +24,10 @@ const props = withDefaults(defineProps<{
   shake?: [number, number] | null;
   /** 在上方和左边标出列号、行号 */
   coords?: boolean;
-  /** 每个格子读屏时的补充说明 */
-  hints?: Record<number, string>;
+  t: (msg: Msg) => string;
 }>(), {
   walls: () => [], tones: () => ({}), labels: () => ({}), emojis: () => ({}), clickable: false,
-  glow: () => [], glowKey: 0, shake: null, coords: false, hints: () => ({}),
+  glow: () => [], glowKey: 0, shake: null, coords: false,
 });
 
 const emit = defineEmits<{ pick: [id: number] }>();
@@ -71,21 +69,23 @@ onBeforeUnmount(() => {
 
 const ids = computed(() => Array.from({ length: props.w * props.h }, (_, k) => k));
 
-const TONE_NAME: Partial<Record<Tone, string>> = {
-  crumb: '有面包屑', path: '在现在的路上', cur: '正在这里', nb: '正在看', best: '最短路', pick: '你选的',
-  sea: '海', land: '陆地', i0: '涂了颜色 1', i1: '涂了颜色 2', i2: '涂了颜色 3', i3: '涂了颜色 4',
+const TONE_NAME: Partial<Record<Tone, Msg>> = {
+  crumb: m('grid.tone.crumb'), path: m('grid.tone.path'), cur: m('grid.tone.cur'), nb: m('grid.tone.nb'), best: m('grid.tone.best'),
+  pick: m('grid.tone.pick'), sea: m('grid.tone.sea'), land: m('grid.tone.land'), i0: m('grid.tone.i0'), i1: m('grid.tone.i1'),
+  i2: m('grid.tone.i2'), i3: m('grid.tone.i3'),
 };
-const EMOJI_NAME: Record<string, string> = { '🧭': '探险家', '💎': '宝藏', '🍞': '面包屑', '🏝️': '小岛' };
+const EMOJI_NAME: Record<string, Msg> = {
+  '🧭': m('grid.hero'), '💎': m('grid.treasure'), '🍞': m('grid.crumbEmoji'), '🏝️': m('grid.island'),
+};
 
 function label(id: number): string {
-  const parts = [Math.floor(id / props.w) + ' 行 ' + (id % props.w) + ' 列'];
-  if (props.walls[id]) parts.push('岩石');
+  const parts = [props.t(m('grid.cell', { r: Math.floor(id / props.w), c: id % props.w }))];
+  if (props.walls[id]) parts.push(props.t(m('grid.rock')));
   const e = props.emojis[id];
-  if (e) parts.push(EMOJI_NAME[e] ?? e);
-  const t = props.tones[id];
-  if (t && TONE_NAME[t]) parts.push(TONE_NAME[t]!);
-  if (props.labels[id] !== undefined) parts.push('第 ' + props.labels[id]);
-  if (props.hints[id]) parts.push(props.hints[id]);
+  if (e) parts.push(EMOJI_NAME[e] ? props.t(EMOJI_NAME[e]) : e);
+  const tone = props.tones[id];
+  if (tone && TONE_NAME[tone]) parts.push(props.t(TONE_NAME[tone]!));
+  if (props.labels[id] !== undefined) parts.push(props.t(m('grid.nth', { n: props.labels[id] })));
   return parts.join('，');
 }
 </script>

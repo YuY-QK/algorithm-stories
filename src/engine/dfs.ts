@@ -1,4 +1,8 @@
-import type { BugInfo, LookFrame, Step, Trace } from './types';
+import { m as msg } from '../core/i18n';
+import { FILL_END, FILL_STEP } from '../core/timing';
+import type {
+  BugInfo, BugRules, Control, GameRules, LevelModule, LookFrame, LookRules, Msg, PredictRules, Puzzle, Step, Trace, TraceRules, Var,
+} from '../core/types';
 
 /*
  * 深度优先搜索（DFS）：探险家走山洞。
@@ -229,10 +233,15 @@ export const KID_MAZES: string[][] = [
 
 /* ---------- 看：绘本 ---------- */
 
-/** 看里格子的色调：面包屑、现在这条路、最近的路（Grid.vue 的 Tone 包含这三个） */
+/** 格子的色调（画面 Grid.vue 按它上色）；看里只用面包屑、现在这条路、最近的路 */
+export type Tone =
+  | 'crumb' | 'path' | 'cur' | 'nb' | 'best' | 'pick' | 'miss' | 'dim'
+  | 'sea' | 'land' | 'i0' | 'i1' | 'i2' | 'i3';
 export type LookTone = 'crumb' | 'path' | 'best';
 
 export interface LookPage extends LookFrame {
+  /** 山洞本身（画面据此画格子） */
+  rows: string[];
   tones: Record<number, LookTone>;
   /** 探险家站在哪一格 */
   hero: number;
@@ -257,15 +266,15 @@ export function lookFrames(m: Maze): LookPage[] {
     for (const id of mv.path) t[id] = 'path';
     return { ...t, ...extra };
   };
-  const at = (say: string, mv: TourMove, extra: Record<number, LookTone> = {}): LookPage => ({
-    say, tones: pathTones(mv, extra), hero: mv.cell, crumbs: mv.visited,
+  const at = (say: Msg, mv: TourMove, extra: Record<number, LookTone> = {}): LookPage => ({
+    say, rows: m.rows, tones: pathTones(mv, extra), hero: mv.cell, crumbs: mv.visited,
   });
 
   const out: LookPage[] = [];
   const first = moves[0];
-  out.push({ say: '探险家 🧭 走进山洞，要找宝藏 💎', tones: {}, hero: m.start, crumbs: [] });
-  out.push({ say: '遇到岔路口，按顺序选：⬆️ ➡️ ⬇️ ⬅️', tones: { [m.start]: 'path' }, hero: m.start, crumbs: [] });
-  out.push(at('走过的地方撒面包屑 🍞，不走回头路', first));
+  out.push({ say: msg('look.open'), rows: m.rows, tones: {}, hero: m.start, crumbs: [] });
+  out.push({ say: msg('look.order'), rows: m.rows, tones: { [m.start]: 'path' }, hero: m.start, crumbs: [] });
+  out.push(at(msg('look.crumbs'), first));
 
   // 把行程切成「一口气往前走」和「退回」的段，往前走的段太长就再切开
   let k = 1;
@@ -283,14 +292,12 @@ export function lookFrames(m: Maze): LookPage[] {
     const last = moves[j - 1];
     if (kind === 'back') {
       backRuns++;
-      out.push(at(backRuns === 1 ? '碰壁了，是死路！退回上一个路口' : '又是死路，再退回去', last));
+      out.push(at(msg(backRuns === 1 ? 'look.wall' : 'look.wall2'), last));
       afterBack = true;
     } else {
       goRuns++;
       const found = last.kind === 'found';
-      const say = found
-        ? '💎 找到宝藏啦！'
-        : afterBack ? '回到路口，换下一个方向' : goRuns === 1 ? '一直往前走，走到底' : '继续往前走';
+      const say = msg(found ? 'look.found' : afterBack ? 'look.fork' : goRuns === 1 ? 'look.straight' : 'look.onward');
       out.push(at(say, last));
       afterBack = false;
     }
@@ -299,11 +306,12 @@ export function lookFrames(m: Maze): LookPage[] {
 
   const end = moves[moves.length - 1];
   const dfsSteps = end.path.length - 1;
-  out.push(at('留在路上的 ' + dfsSteps + ' 步，就是它走出来的路', end));
+  out.push(at(msg('look.trail', { n: dfsSteps }), end));
   const bestTones: Record<number, LookTone> = {};
   for (const id of shortestRoute(m)) bestTones[id] = 'best';
   out.push({
-    say: '可是最近的路只要 ' + bestSteps(m) + ' 步，深度优先不保证最短',
+    say: msg('look.best', { n: bestSteps(m) }),
+    rows: m.rows,
     tones: pathTones(end, bestTones),
     hero: m.end,
     crumbs: [],
@@ -545,7 +553,7 @@ function simulate(m: Maze, f: Flavor): DfsStep[] {
   let calls = 0;
   let halted = false;
   const c = (r: number, cc: number) => '(' + r + ',' + cc + ')';
-  const emit = (line: number, note: string, extra: Partial<DfsStep> = {}) => {
+  const emit = (line: number, note: Msg, extra: Partial<DfsStep> = {}) => {
     const top = stack[stack.length - 1];
     const inside = top && top[0] >= 0 && top[0] < m.h && top[1] >= 0 && top[1] < m.w;
     steps.push({
@@ -553,7 +561,7 @@ function simulate(m: Maze, f: Flavor): DfsStep[] {
       cur: inside ? top[0] * m.w + top[1] : null, order: [...order], calls, result: null, outcome: 'running', ...extra,
     });
   };
-  const stop = (line: number, note: string, outcome: DfsStep['outcome']) => {
+  const stop = (line: number, note: Msg, outcome: DfsStep['outcome']) => {
     emit(line, note, { outcome, done: true });
     halted = true;
   };
@@ -563,41 +571,37 @@ function simulate(m: Maze, f: Flavor): DfsStep[] {
     stack.push([r, cc]);
     calls++;
     if (steps.length >= MAX_STEPS) {
-      stop(L.bounds, '跑了太多步还没停：判定为跑不完。', 'overflow');
+      stop(L.bounds, msg('trace.tooLong'), 'overflow');
       return false;
     }
     if (stack.length > STACK_LIMIT) {
-      stop(L.bounds, '调用栈已经叠了 ' + stack.length + ' 层，还在往下叠：StackOverflowError，程序崩溃！', 'overflow');
+      stop(L.bounds, msg('trace.overflow', { n: stack.length }), 'overflow');
       return false;
     }
     const tooBig = r >= m.h || cc >= m.w;
     const out = r < 0 || cc < 0 || (f.upperBound && tooBig);
-    emit(L.bounds, out
-      ? '进入 dfs' + c(r, cc) + '：出界了，return false。'
-      : '进入 dfs' + c(r, cc) + '：没有出界，继续。');
+    emit(L.bounds, msg(out ? 'trace.out' : 'trace.inside', { c: c(r, cc) }));
     if (out) {
       stack.pop();
       return false;
     }
     if (tooBig) {
-      stop(L.skip, '读 grid[' + r + '][' + cc + ']：' + (r >= m.h ? '第 ' + r + ' 行' : '第 ' + cc + ' 列') + '不存在，下标越界，程序崩溃！', 'crash');
+      stop(L.skip, msg('trace.crash', { r, c: cc, what: r >= m.h ? msg('trace.row', { n: r }) : msg('trace.col', { n: cc }) }), 'crash');
       return false;
     }
     const id = r * m.w + cc;
     const wall = isWall(m, id);
     if (wall || visited[id]) {
-      emit(L.skip, wall ? c(r, cc) + ' 是岩石，return false。' : c(r, cc) + ' 已经有面包屑了，return false。');
+      emit(L.skip, msg(wall ? 'trace.rock' : 'trace.crumb', { c: c(r, cc) }));
       stack.pop();
       return false;
     }
-    emit(L.skip, c(r, cc) + ' 是空地，也没来过，继续。');
+    emit(L.skip, msg('trace.free', { c: c(r, cc) }));
     if (f.mark) visited[id] = true;
     order.push(id);
-    emit(L.mark, f.mark
-      ? '标记 ' + c(r, cc) + ' visited，撒下面包屑 🍞。'
-      : '这一行被注释掉了：没有撒面包屑，下次还会把这里当成新格子。');
+    emit(L.mark, f.mark ? msg('trace.mark', { c: c(r, cc) }) : msg('trace.noMark'));
     if (id === m.end) {
-      emit(L.isEnd, c(r, cc) + ' 是终点 E，宝藏！return true。');
+      emit(L.isEnd, msg('trace.treasure', { c: c(r, cc) }));
       stack.pop();
       return true;
     }
@@ -605,29 +609,27 @@ function simulate(m: Maze, f: Flavor): DfsStep[] {
       if (halted) return false;
       const nr = r + DIRS[k][0];
       const nc = cc + DIRS[k][1];
-      emit(L.call, '试 ' + DIR_NAMES[k] + '边 ' + c(nr, nc) + '：调用 dfs。');
+      emit(L.call, msg('trace.try', { dir: msg('dir.' + k), c: c(nr, nc) }));
       const ok = dfs(nr, nc);
       if (halted) return false;
       if (ok && f.useReturn) {
-        emit(L.call, DIR_NAMES[k] + '边的调用返回了 true，这一层也 return true，一路往回报喜讯。');
+        emit(L.call, msg('trace.good', { dir: msg('dir.' + k) }));
         stack.pop();
         return true;
       }
-      if (ok) emit(L.call, DIR_NAMES[k] + '边的调用返回了 true，可是这行代码没看它，接着试下一个方向！');
+      if (ok) emit(L.call, msg('trace.ignored', { dir: msg('dir.' + k) }));
     }
-    emit(L.back, c(r, cc) + ' 四个方向都试过了，return false：退回上一层（回溯）。');
+    emit(L.back, msg('trace.back', { c: c(r, cc) }));
     stack.pop();
     return false;
   };
 
-  emit(L.start, '从起点 ' + coord(m, m.start) + ' 调用 dfs，开始探险。');
+  emit(L.start, msg('trace.start', { c: coord(m, m.start) }));
   const sr = rowOf(m, m.start);
   const sc = colOf(m, m.start);
   const res = dfs(sr, sc);
   if (!halted) {
-    emit(L.start, res
-      ? 'dfs 返回 true：有路能走到宝藏，hasPath 返回 true。'
-      : 'dfs 返回 false：能走的格子都走遍了，没有碰到宝藏，hasPath 返回 false。', { result: res, outcome: 'ok', done: true });
+    emit(L.start, msg(res ? 'trace.retTrue' : 'trace.retFalse'), { result: res, outcome: 'ok', done: true });
   }
   return steps;
 }
@@ -638,10 +640,10 @@ export function buildTrace(m: Maze): Trace<DfsStep> {
 }
 
 /** 逐步执行用的山洞：三个看里的山洞，再加一个宝藏被岩石围住、走不到的 */
-export const TRACE_MAZES: { label: string; rows: string[] }[] = [
-  ...KID_MAZES.map((rows, k) => ({ label: '山洞 ' + (k + 1), rows })),
+export const TRACE_MAZES: { label: Msg; rows: string[] }[] = [
+  ...KID_MAZES.map((rows, k) => ({ label: msg('trace.maze', { n: k + 1 }), rows })),
   {
-    label: '走不到',
+    label: msg('trace.mazeNone'),
     rows: [
       'S.#...#',
       '.##.#.#',
@@ -680,39 +682,40 @@ export interface Round {
   /** 答案：往前走去 to；或者回溯，退回到 to（null：退到起点也没有路了，搜索结束） */
   answer: { kind: 'go'; to: number } | { kind: 'back'; to: number | null } | { kind: 'end' };
   /** 答错时的解释：按上右下左的顺序一个方向一行（用换行分隔） */
-  why: string;
+  why: Msg;
   /** 提问：探险家刚站稳时的提示 */
-  ask: string;
+  ask: Msg;
   /** 选了「回溯」以后的提示（要点哪个路口） */
-  askBack: string;
+  askBack: Msg;
   /** 答对时的反馈 */
-  right: string;
+  right: Msg;
   /** 这一题答完、搜索结束时的收尾提示（只有最后一题会用到） */
-  endNote: string;
+  endNote: Msg;
+}
+
+/** 把几行说明用换行连成一条 Msg（文案里 predict.join 是 "{a}\n{b}"） */
+function joinLines(lines: Msg[]): Msg {
+  return lines.reduce((acc, x) => msg('predict.join', { a: acc, b: x }));
 }
 
 /** 一道题的解释：到了宝藏直接 return true，否则四个方向逐个看，死路再讲回溯 */
-function explainRound(m: Maze, cur: number, checks: Check[], answer: Round['answer']): string {
-  if (answer.kind === 'end') return '不对，' + coord(m, cur) + ' 就是宝藏 E：第 ' + L.isEnd + ' 行直接 return true，不用再往下走。';
-  const out: string[] = ['不对，按 上、右、下、左 的顺序看：'];
+function explainRound(m: Maze, cur: number, checks: Check[], answer: Round['answer']): Msg {
+  if (answer.kind === 'end') return msg('predict.why.end', { c: coord(m, cur), line: L.isEnd });
+  const out: Msg[] = [msg('predict.why.head')];
   for (const c of checks) {
-    const name = DIR_NAMES[c.dir] + '边' + (c.id === null ? '' : ' ' + coord(m, c.id));
-    if (c.why === 'out') out.push(name + '：出界，return false。');
-    else if (c.why === 'wall') out.push(name + '：岩石，return false。');
-    else if (c.why === 'seen') out.push(name + '：已经有面包屑，return false。');
+    const name = c.id === null ? msg('predict.name.edge', { dir: msg('dir.' + c.dir) }) : msg('predict.name', { dir: msg('dir.' + c.dir), c: coord(m, c.id) });
+    if (c.why === 'out') out.push(msg('predict.why.out', { name }));
+    else if (c.why === 'wall') out.push(msg('predict.why.wall', { name }));
+    else if (c.why === 'seen') out.push(msg('predict.why.seen', { name }));
     else {
-      out.push(name + '：新格子，进去！' + (answer.kind === 'go' ? '后面的方向这一轮不用看了。' : ''));
+      out.push(msg('predict.why.new', { name }));
       break;
     }
   }
   if (answer.kind === 'back') {
-    out.push(
-      answer.to === null
-        ? '四个方向都走不通，往回退，栈里每个路口也都没有新路了：一路退到起点，dfs 返回 false。'
-        : '四个方向都走不通，这一层 return false，退回上一层；一直退到 ' + coord(m, answer.to) + '，它还有没试过的方向，从那里继续。',
-    );
+    out.push(answer.to === null ? msg('predict.why.backEnd') : msg('predict.why.back', { c: coord(m, answer.to) }));
   }
-  return out.join('\n');
+  return joinLines(out);
 }
 
 export function rounds(m: Maze): Round[] {
@@ -738,12 +741,12 @@ export function rounds(m: Maze): Round[] {
     }
     const right =
       answer.kind === 'go'
-        ? '走进 ' + coord(m, answer.to) + '，撒面包屑。'
+        ? msg('predict.right.go', { c: coord(m, answer.to) })
         : answer.kind === 'end'
-          ? '到宝藏了，return true。'
+          ? msg('predict.right.end')
           : answer.to === null
-            ? '死路，而且所有路口都没新路了：搜索结束，返回 false。'
-            : '退回 ' + coord(m, answer.to) + '，从它没试过的方向继续。';
+            ? msg('predict.right.stuck')
+            : msg('predict.right.back', { c: coord(m, answer.to) });
     out.push({
       cur,
       path: mv.path,
@@ -752,10 +755,10 @@ export function rounds(m: Maze): Round[] {
       checks,
       answer,
       why: explainRound(m, cur, checks, answer),
-      ask: '探险家刚走进 ' + coord(m, cur) + '，撒了面包屑。接下来呢？往前走就点它要去的格子；四边都走不通就点「回溯」。',
-      askBack: '回溯：要一直退到哪个路口，那里还有没试过的方向？点那一格。',
+      ask: msg('predict.ask', { c: coord(m, cur) }),
+      askBack: msg('predict.askBack'),
       right,
-      endNote: cur === m.end ? '走到宝藏，return true，一层层往回报喜讯。' : '搜索结束，返回 false。',
+      endNote: msg(cur === m.end ? 'predict.endFound' : 'predict.endStuck'),
     });
   });
   return out;
@@ -782,7 +785,7 @@ const FLAVORS: Record<Bug['id'], Flavor> = {
 export const BUGS: readonly Bug[] = [
   {
     id: 'no-mark',
-    title: '来回打转停不下来',
+    title: msg('bug.noMark.title'),
     code: variant(L.mark, '        // visited[r][c] = true'),
     wrongLine: L.mark,
     fixed: CODE[L.mark - 1],
@@ -791,12 +794,12 @@ export const BUGS: readonly Bug[] = [
       '.#.',
       '..E',
     ],
-    expect: '3×3 的小山洞，有路能走到宝藏',
-    explain: '没撒面包屑，第 11 行的 visited 检查永远通过，已经走过的格子会被当成新格子再走一遍。两个相邻的格子互相调用，谁也不 return，调用栈越叠越高，最后 StackOverflowError。DFS 的递归能停下来，靠的就是 visited。',
+    expect: msg('bug.noMark.expect'),
+    explain: msg('bug.noMark.explain'),
   },
   {
     id: 'bounds',
-    title: '走到洞口外面去了',
+    title: msg('bug.bounds.title'),
     code: variant(L.bounds, '    if (r < 0 || c < 0) return false'),
     wrongLine: L.bounds,
     fixed: CODE[L.bounds - 1],
@@ -806,12 +809,12 @@ export const BUGS: readonly Bug[] = [
       '...',
       'E..',
     ],
-    expect: '4 行 3 列的山洞，有路能走到宝藏',
-    explain: '只挡了小于 0 的一边，没挡 r ≥ h 和 c ≥ w。探险家沿着最上面一行走到右边尽头，下一格 c = 3 通过了检查，第 11 行读 grid[0][3] 就越界了。DFS 先往前走再看路，所以边界检查一个方向都不能少；下标的范围要写成 in grid.indices 这样两头一起管。',
+    expect: msg('bug.bounds.expect'),
+    explain: msg('bug.bounds.explain'),
   },
   {
     id: 'ignore',
-    title: '找到宝藏还在乱逛',
+    title: msg('bug.ignore.title'),
     code: variant(L.call, '        dfs(grid, visited, r + dr, c + dc)'),
     wrongLine: L.call,
     fixed: CODE[L.call - 1],
@@ -820,8 +823,8 @@ export const BUGS: readonly Bug[] = [
       '...',
       '..E',
     ],
-    expect: '3×3 的空山洞，有路能走到宝藏，应该返回 true',
-    explain: '递归调用的返回值被丢掉了。找到宝藏的那一层 return true，上一层却没看，照样接着试下一个方向，把整个山洞都走遍，最后一路 return false：明明找到了，却报告没有路。要写成 if (dfs(...)) return true，把喜讯一层层往上传。',
+    expect: msg('bug.ignore.expect'),
+    explain: msg('bug.ignore.explain'),
   },
 ];
 
@@ -829,12 +832,12 @@ export function runBug(bug: Bug): Trace<DfsStep> {
   return simulate(parseMaze(bug.maze), FLAVORS[bug.id]);
 }
 
-/** 找 bug 面板底部的判定文字：没跑完是空 */
-export function bugVerdict(step: DfsStep, _bug: Bug): string {
-  if (!step.done) return '';
-  if (step.outcome === 'overflow') return '💥 StackOverflowError：调用栈叠了 ' + step.stack.length + ' 层，还在涨';
-  if (step.outcome === 'crash') return '💥 下标越界，程序崩溃';
-  return '❌ 返回了 ' + step.result + '，可是宝藏明明走得到，应该返回 true';
+/** 找 bug 面板底部的判定：没跑完是 null */
+export function bugVerdict(step: DfsStep, _bug: Bug): Msg | null {
+  if (!step.done) return null;
+  if (step.outcome === 'overflow') return msg('bug.verdict.overflow', { n: step.stack.length });
+  if (step.outcome === 'crash') return msg('bug.verdict.crash');
+  return msg('bug.verdict.wrong', { r: String(step.result) });
 }
 
 /** 山洞里宝藏到底能不能走到（和 hasPath 的正确答案一致） */
@@ -914,3 +917,469 @@ export function genChallenge(rand: () => number = Math.random): { maze: string[]
   const maze = genMaze(CHALLENGE_ROOMS, CHALLENGE_LOOPS, rand);
   return { maze, k: challengeK(rand) };
 }
+
+/* ---------- 画面用的小函数：把状态画成格子的色调、小字、表情 ---------- */
+
+/** 山洞里每个格子是不是岩石 */
+export function wallsOf(m: Maze): boolean[] {
+  return Array.from({ length: m.w * m.h }, (_, id) => isWall(m, id));
+}
+
+/** 探险家 🧭、宝藏 💎 的位置；crumbs 里为真的格子（没有别的 emoji 时）画面包屑 🍞 */
+export function emojisOf(m: Maze, hero: number | null, crumbs: boolean[] = []): Record<number, string> {
+  const e: Record<number, string> = {};
+  crumbs.forEach((v, id) => {
+    if (v) e[id] = '🍞';
+  });
+  e[m.end] = '💎';
+  if (hero !== null) e[hero] = '🧭';
+  return e;
+}
+
+/** 逐步执行和找 bug 共用：调用栈里的格子是「现在这条路」，其余 visited 的是走过又退回来的 */
+export function stepTones(s: DfsStep, m: Maze): Record<number, Tone> {
+  const t: Record<number, Tone> = {};
+  s.visited.forEach((v, id) => {
+    if (v) t[id] = 'crumb';
+  });
+  for (const [r, c] of s.stack) {
+    if (r >= 0 && r < m.h && c >= 0 && c < m.w) t[r * m.w + c] = 'path';
+  }
+  if (s.cur !== null) t[s.cur] = 'cur';
+  return t;
+}
+
+/** 已访问格子上写它是第几个被标记的 */
+export function stepLabels(s: DfsStep): Record<number, number> {
+  const l: Record<number, number> = {};
+  s.order.forEach((id, k) => {
+    if (s.visited[id]) l[id] = k + 1;
+  });
+  return l;
+}
+
+/* ---------- 关卡模块：规则（level.json 按名字引用） ---------- */
+
+export const lookRules: LookRules<number, LookPage> = {
+  first: 0,
+  next: (prev) => (prev + 1) % KID_MAZES.length,
+  frames: (which) => lookFrames(parseMaze(KID_MAZES[which])),
+};
+
+/* 玩法一「下一步往哪走」：孩子替探险家选方向 */
+
+export interface ExploreState {
+  which: number;
+  /** 从起点到现在的路，最后一个是探险家站的格子 */
+  path: number[];
+  visited: boolean[];
+  misses: number;
+  steps: number;
+  backs: number;
+  done: boolean;
+  /** 摇头的格子，[格子, 第几次] */
+  shake: [number, number] | null;
+  /** 方向键摇头 / 透光，[方向, 第几次]；画面据此晃一下、闪一下 */
+  padShake: [Choice, number] | null;
+  padGlow: [Choice, number] | null;
+  /** 透光提示的格子；glowKey 每加一次就重新闪一遍 */
+  glow: number[];
+  glowKey: number;
+}
+export type ExploreAction = { type: 'choose'; c: Choice } | { type: 'again' };
+
+function exploreFresh(which: number, prev?: ExploreState): ExploreState {
+  const maze = parseMaze(PLAY_MAZES[which]);
+  const visited = new Array<boolean>(maze.w * maze.h).fill(false);
+  visited[maze.start] = true;
+  return {
+    which, path: [maze.start], visited, misses: 0, steps: 0, backs: 0, done: false,
+    shake: prev?.shake ?? null, padShake: prev?.padShake ?? null, padGlow: prev?.padGlow ?? null, glow: [], glowKey: prev?.glowKey ?? 0,
+  };
+}
+
+/** 玩法一画面要画的东西 */
+export function exploreView(s: ExploreState) {
+  const maze = parseMaze(PLAY_MAZES[s.which]);
+  const cur = s.path[s.path.length - 1];
+  const tones: Record<number, Tone> = {};
+  s.visited.forEach((v, id) => {
+    if (v) tones[id] = 'crumb';
+  });
+  for (const id of s.path) tones[id] = 'path';
+  tones[cur] = 'cur';
+  return {
+    maze, cur, tones,
+    walls: wallsOf(maze),
+    emojis: emojisOf(maze, cur, s.visited),
+    /** 四边都走不通，该退回了：退回键闪光提示 */
+    stuck: !s.done && expectedChoice(maze, s.visited, cur) === BACK,
+  };
+}
+
+export const exploreRules: GameRules<ExploreState, ExploreAction> = {
+  start: () => ({ state: exploreFresh(0), say: msg('explore.start') }),
+  act(s, a) {
+    if (a.type === 'again') {
+      if (!s.done) return null;
+      return { state: exploreFresh((s.which + 1) % PLAY_MAZES.length, s), say: msg('explore.start') };
+    }
+    if (s.done) return null;
+    const c = a.c;
+    const maze = parseMaze(PLAY_MAZES[s.which]);
+    const cur = s.path[s.path.length - 1];
+    const v = judgeChoice(maze, s.visited, cur, c);
+    const nb = c === BACK ? null : around(maze, cur)[c];
+    const bump = (old: [Choice, number] | null): [Choice, number] => [c, (old?.[1] ?? 0) + 1];
+    const cellShake = (): [number, number] => [nb!, (s.shake?.[1] ?? 0) + 1];
+    if (v.kind !== 'ok') {
+      const base = { ...s, misses: s.misses + 1, padShake: bump(s.padShake) };
+      if (v.kind === 'wall') {
+        return {
+          state: nb === null ? base : { ...base, shake: cellShake() },
+          say: msg(nb === null ? 'explore.wallOut' : 'explore.wall', { dir: msg('dir.' + c) }),
+          sound: 'wrong',
+        };
+      }
+      if (v.kind === 'crumb') return { state: { ...base, shake: cellShake() }, say: msg('explore.crumb', { dir: msg('dir.' + c) }), sound: 'wrong' };
+      // skip / notBack：该走的方向透出光
+      if (v.kind !== 'skip' && v.kind !== 'notBack') return null;
+      const better = v.better as Choice;
+      return {
+        state: { ...base, padGlow: [better, (s.padGlow?.[1] ?? 0) + 1], glow: [around(maze, cur)[better]!], glowKey: s.glowKey + 1 },
+        say: v.kind === 'skip' ? msg('explore.skip', { dir: msg('dir.' + c), better: msg('dir.' + better) }) : msg('explore.notBack', { better: msg('dir.' + better) }),
+        sound: 'wrong',
+      };
+    }
+    if (c === BACK) {
+      const path = s.path.slice(0, -1);
+      const open = expectedChoice(maze, s.visited, path[path.length - 1]);
+      return {
+        state: { ...s, path, steps: s.steps + 1, backs: s.backs + 1 },
+        say: msg(open === BACK ? 'explore.backAgain' : 'explore.backFork'),
+        sound: 'right',
+      };
+    }
+    const to = nb!;
+    const visited = s.visited.map((x, id) => x || id === to);
+    const path = [...s.path, to];
+    const next: ExploreState = { ...s, path, visited, steps: s.steps + 1 };
+    if (to === maze.end) return { state: { ...next, done: true }, say: msg('explore.found'), sound: 'win' };
+    const after = expectedChoice(maze, visited, to);
+    return { state: next, say: msg(after === BACK ? 'explore.dead' : 'explore.go', { dir: msg('dir.' + c) }), sound: 'right' };
+  },
+  clickable: () => false,
+  controls: (s): Control<ExploreAction>[] => (s.done ? [{ type: 'button', action: { type: 'again' }, label: msg('explore.again'), look: 'primary' }] : []),
+  result: (s) => (s.done
+    ? {
+        stars: exploreStars(s.misses),
+        art: {
+          scene: 'Note',
+          props: { before: msg('explore.winA', { steps: s.steps, backs: s.backs }), bold: msg('explore.winB'), after: msg('explore.winC') },
+        },
+      }
+    : null),
+};
+
+/* 玩法二「数一数小岛」：点一块陆地，探险家用 DFS 涂满整座岛 */
+
+export interface IslandsState {
+  which: number;
+  /** 已经涂好的岛，按点击的先后 */
+  painted: number[][];
+  /** 正在涂的岛，已经亮了几格 */
+  filling: { cells: number[]; lit: number } | null;
+  misses: number;
+  phase: 'pick' | 'count' | 'won';
+  shake: [number, number] | null;
+  glow: number[];
+  glowKey: number;
+  /** 数错的那个数字，[数字, 第几次] */
+  wrongNum: [number, number] | null;
+}
+export type IslandsAction = { type: 'tap'; id: number } | { type: 'count'; n: number } | { type: 'again' };
+
+function islandsFresh(which: number, prev?: IslandsState): IslandsState {
+  return {
+    which, painted: [], filling: null, misses: 0, phase: 'pick', shake: prev?.shake ?? null, glow: [], glowKey: prev?.glowKey ?? 0, wrongNum: null,
+  };
+}
+
+/** 玩法二画面要画的东西 */
+export function islandsView(s: IslandsState) {
+  const map = parseIslands(ISLAND_MAPS[s.which]);
+  const total = islands(map).length;
+  const tones: Record<number, Tone> = {};
+  for (let id = 0; id < map.w * map.h; id++) tones[id] = isLand(map, id) ? 'land' : 'sea';
+  s.painted.forEach((isl, k) => isl.forEach((id) => (tones[id] = ('i' + (k % 4)) as Tone)));
+  const f = s.filling;
+  if (f) f.cells.slice(0, f.lit).forEach((id) => (tones[id] = ('i' + (s.painted.length % 4)) as Tone));
+  const emojis: Record<number, string> = {};
+  if (f && f.lit > 0 && f.lit <= f.cells.length) emojis[f.cells[f.lit - 1]] = '🧭';
+  const labels: Record<number, number> = {};
+  s.painted.forEach((isl, k) => (labels[isl[0]] = k + 1));
+  return { map, total, tones, emojis, labels, choices: islandChoices(total) };
+}
+
+export const islandsRules: GameRules<IslandsState, IslandsAction> = {
+  start: () => ({ state: islandsFresh(0), say: msg('islands.start') }),
+  act(s, a) {
+    if (a.type === 'again') {
+      if (s.phase !== 'won') return null;
+      return { state: islandsFresh((s.which + 1) % ISLAND_MAPS.length, s), say: msg('islands.start') };
+    }
+    const map = parseIslands(ISLAND_MAPS[s.which]);
+    const total = islands(map).length;
+    if (a.type === 'count') {
+      if (s.phase !== 'count') return null;
+      if (a.n === total) return { state: { ...s, phase: 'won' }, say: msg('islands.right', { n: a.n }), sound: 'win' };
+      return {
+        state: { ...s, misses: s.misses + 1, wrongNum: [a.n, (s.wrongNum?.[1] ?? 0) + 1] },
+        say: msg('islands.notN', { n: a.n }),
+        sound: 'wrong',
+      };
+    }
+    if (s.phase !== 'pick' || s.filling) return null;
+    const j = judgeIslandTap(map, new Set(s.painted.flat()), a.id);
+    if (j === 'sea') {
+      return { state: { ...s, misses: s.misses + 1, shake: [a.id, (s.shake?.[1] ?? 0) + 1] }, say: msg('islands.sea'), sound: 'wrong' };
+    }
+    if (j === 'done') {
+      return {
+        state: { ...s, glow: s.painted.find((isl) => isl.includes(a.id))!, glowKey: s.glowKey + 1 },
+        say: msg('islands.done'),
+        sound: 'wrong',
+      };
+    }
+    const cells = floodFill(map, a.id);
+    return { state: { ...s, filling: { cells, lit: 0 } }, say: msg('islands.fill', { n: cells.length }), sound: 'tap', after: FILL_STEP };
+  },
+  tick(s) {
+    const f = s.filling;
+    if (!f) return { state: s };
+    if (f.lit < f.cells.length) {
+      const lit = f.lit + 1;
+      return { state: { ...s, filling: { cells: f.cells, lit } }, after: lit < f.cells.length ? FILL_STEP : FILL_END };
+    }
+    // 涂完了这座岛
+    const painted = [...s.painted, f.cells];
+    const total = islands(parseIslands(ISLAND_MAPS[s.which])).length;
+    if (painted.length === total) return { state: { ...s, painted, filling: null, phase: 'count' }, say: msg('islands.allDone'), sound: 'right' };
+    return { state: { ...s, painted, filling: null }, say: msg('islands.oneDone', { k: painted.length }), sound: 'right' };
+  },
+  // 切标签：涂到一半的岛按没点过算，回到「点陆地」
+  interrupt: (s) => (s.filling ? { state: { ...s, filling: null, wrongNum: null }, say: msg('islands.start') } : { state: { ...s, wrongNum: null } }),
+  clickable: (s) => s.phase === 'pick' && !s.filling,
+  controls: (s): Control<IslandsAction>[] => (s.phase === 'won' ? [{ type: 'button', action: { type: 'again' }, label: msg('islands.again'), look: 'primary' }] : []),
+  result: (s) => (s.phase === 'won'
+    ? {
+        stars: exploreStars(s.misses),
+        art: { scene: 'Note', props: { before: msg('islands.winA'), bold: msg('islands.winB'), after: msg('islands.winC') } },
+      }
+    : null),
+};
+
+/* 挑战：DFS 的第 k 个格子 */
+
+export interface ChallengeState {
+  rows: string[];
+  k: number;
+  phase: 'ask' | 'right' | 'wrong';
+  hinted: boolean;
+  picked: number | null;
+  shake: [number, number] | null;
+  hint: Msg | null;
+  wins: number;
+}
+export type ChallengeAction = { type: 'tap'; id: number } | { type: 'hint' } | { type: 'again'; newMaze: boolean };
+
+/** 挑战画面要画的东西 */
+export function challengeView(s: ChallengeState) {
+  const maze = parseMaze(s.rows);
+  const dfsOrder = visitOrder(maze, 'dfs');
+  const bfsOrder = visitOrder(maze, 'bfs');
+  const target = dfsOrder[s.k - 1];
+  const bfsTarget = bfsOrder[s.k - 1];
+  const hintCount = Math.ceil((s.k - 1) / 2);
+  const shown = s.phase === 'ask' ? (s.hinted ? hintCount : 0) : s.k;
+  const tones: Record<number, Tone> = {};
+  dfsOrder.slice(0, shown).forEach((id) => (tones[id] = 'path'));
+  if (s.phase !== 'ask') {
+    tones[bfsTarget] = 'nb';
+    tones[target] = 'best';
+    if (s.picked !== null && s.picked !== target) tones[s.picked] = 'miss';
+  }
+  const labels: Record<number, number> = {};
+  dfsOrder.slice(0, shown).forEach((id, i) => (labels[id] = i + 1));
+  return {
+    maze, dfsOrder, bfsOrder, target, bfsTarget, hintCount, tones, labels,
+    walls: wallsOf(maze), emojis: emojisOf(maze, null),
+    targetCoord: coord(maze, target), bfsCoord: coord(maze, bfsTarget),
+  };
+}
+
+export const challengeRules: GameRules<ChallengeState, ChallengeAction> = {
+  start(rand) {
+    const q = genChallenge(rand);
+    return { state: { rows: q.maze, k: q.k, phase: 'ask', hinted: false, picked: null, shake: null, hint: null, wins: 0 } };
+  },
+  act(s, a, rand) {
+    if (a.type === 'again') {
+      if (s.phase === 'ask') return null;
+      const rows = a.newMaze ? genChallenge(rand) : null;
+      const base = { ...s, phase: 'ask' as const, hinted: false, picked: null, hint: null };
+      if (rows) return { state: { ...base, rows: rows.maze, k: rows.k } };
+      return { state: { ...base, k: challengeK(rand) } };
+    }
+    if (s.phase !== 'ask') return null;
+    if (a.type === 'hint') return s.hinted ? null : { state: { ...s, hinted: true } };
+    const maze = parseMaze(s.rows);
+    if (isWall(maze, a.id)) return { state: { ...s, shake: [a.id, (s.shake?.[1] ?? 0) + 1], hint: msg('chal.rock') } };
+    const right = a.id === visitOrder(maze, 'dfs')[s.k - 1];
+    return { state: { ...s, hint: null, picked: a.id, phase: right ? 'right' : 'wrong', wins: s.wins + (right ? 1 : 0) } };
+  },
+  clickable: (s) => s.phase === 'ask',
+  controls(s): Control<ChallengeAction>[] {
+    if (s.phase === 'ask') {
+      return [{ type: 'button', action: { type: 'hint' }, label: msg('chal.hint', { n: Math.ceil((s.k - 1) / 2) }), look: 'small', disabled: s.hinted }];
+    }
+    return [
+      { type: 'button', action: { type: 'again', newMaze: false }, label: msg('chal.sameCave'), look: 'smallPrimary' },
+      { type: 'button', action: { type: 'again', newMaze: true }, label: msg('chal.newCave'), look: 'small' },
+    ];
+  },
+  result(s) {
+    if (s.phase === 'ask') return null;
+    const v = challengeView(s);
+    if (s.phase === 'right') {
+      return {
+        title: msg('chal.right', { k: s.k, c: v.targetCoord }),
+        body: msg('chal.rightBody', {
+          k: s.k, c: v.bfsCoord, same: msg(v.bfsTarget === v.target ? 'chal.same' : 'chal.differ'),
+        }),
+        art: { scene: 'Note', props: { before: msg('chal.count', { dfs: v.dfsOrder.length, bfs: v.bfsOrder.length }), small: true } },
+      };
+    }
+    return {
+      title: msg('chal.wrong', { k: s.k, c: v.targetCoord }),
+      body: msg('chal.wrongBody', {
+        k: s.k,
+        who: s.picked === v.bfsTarget ? msg('chal.pickedBfs', { k: s.k }) : msg('chal.otherBfs', { k: s.k }),
+      }),
+    };
+  },
+};
+
+/* 做：逐步执行 */
+
+export interface TraceInput { which: number }
+export type TraceAction = { type: 'which'; which: number };
+
+const traceMaze = (input: TraceInput) => parseMaze(TRACE_MAZES[input.which].rows);
+const topOf = (s: DfsStep) => s.stack[s.stack.length - 1];
+const coordOfTop = (s: DfsStep) => {
+  const top = topOf(s);
+  return top ? '(' + top[0] + ',' + top[1] + ')' : '—';
+};
+
+export const traceRules: TraceRules<TraceInput, DfsStep, TraceAction> = {
+  code: CODE,
+  start: () => ({ which: 0 }),
+  act: (_input, a) => ({ which: a.which }),
+  controls: (input): Control<TraceAction>[] => [{
+    type: 'segmented', legend: msg('trace.mazeLegend'), value: input.which,
+    options: TRACE_MAZES.map((t, k) => ({ value: k, label: t.label })),
+    choose: (v) => ({ type: 'which', which: Number(v) }),
+  }],
+  trace: (input) => buildTrace(traceMaze(input)),
+  vars: (_input, s): Var[] => [
+    ['(r, c)', coordOfTop(s)],
+    [msg('trace.var.depth'), s.stack.length],
+    [msg('trace.var.calls'), s.calls],
+    [msg('trace.var.visited'), s.order.length],
+  ],
+  summary(_input, s) {
+    if (!s.done) return null;
+    return s.result ? msg('trace.sumTrue', { calls: s.calls, n: s.order.length }) : msg('trace.sumFalse', { n: s.order.length });
+  },
+  jump: { label: msg('trace.jumpMark'), stop: (x) => x.line === L.mark },
+  jumps: [{ label: msg('trace.jumpBack'), stop: (x) => x.line === L.back }],
+  foot: msg('trace.foot'),
+};
+
+/* 做：猜下一步 */
+
+/** 猜下一步每一问时画面的样子 */
+export interface PredictView {
+  rows: string[];
+  /** 探险家站的格子 */
+  cur: number;
+  /** 从起点到 cur 的路（调用栈） */
+  path: number[];
+  visited: boolean[];
+  /** 选了「回溯」以后的第二问：要点路上的一个路口 */
+  back: boolean;
+}
+/** 回答：点一个格子（格子号），或者点「回溯」「是宝藏」 */
+export type PredictAnswer = number | 'back' | 'end';
+
+export const predictRules: PredictRules<PredictView, PredictAnswer> = {
+  goal: 5,
+  puzzle(rand): Puzzle<PredictView, PredictAnswer> {
+    const rows = genPredict(rand);
+    const mz = parseMaze(rows);
+    const list = rounds(mz);
+    const chips = (k: number): Var[] => [['第', msg('predict.chip', { n: k + 1 })]];
+    const view = (r: Round, back: boolean): PredictView => ({ rows, cur: r.cur, path: r.path, visited: r.visited, back });
+    const options = [
+      { value: 'back' as const, label: msg('predict.back') },
+      { value: 'end' as const, label: msg('predict.treasure') },
+    ];
+    const asks: Puzzle<PredictView, PredictAnswer>['asks'] = [];
+    list.forEach((r, k) => {
+      const a = r.answer;
+      const twoStep = a.kind === 'back' && a.to !== null;
+      asks.push({
+        view: view(r, false),
+        prompt: r.ask,
+        kind: 'pick',
+        answer: a.kind === 'go' ? a.to : a.kind,
+        options,
+        why: r.why,
+        chips: chips(k),
+        ...(twoStep ? { half: true } : { praise: r.right }),
+      });
+      if (twoStep) {
+        asks.push({ view: view(r, true), prompt: r.askBack, kind: 'pick', answer: a.to!, why: r.why, chips: chips(k), praise: r.right });
+      }
+    });
+    const last = list.length - 1;
+    return { asks, end: { view: view(list[last], false), prompt: list[last].endNote, chips: chips(last) } };
+  },
+};
+
+/* 做：找 bug */
+
+export const bugRules: BugRules<Bug, DfsStep> = {
+  bugs: BUGS,
+  run: runBug,
+  input: (bug) => msg('bug.input', { expect: bug.expect }),
+  vars: (s): Var[] => [
+    ['(r, c)', coordOfTop(s)],
+    [msg('trace.var.depth'), s.stack.length],
+    [msg('trace.var.calls'), s.calls],
+  ],
+  verdict: bugVerdict,
+  jumps: [
+    { label: msg('trace.jumpMark'), stop: (x) => x.line === L.mark },
+    { label: msg('bug.jumpEnd'), stop: (x) => x.done },
+  ],
+};
+
+export const level: LevelModule = {
+  look: { story: lookRules },
+  trace: { main: traceRules },
+  predict: { main: predictRules },
+  bugs: { main: bugRules },
+  games: { explore: exploreRules, islands: islandsRules, challenge: challengeRules },
+};
