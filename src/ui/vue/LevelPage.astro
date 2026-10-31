@@ -5,6 +5,7 @@
  */
 import AlgoLayout from '../../layouts/AlgoLayout.astro';
 import Block from '../../components/shared/Block.astro';
+import CodePanel from '../../components/shared/CodePanel.vue';
 import LogCompare from '../../components/shared/LogCompare.astro';
 import { t } from '../../core/i18n';
 import type { Msg } from '../../core/types';
@@ -17,6 +18,9 @@ const { slug } = Astro.props;
 const { level, copy, engine, html } = await loadLevel(slug);
 
 const COMPARE = '<!-- compare -->';
+/** 正文里单独一行 <!-- code:名字 -->，换成一块 Kotlin 代码（代码行在引擎导出的 moreCode[名字]） */
+const CODE_MARK = /^<!-- code:(\w+) -->$/;
+const MARKS = /(<!-- compare -->|<!-- code:\w+ -->)/;
 
 /** 把 more.zh.md 渲染出的 HTML 按「## 」切成块：标题第一个字符是图标，正文里的 <!-- compare --> 单独成段 */
 function sections(src: string) {
@@ -31,8 +35,8 @@ function sections(src: string) {
       const text = head.replace(/<[^>]+>/g, '').trim();
       const icon = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)][0]?.segment ?? '';
       const body = rest.join('</h2>');
-      const segs = body.split(COMPARE).flatMap((seg, k, all) => (k < all.length - 1 ? [seg, COMPARE] : [seg]));
-      return { icon, title: text.slice(icon.length).trim(), segs: segs.filter((s) => s.trim()) };
+      // 切成文字段和标记（compare、code:名字）交替的一列；标记本身留着，渲染时认
+      return { icon, title: text.slice(icon.length).trim(), segs: body.split(MARKS).filter((s) => s.trim()) };
     });
 }
 
@@ -41,6 +45,13 @@ function compareRows() {
   const rows = (engine.compareRows as (() => { label: string; unit: Msg; bars: { name: Msg; value: number; tone: 'muted' | 'accent' | 'warn' }[] }[]) | undefined)?.();
   if (!rows) throw new Error('src/engine/' + slug + '.ts 没有导出 compareRows，但 more.zh.md 里用了 ' + COMPARE);
   return rows.map((r) => ({ ...r, unit: t(r.unit, copy), bars: r.bars.map((b) => ({ ...b, name: t(b.name, copy) })) }));
+}
+
+/** 延伸里嵌的代码由引擎的 moreCode 给 */
+function codeLines(name: string): string[] {
+  const lines = (engine.moreCode as Record<string, string[]> | undefined)?.[name];
+  if (!lines) throw new Error('src/engine/' + slug + '.ts 的 moreCode 里没有 ' + name + '，但 more.zh.md 里用了 <!-- code:' + name + ' -->');
+  return lines;
 }
 
 const more = (level.more ?? []).flatMap((b) => (b.kind === 'markdown' ? sections(b.src) : []));
@@ -68,7 +79,7 @@ const more = (level.more ?? []).flatMap((b) => (b.kind === 'markdown' ? sections
       {more.map((sec) => (
         <Block icon={sec.icon} title={sec.title}>
           <div class="md">
-            {sec.segs.map((seg) => (seg === COMPARE ? <LogCompare rows={compareRows()} /> : <Fragment set:html={seg} />))}
+            {sec.segs.map((seg) => (seg === COMPARE ? <LogCompare rows={compareRows()} /> : CODE_MARK.test(seg) ? <CodePanel lines={codeLines(seg.match(CODE_MARK)![1])} active={0} lang="KOTLIN" /> : <Fragment set:html={seg} />))}
           </div>
         </Block>
       ))}

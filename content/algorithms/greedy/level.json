@@ -1,0 +1,19 @@
+{
+  "look": [
+    { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookShop" }
+  ],
+  "play": [
+    { "id": "cashier", "kind": "game", "icon": "🐻", "rules": "cashier", "scene": "PlayCashier", "sayLines": 2 },
+    { "id": "robot", "kind": "game", "icon": "🤖", "rules": "robot", "scene": "PlayRobot", "sayLines": 2 }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceCoins" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictCoins" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugCoins" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "Greedy.kt", "package": "greedy" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "ChallengeSystem", "frame": "stage" }
+  ],
+  "more": [
+    { "kind": "markdown", "src": "more" }
+  ]
+}

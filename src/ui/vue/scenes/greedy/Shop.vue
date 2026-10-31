@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue';
-import { SHAKE_MS } from '../../components/shared/timing';
-import { useStageStop } from '../../components/shared/usePlayer';
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
+import { SHAKE_MS } from '../../../../components/shared/timing';
+import { useStageStop } from '../../../../components/shared/usePlayer';
 
 // 小熊的小卖部：上面是「还要找多少」，中间是钱盒里的硬币，下面是找零盘。
 // 看、玩法一、玩法二共用，只负责画，不管规则。
@@ -30,6 +32,7 @@ const props = withDefaults(defineProps<{
   compare?: number[] | null;
   compareIcon?: string;
   clickable?: boolean;
+  t: (msg: Msg) => string;
 }>(), {
   who: '🐻', focus: null, dim: () => [], glow: null, pulse: null, shake: null, shakePlate: 0,
   compare: null, compareIcon: '✨', clickable: false,
@@ -64,9 +67,9 @@ onBeforeUnmount(stopShake);
 
 <template>
   <div class="shop">
-    <div class="owe" :aria-label="'还要找 ' + left">
+    <div class="owe" :aria-label="t(m('scene.shop.oweAria', { left }))">
       <span class="who" aria-hidden="true">{{ who }}</span>
-      <span class="owe-lab" aria-hidden="true">还要找</span>
+      <span class="owe-lab" aria-hidden="true">{{ t(m('scene.shop.owe')) }}</span>
       <span class="owe-n" :class="{ zero: left === 0 }" aria-hidden="true">{{ left === 0 ? '✅' : left }}</span>
     </div>
 
@@ -84,25 +87,25 @@ onBeforeUnmount(stopShake);
           shake: shaking === c,
         }"
         :disabled="!clickable"
-        :aria-label="'面值 ' + c + ' 的硬币'"
+        :aria-label="t(m('scene.shop.coin', { c }))"
         @click="emit('pick', c)"
       >{{ c }}</button>
     </div>
 
     <div class="plates">
-      <div class="plate" :class="{ shake: plateShake }" :aria-label="'找零盘：' + (plate.length ? plate.join('、') + '，共 ' + plate.length + ' 枚' : '空的')">
+      <div class="plate" :class="{ shake: plateShake }" :aria-label="t(plate.length ? m('scene.shop.plate', { list: plate.join('、'), n: plate.length }) : m('scene.shop.plateEmpty'))">
         <span class="plate-icon" aria-hidden="true">{{ who }}</span>
         <TransitionGroup name="drop" tag="span" class="pile" aria-hidden="true">
           <span v-for="(c, k) in plate" :key="k + '-' + c" class="coin small">{{ c }}</span>
         </TransitionGroup>
-        <span v-if="plate.length" class="cnt" aria-hidden="true">{{ plate.length }} 枚</span>
+        <span v-if="plate.length" class="cnt" aria-hidden="true">{{ t(m('scene.shop.count', { n: plate.length })) }}</span>
       </div>
-      <div v-if="compare" class="plate best" :aria-label="'更少的拿法：' + compare.join('、') + '，共 ' + compare.length + ' 枚'">
+      <div v-if="compare" class="plate best" :aria-label="t(m('scene.shop.best', { list: compare.join('、'), n: compare.length }))">
         <span class="plate-icon" aria-hidden="true">{{ compareIcon }}</span>
         <span class="pile" aria-hidden="true">
           <span v-for="(c, k) in compare" :key="k" class="coin small">{{ c }}</span>
         </span>
-        <span class="cnt" aria-hidden="true">{{ compare.length }} 枚</span>
+        <span class="cnt" aria-hidden="true">{{ t(m('scene.shop.count', { n: compare.length })) }}</span>
       </div>
     </div>
   </div>
