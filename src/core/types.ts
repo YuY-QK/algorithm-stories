@@ -56,6 +56,8 @@ export type Control<A> =
       art?: { scene: string; props?: Record<string, unknown> };
       /** pad 按钮图标下面的小字说明（label 是图标，caption 是字）；不给就只有图标 */
       caption?: Msg;
+      /** 点错的次数：大于 0 时按钮变淡，数一变就再晃一下（如数错硬币时点的那个数字） */
+      nope?: number;
     }
   | {
       type: 'number';

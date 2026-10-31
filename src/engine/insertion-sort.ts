@@ -278,6 +278,8 @@ export interface ShiftGame {
   shake: [number, number] | null;
   glow: [number, number] | null;
   pulse: number;
+  /** 最近一次数错时点的数字，它的按钮变淡、晃一下 */
+  wrongN: number | null;
 }
 
 export type ShiftAction = { type: 'card'; id: number } | { type: 'hole' } | { type: 'count'; n: number } | { type: 'again' };
@@ -293,7 +295,7 @@ function shiftLift(g: ShiftGame, i: number): Outcome<ShiftGame> {
 function shiftStart(rand?: Rand): Outcome<ShiftGame> {
   const values = dealHand(SHIFT_N, rand);
   return shiftLift(
-    { values, slots: values.map((_, id) => id), i: 1, hole: 1, coins: 0, mistakes: 0, phase: 'play', shake: null, glow: null, pulse: 0 },
+    { values, slots: values.map((_, id) => id), i: 1, hole: 1, coins: 0, mistakes: 0, phase: 'play', shake: null, glow: null, pulse: 0, wrongN: null },
     1,
   );
 }
@@ -313,7 +315,7 @@ export const shiftRules: GameRules<ShiftGame, ShiftAction> = {
     const key = g.values[g.i];
     if (a.type === 'count') {
       if (g.phase !== 'count') return null;
-      if (a.n !== g.coins) return { state: { ...g, pulse: g.pulse + 1 }, say: m('shift.say.count'), sound: 'wrong' };
+      if (a.n !== g.coins) return { state: { ...g, pulse: g.pulse + 1, wrongN: a.n }, say: m('shift.say.count'), sound: 'wrong' };
       return { state: { ...g, phase: 'done' }, say: m('shift.say.right', { n: g.coins }), sound: 'win' };
     }
     if (g.phase !== 'play') return null;
@@ -365,6 +367,7 @@ export const shiftRules: GameRules<ShiftGame, ShiftAction> = {
     if (g.phase === 'count') {
       return countChoices(g.coins).map((n): Control<ShiftAction> => ({
         type: 'button', action: { type: 'count', n }, look: 'pad', label: m('num', { n }), aria: m('shift.aria.coins', { n }),
+        ...(n === g.wrongN ? { nope: g.pulse } : {}),
       }));
     }
     if (g.phase === 'done') return [{ type: 'button', action: { type: 'again' }, label: m('shift.again'), look: 'primary' }];

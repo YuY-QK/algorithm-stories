@@ -105,7 +105,7 @@ const groups = computed(() => {
   <template v-else>
     <template v-for="(g, gi) in groups" :key="gi">
       <div v-if="g.kind === 'pad'" class="answers pads">
-        <button v-for="{ c, k } in g.items" :key="k" type="button" class="pad" :class="{ cap: !!(c as Btn).caption }" :disabled="(c as Btn).disabled" :aria-label="(c as Btn).aria ? tr((c as Btn).aria!) : undefined" @click="emit('act', (c as Btn).action)">
+        <button v-for="{ c, k } in g.items" :key="k + ':' + ((c as Btn).nope ?? 0)" type="button" class="pad" :class="{ cap: !!(c as Btn).caption, nope: !!(c as Btn).nope }" :disabled="(c as Btn).disabled" :aria-label="(c as Btn).aria ? tr((c as Btn).aria!) : undefined" @click="emit('act', (c as Btn).action)">
           <template v-if="(c as Btn).caption"><span aria-hidden="true">{{ tr((c as Btn).label) }}</span><small>{{ tr((c as Btn).caption!) }}</small></template>
           <template v-else>{{ tr((c as Btn).label) }}</template>
         </button>
@@ -161,6 +161,15 @@ const groups = computed(() => {
 .pad:disabled { opacity: 0.4; cursor: default; }
 .pad:not(:disabled):hover { border-color: var(--accent); }
 .pad:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+/* 点错的按钮：变淡并晃一下；key 里带着点错次数，再点错一次就重新挂载、再晃一次 */
+.pad.nope { animation: nope 0.5s ease-in-out; opacity: 0.5; }
+@keyframes nope {
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pad.nope { animation: none; }
+}
 .choices { display: flex; flex-wrap: wrap; gap: 10px; }
 .choice {
   font: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px;

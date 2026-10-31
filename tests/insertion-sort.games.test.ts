@@ -270,8 +270,13 @@ describe('玩法二「挪一挪」', () => {
   it('数错：硬币跳一跳（pulse 加一），出「错」声，台词让孩子一枚一枚数；数对：出「赢」声，报总数', () => {
     const d = solve(5);
     const coins = d.state.coins;
-    d.act({ type: 'count', n: coins + 7 });
+    const wrong = countChoices(coins).find((n) => n !== coins)!;
+    d.act({ type: 'count', n: wrong });
     expect(d.state.pulse).toBe(1);
+    // 点错的那个数字按钮变淡、晃一下，别的按钮不变
+    const pads = shiftRules.controls(d.state) as { action: { n: number }; nope?: number }[];
+    expect(pads.find((c) => c.action.n === wrong)!.nope).toBe(1);
+    expect(pads.filter((c) => c.nope !== undefined)).toHaveLength(1);
     expect(d.state.phase).toBe('count');
     expect(d.say).toEqual(m('shift.say.count'));
     expect(d.sounds.at(-1)).toBe('wrong');
