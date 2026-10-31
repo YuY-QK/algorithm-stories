@@ -185,5 +185,6 @@
   "bug.ignore.explain": "递归调用的返回值被丢掉了。找到宝藏的那一层 return true，上一层却没看，照样接着试下一个方向，把整个山洞都走遍，最后一路 return false：明明找到了，却报告没有路。要写成 if (dfs(...)) return true，把喜讯一层层往上传。",
   "bug.verdict.overflow": "💥 StackOverflowError：调用栈叠了 {n} 层，还在涨",
   "bug.verdict.crash": "💥 下标越界，程序崩溃",
-  "bug.verdict.wrong": "❌ 返回了 {r}，可是宝藏明明走得到，应该返回 true"
+  "bug.verdict.wrong": "❌ 返回了 {r}，可是宝藏明明走得到，应该返回 true",
+  "predict.chipName": "第"
 }

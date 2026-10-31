@@ -136,5 +136,6 @@
   "scene.grid": "网格",
   "scene.grid.cell": "第 {r} 行第 {c} 列：{what}",
   "scene.grid.rock": "石头",
-  "scene.grid.empty": "空"
+  "scene.grid.empty": "空",
+  "scene.stairs.ground": "地"
 }

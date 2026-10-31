@@ -2,13 +2,11 @@
 import type { Player } from './usePlayer';
 
 // 播放控制条：重置、上一步、播放/暂停、下一步、速度。额外按钮放进默认插槽。
-withDefaults(defineProps<{
+defineProps<{
   player: Player;
-  /** 按钮文字，默认中文；新页面（ui/vue/widgets）按文案表传入 */
-  labels?: Record<'reset' | 'prev' | 'play' | 'pause' | 'step' | 'next' | 'speed', string>;
-}>(), {
-  labels: () => ({ reset: '重置', prev: '上一步', play: '播放', pause: '暂停', step: '走一步', next: '下一步', speed: '速度' }),
-});
+  /** 按钮文字，按文案表传入 */
+  labels: Record<'reset' | 'prev' | 'play' | 'pause' | 'step' | 'next' | 'speed', string>;
+}>();
 </script>
 
 <template>

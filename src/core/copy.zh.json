@@ -30,5 +30,7 @@
   "ui.bug.solved": "✅ 找到了：第 {line} 行",
   "ui.bug.fixTo": "改成：",
   "ui.game.stars": "{n} 颗星",
-  "ui.game.tries": "已经点了几次"
+  "ui.game.tries": "已经点了几次",
+  "ui.sound.on": "打开音效",
+  "ui.sound.off": "关闭音效"
 }

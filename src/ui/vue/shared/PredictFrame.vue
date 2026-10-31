@@ -11,14 +11,12 @@ withDefaults(defineProps<{
   ended: boolean;
   /** 答对时的说明（非空时显示带「下一题」的绿边框，用于答对也要讲解的关卡，默认不用） */
   right?: string | null;
-  /** 答错提示里按钮的文字 */
-  continueLabel?: string;
-  /** 答对说明里按钮的文字 */
-  nextLabel?: string;
-  /** 「连对」「过关」的文字，默认中文；新页面（ui/vue/widgets）按文案表传入 */
-  streakLabel?: string;
-  passedLabel?: string;
-}>(), { right: null, continueLabel: '知道了，继续', nextLabel: '下一题', streakLabel: '连对', passedLabel: '🏅 过关' });
+  /** 按钮和 chip 的文字，按文案表传入：答错提示里的按钮、答对说明里的按钮、「连对」「过关」 */
+  continueLabel: string;
+  nextLabel: string;
+  streakLabel: string;
+  passedLabel: string;
+}>(), { right: null });
 const emit = defineEmits<{ continue: []; next: [] }>();
 </script>
 

@@ -228,4 +228,4 @@ R3 时再处理：画面注册表现在是 eager glob，15 关迁完后考虑按
 - `src/pages/algo/[slug].astro` 只走 `LevelPage`，缺 `level.json` 直接报错
 - 文档：`level-spec.md` 的「新增一个算法」改成配置 + 规则 + 画面，末节改成现行分层；`AGENTS.md` 的「三层结构」改成「分层」；`README.md` 目录表、`demo-builder`、`content-reviewer` 同步
 - 检查：853 个测试、check、build、整站 check-pages 两种宽度全过
-- 遗留：几处中文还写在引擎和组件里（列表见 `progress.md` 待办），7.5 的三条也没做，都不影响页面
+- 遗留：几处中文还写在引擎和组件里，同日已移进文案表；7.5 的三条没做，不影响页面

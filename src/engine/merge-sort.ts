@@ -547,11 +547,11 @@ export function simulate(values: number[], variant: Variant = 'ok'): Trace<Merge
     c.k = 0;
     push(c, 9, m('trace.note.k'));
 
-    const take = (from: number, line: number, side: string) => {
+    const take = (from: number, line: number, side: 'left' | 'right') => {
       const k = c.k!;
       c.tmp[k] = arr[from];
       c.tmpIds[k] = ids[from];
-      if (side === '左') c.i = c.i! + 1;
+      if (side === 'left') c.i = c.i! + 1;
       else c.j = c.j! + 1;
       c.k = k + 1;
       return { line, k, from };
@@ -564,22 +564,22 @@ export function simulate(values: number[], variant: Variant = 'ok'): Trace<Merge
       const op = variant === 'lt' ? '<' : '<=';
       push(c, 11, m(left ? 'trace.note.cmpYes' : 'trace.note.cmpNo', { i, j, x: arr[i], y: arr[j], op }), { cmp: [i, j] });
       if (left) {
-        const t = take(i, 11, '左');
+        const t = take(i, 11, 'left');
         push(c, 11, m('trace.note.putL', { k: t.k, i, x: arr[i] }), { put: t.k, src: i });
       } else {
-        const t = take(j, 12, '右');
+        const t = take(j, 12, 'right');
         push(c, 12, m('trace.note.putR', { k: t.k, j, x: arr[j] }), { put: t.k, src: j });
       }
     }
     push(c, 10, m(c.i! >= mid ? 'trace.note.exitL' : 'trace.note.exitR'));
     while (c.i! < mid) {
       const i = c.i!;
-      const t = take(i, 14, '左');
+      const t = take(i, 14, 'left');
       push(c, 14, m('trace.note.restL', { x: arr[i], k: t.k }), { put: t.k, src: i });
     }
     while (c.j! < hi) {
       const j = c.j!;
-      const t = take(j, 15, '右');
+      const t = take(j, 15, 'right');
       push(c, 15, m('trace.note.restR', { x: arr[j], k: t.k }), { put: t.k, src: j });
     }
     const at = variant === 'copy0' ? 0 : lo;

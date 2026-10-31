@@ -7,13 +7,10 @@ import { BOOK_INTERVAL } from '../../../core/timing';
 const props = withDefaults(defineProps<{
   frames: { say: string }[];
   interval?: number;
-  againLabel?: string;
-  /** 翻页按钮文字，默认中文；新页面（ui/vue/widgets）按文案表传入 */
-  labels?: Record<'prev' | 'auto' | 'pause' | 'next' | 'goPlay', string>;
-}>(), {
-  interval: BOOK_INTERVAL, againLabel: '再看一次',
-  labels: () => ({ prev: '上一页', auto: '自动播放', pause: '暂停', next: '下一页', goPlay: '🎮 去玩' }),
-});
+  /** 末页按钮和翻页按钮的文字，按文案表传入 */
+  againLabel: string;
+  labels: Record<'prev' | 'auto' | 'pause' | 'next' | 'goPlay', string>;
+}>(), { interval: BOOK_INTERVAL });
 const emit = defineEmits<{ again: [] }>();
 
 const frames = computed(() => props.frames);

@@ -7,14 +7,13 @@ const props = withDefaults(defineProps<{
   lang?: string;
   pickable?: boolean;
   marks?: Record<number, 'good' | 'bad'>;
-  /** 读屏文字，默认中文；新页面（ui/vue/widgets）按文案表传入 */
-  labels?: { group: string; line: (n: number, text: string) => string };
+  /** 读屏文字，按文案表传入 */
+  labels: { group: string; line: (n: number, text: string) => string };
 }>(), {
-  lang: 'PYTHON', pickable: false, marks: () => ({}),
-  labels: undefined,
+  lang: 'KOTLIN', pickable: false, marks: () => ({}),
 });
-const groupLabel = () => props.labels?.group ?? props.lang + ' 代码';
-const lineLabel = (n: number, text: string) => (props.labels ? props.labels.line(n, text) : '第 ' + n + ' 行：' + text);
+const groupLabel = () => props.labels.group;
+const lineLabel = (n: number, text: string) => props.labels.line(n, text);
 
 const emit = defineEmits<{ pick: [line: number] }>();
 </script>

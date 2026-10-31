@@ -42,7 +42,7 @@
 - 颜色、圆角、阴影、字体、速度的唯一来源是 `src/theme/tokens.json`；改了要运行 `npm run gen:theme` 重新生成 `src/styles/tokens.css`（有测试检查两者一致）。速度和停顿从 `src/core/timing.ts` 引用，不自己写数字
 - 用 CSS 变量，不写死颜色；画面独有的样式写在组件的 `<style scoped>` 里。`src/styles/theme.css` 里有不少全局类名（如 `.num`、`.tag`、`.idx`、`.say`、`.note`、`.result`、`.oops-box`、`.dots`），scoped 样式挡不住它们，起类名前先搜一下
 - 同时支持浅色和深色主题，手机宽度（375px）下不横向滚动
-- 语言：简体中文。给人看的文字一律进文案表，引擎和组件里不写中文（注释和给开发者看的报错除外；迁移遗留的几处见 `docs/progress.md` 待办）
+- 语言：简体中文。给人看的文字一律进文案表，引擎和组件里不写中文（注释和给开发者看的报错除外）
 - `prototypes/` 是最早的单文件原型，只做参考，不再修改
 
 ## 分层（阶段 R，2026-10-31 定稿）

@@ -12,7 +12,7 @@ import { seeded } from './helpers/seeded';
 
 type Button<A> = Extract<Control<A>, { type: 'button' }>;
 const buttons = <A>(cs: Control<A>[]) => cs.filter((c): c is Button<A> => c.type === 'button');
-const em = (b: number) => BOOK_EMOJI[b] + b + ' 号';
+const em = (b: number) => m('bookName', { emoji: BOOK_EMOJI[b], b });
 const acc = simulate(EVICT_SEQ, KID_CAP);
 
 describe('玩法一「当管理员」', () => {

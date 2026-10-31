@@ -11,7 +11,6 @@ import type {
 
 /** 盘子上的图案，下标就是盘子的编号 */
 export const PLATE_ICONS = ['⭐', '🌙', '❤️', '🌸', '🍀', '🐟'] as const;
-export const PLATE_NAMES = ['星星', '月亮', '爱心', '小花', '四叶草', '小鱼'] as const;
 
 export type PlateOp = { kind: 'push'; plate: number } | { kind: 'pop' };
 

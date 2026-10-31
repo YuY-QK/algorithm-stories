@@ -150,5 +150,6 @@
   "bug.range.explain": "0..h 包括 h，0 until h 才不包括。下标只能是 0 到 h − 1，走到最下面一行再往下看一格，nr = h 通过了检查，读 grid[h] 就越界了。",
   "bug.verdict.explode": "💥 队列爆炸：{n} 个格子在排队，入队了 {pushes} 次，还在涨",
   "bug.verdict.crash": "💥 下标越界，程序崩溃",
-  "bug.verdict.wrong": "❌ 返回了 {r}，可是最短只要 {best} 步"
+  "bug.verdict.wrong": "❌ 返回了 {r}，可是最短只要 {best} 步",
+  "predict.chipName": "第"
 }
