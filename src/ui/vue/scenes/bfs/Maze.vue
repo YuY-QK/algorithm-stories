@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { colOf, isWall, rowOf, type Maze } from '../../engine/bfs';
-import { useStageStop } from '../../components/shared/usePlayer';
-import { FLASH_MS, SHAKE_MS } from '../../components/shared/timing';
+import { m } from '../../../../core/i18n';
+import { FLASH_MS, SHAKE_MS } from '../../../../core/timing';
+import type { Msg } from '../../../../core/types';
+import { colOf, isWall, rowOf, type Maze, type Tone } from '../../../../engine/bfs';
+import { useStageStop } from '../../../../components/shared/usePlayer';
 
 // 迷宫：看、玩、做共用，只负责画，不管规则。
 // 每个格子可以有一个色调（tones）和一个小字（labels，通常是离起点几步）。
-export type Tone = 'old' | 'ring' | 'path' | 'mine' | 'queued' | 'cur' | 'nb' | 'pick' | 'best' | 'miss';
 
 const props = withDefaults(defineProps<{
   maze: Maze;
@@ -22,6 +23,7 @@ const props = withDefaults(defineProps<{
   shake?: [number, number] | null;
   /** 在上方和左边标出列号、行号 */
   coords?: boolean;
+  t: (msg: Msg) => string;
 }>(), { tones: () => ({}), labels: () => ({}), mouse: null, clickable: false, glow: () => [], glowKey: 0, shake: null, coords: false });
 
 const emit = defineEmits<{ pick: [id: number] }>();
@@ -69,20 +71,21 @@ function emoji(id: number): string {
   return '';
 }
 
-const TONE_NAME: Partial<Record<Tone, string>> = {
-  old: '已走到', ring: '这一圈', path: '最短路', mine: '你的路', queued: '在队列里', cur: '正在处理', nb: '正在看', pick: '你选的', best: '最短路',
+const TONE_NAME: Partial<Record<Tone, Msg>> = {
+  old: m('maze.tone.old'), ring: m('maze.tone.ring'), path: m('maze.tone.path'), mine: m('maze.tone.mine'), queued: m('maze.tone.queued'),
+  cur: m('maze.tone.cur'), nb: m('maze.tone.nb'), pick: m('maze.tone.pick'), best: m('maze.tone.best'),
 };
 
 function label(id: number): string {
   const r = rowOf(props.maze, id);
   const c = colOf(props.maze, id);
-  const parts = [r + ' 行 ' + c + ' 列'];
-  if (isWall(props.maze, id)) parts.push('墙');
-  if (id === props.maze.start) parts.push('起点');
-  if (id === props.maze.end) parts.push('奶酪');
-  if (props.mouse === id) parts.push('小老鼠在这里');
-  const t = props.tones[id];
-  if (t && TONE_NAME[t]) parts.push(TONE_NAME[t]!);
+  const parts = [props.t(m('maze.cell', { r, c }))];
+  if (isWall(props.maze, id)) parts.push(props.t(m('maze.wall')));
+  if (id === props.maze.start) parts.push(props.t(m('maze.start')));
+  if (id === props.maze.end) parts.push(props.t(m('maze.cheese')));
+  if (props.mouse === id) parts.push(props.t(m('maze.mouse')));
+  const tone = props.tones[id];
+  if (tone && TONE_NAME[tone]) parts.push(props.t(TONE_NAME[tone]!));
   if (props.labels[id] !== undefined) parts.push(String(props.labels[id]));
   return parts.join('，');
 }
