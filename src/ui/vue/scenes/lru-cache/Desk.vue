@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { BOOK_EMOJI } from '../../engine/lru-cache';
-import { SHAKE_MS } from '../../components/shared/timing';
-import { useStageStop } from '../../components/shared/usePlayer';
+import { m } from '../../../../core/i18n';
+import { SHAKE_MS } from '../../../../core/timing';
+import type { Msg } from '../../../../core/types';
+import { BOOK_EMOJI } from '../../../../engine/lru-cache';
+import { useStageStop } from '../../../../components/shared/usePlayer';
 
 // 书桌和书架：看、玩法一、玩法二共用，只负责画，不管规则。
 // 桌上的书从左到右按「最近碰过」排：最左边最久没碰，最右边刚碰过。
@@ -23,6 +25,7 @@ const props = withDefaults(defineProps<{
   ruler?: boolean;
   /** 每次变化就让这本书摇一下头，格式 [书, 计数] */
   shake?: [number, number] | null;
+  t: (msg: Msg) => string;
 }>(), { pulse: null, glow: null, deskClickable: false, shelfClickable: false, ruler: true, shake: null });
 
 const emit = defineEmits<{ pick: [book: number, where: 'desk' | 'shelf'] }>();
@@ -48,13 +51,13 @@ watch(() => props.shake, (v) => {
   shakeTimer = setTimeout(() => (shaking.value = null), SHAKE_MS);
 });
 
-const name = (b: number) => b + ' 号书 ' + BOOK_EMOJI[b];
+const name = (b: number) => props.t(m('scene.bookName', { b, emoji: BOOK_EMOJI[b] }));
 </script>
 
 <template>
   <div class="scene">
     <div class="shelf">
-      <span class="cap-label" aria-hidden="true">🗄️ 书架</span>
+      <span class="cap-label" aria-hidden="true">{{ t(m('scene.shelf')) }}</span>
       <TransitionGroup name="bk" tag="div" class="shelf-books">
         <button
           v-for="b in shelf"
@@ -63,7 +66,7 @@ const name = (b: number) => b + ' 号书 ' + BOOK_EMOJI[b];
           class="tile small"
           :class="{ pulse: pulse === b, shake: shaking === b }"
           :disabled="!shelfClickable"
-          :aria-label="'书架上的' + name(b)"
+          :aria-label="t(m('scene.shelfBook', { name: name(b) }))"
           @click="emit('pick', b, 'shelf')"
         >
           <span class="em">{{ BOOK_EMOJI[b] }}</span><span class="no">{{ b }}</span>
@@ -73,7 +76,7 @@ const name = (b: number) => b + ' 号书 ' + BOOK_EMOJI[b];
 
     <div class="desk" :style="{ '--cap': cap }">
       <div class="slots" aria-hidden="true"><span v-for="s in cap" :key="s" class="slot" /></div>
-      <TransitionGroup name="bk" tag="div" class="on-desk" role="list" aria-label="书桌上的书，从左到右是最久没碰到刚碰过">
+      <TransitionGroup name="bk" tag="div" class="on-desk" role="list" :aria-label="t(m('scene.deskAria'))">
         <button
           v-for="b in desk"
           :key="b"
@@ -82,7 +85,7 @@ const name = (b: number) => b + ' 号书 ' + BOOK_EMOJI[b];
           :class="{ pulse: pulse === b, glow: glow === b, shake: shaking === b }"
           role="listitem"
           :disabled="!deskClickable"
-          :aria-label="'桌上的' + name(b)"
+          :aria-label="t(m('scene.deskBook', { name: name(b) }))"
           @click="emit('pick', b, 'desk')"
         >
           <span class="em">{{ BOOK_EMOJI[b] }}</span><span class="no">{{ b }}</span>
@@ -90,9 +93,9 @@ const name = (b: number) => b + ' 号书 ' + BOOK_EMOJI[b];
         </button>
       </TransitionGroup>
     </div>
-    <div class="cap-label table" aria-hidden="true">🪑 书桌（放得下 {{ cap }} 本）</div>
+    <div class="cap-label table" aria-hidden="true">{{ t(m('scene.table', { cap })) }}</div>
     <div v-if="ruler" class="ruler" aria-hidden="true">
-      <span>⬅️ 最久没碰</span><i /><span>刚碰过 ➡️</span>
+      <span>{{ t(m('scene.rulerOld')) }}</span><i /><span>{{ t(m('scene.rulerNew')) }}</span>
     </div>
   </div>
 </template>

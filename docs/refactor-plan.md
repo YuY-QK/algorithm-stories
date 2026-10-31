@@ -198,5 +198,19 @@ R3 时再处理：画面注册表现在是 eager glob，15 关迁完后考虑按
 - 栈、队列（10-27）：`Control` 新增 `text`（文本框）、`transport`（播放条，配 `src/core/flows/transport.ts`，用于挑战里判断后播放演示）；按钮可带 `caption`，`look` 加 `smallPrimary`；`GameResult` 加 `art`（结算里再画一块画面），`quiz.prompt` 可省、加 `quiz.after`；`Ask` 加 `chips`，`pick` 问也可带 `options`；`Puzzle.end` 加 `chips`
 - 顺序查找、哈希查找（10-30）：`Control.number` 加 `placeholder`；`Puzzle` 加 `endRight`（最后一问答对时换一个结局）；`GameResult` 加 `foot`（按钮后的小字）、`quiz.ok`（答对后的讲解）；延伸 Markdown 里 `href="@base/…"` 换成站内地址
 - 冒泡、选择（10-30）：`TraceRules` 加 `jump`（播放条上「跳到本轮结束」）；`Ask` 加 `anim`（答完后按节拍播几帧动画）、`whyFor`（解释随点的格子变）、选项 `aria`；predict 流程加 `anim` 阶段
+- 插入、快速（10-31）：`TraceRules.foot`（播放条后的图例小字）；`BugRules.jump`；`Ask.half`（前半问：答对不计连对，答错跳过后半问）；`Puzzle.endless`（答完直接换下一题，不停结局页）；`PredictRules.continueLabel`；trace 块可带 `after` 画面
+- 归并、LRU（10-31）：`TraceRules.jumps`（多个「跳到……」按钮）；`Ask.revealOnRight`。这组原来另加的 `legend`、`skipEnd` 和上一组的 `foot`、`endless` 重复，合并时统一成 `foot`、`endless`
 - 哈希查找的两个小游戏把台词放在 state 里由画面自己画（为了保持原来的版面顺序），是目前唯一不走 Game 控件台词行的地方
 - game 块加 `sayLines: 2`（台词预留两行，原来多数小游戏如此）和 `saySize: "small"`（BFS、DFS 的小一号字）
+
+### 7.7 R3 迁移后看得出的差别（等 Yumor 在预览版上决定补不补）
+
+- 栈：追问选项和判断按钮换成共用样式，内边距略有不同
+- 顺序查找：追问按钮用共用样式，「再问一个」和「再藏一次」同一行；挑战结果的四个数字排到「挑战成功」标题前面
+- 冒泡：挑战说明里「相邻」不再加粗；「当摄影师」两个大按钮变宽；「小熊的手」的两个按钮从竖排在右边改为横排在下面；挑战排好后重复的「换一题」「再来一题」合成一个
+- 选择：结算后不再单独留「重来这一局」按钮
+- 插入：「挪一挪」数错时按钮不再晃、不再变淡，只有罐子里的硬币跳（做错的提示比原来弱）；三个数字按钮字略小
+- 快速：「换不换」按钮换成等宽字体
+- 归并、LRU：猜下一步答完后选项按钮不再留着（LRU 原来灰着并标出对错）；每题单独随机出，不再是同一局里连着的一串题
+- 多关：块的说明里原来的 `code` 样式和粗体没了（块说明只支持纯文字）；延伸里只有说明文字的块变成普通段落
+- 顺手修的旧 bug：哈希查找借书动画中途切标签会卡住；「小熊的手」赢后切标签会重置；插入排序挑战计时器泄漏；LRU 挑战一打开就多出一段假的揭晓结果

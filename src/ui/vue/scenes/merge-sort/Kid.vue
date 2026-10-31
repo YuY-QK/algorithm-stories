@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { kidOf } from '../../engine/merge-sort';
+import { kidOf } from '../../../../engine/merge-sort';
 
 // 一只小动物：头顶是模样，身体是一根柱子，越高身体越长。看和玩共用，只负责画。
 const props = withDefaults(defineProps<{
@@ -12,6 +12,8 @@ const props = withDefaults(defineProps<{
   shake?: boolean;
   /** 当成按钮（可以点） */
   pick?: boolean;
+  /** 读屏名字（可点时用），由画面按文案表填好 */
+  label?: string;
 }>(), { max: 9, state: '', shake: false, pick: false });
 
 defineEmits<{ pick: [id: number] }>();
@@ -25,7 +27,7 @@ const body = () => 22 + (props.v / props.max) * 50;
     class="kid"
     :class="[state, { shake }]"
     :type="pick ? 'button' : undefined"
-    :aria-label="pick ? '身高 ' + v + ' 的' + kidOf(id) : undefined"
+    :aria-label="pick ? label : undefined"
     :aria-hidden="pick ? undefined : 'true'"
     @click="pick && $emit('pick', id)"
   >

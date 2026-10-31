@@ -28,7 +28,7 @@ function clear() {
 function set(next: typeof st.value) {
   clear();
   // 不停在结局页的题（Puzzle.endless）：答完最后一问直接换下一道，连对保留
-  if (next.phase === 'end' && next.puzzle.endless) next = flow.nextPuzzle(next, rules.puzzle());
+  if (flow.isOver(next)) next = flow.nextPuzzle(next, rules.puzzle());
   st.value = next;
   const delay = flow.animDelay(next);
   if (delay !== null) {

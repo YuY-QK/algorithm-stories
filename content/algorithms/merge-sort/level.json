@@ -1,0 +1,19 @@
+{
+  "look": [
+    { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookQueues" }
+  ],
+  "play": [
+    { "id": "merge", "kind": "game", "icon": "🔀", "rules": "merge", "scene": "PlayMerge" },
+    { "id": "split", "kind": "game", "icon": "✂️", "rules": "split", "scene": "PlaySplit", "sayLines": 2 }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceMerge" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictMerge" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugMerge" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "MergeSort.kt", "package": "mergesort" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "ChallengeBoard", "frame": "stage" }
+  ],
+  "more": [
+    { "kind": "markdown", "src": "more" }
+  ]
+}

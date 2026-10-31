@@ -131,6 +131,8 @@ export interface TraceRules<I, S extends Step, A> {
   jump?: { label: Msg; stop(step: S, from: S): boolean };
   /** 播放条和总结之后的一行小字（图例：颜色各代表什么），可以没有 */
   foot?: Msg;
+  /** 播放条上还要更多「跳到……」按钮时用（如归并排序的「下一次调用」「下一次合并」），规则同 jump，排在 jump 后面 */
+  jumps?: { label: Msg; stop(step: S, from: S): boolean }[];
 }
 
 /* ---------- 做：猜下一步 ---------- */
@@ -156,6 +158,8 @@ export interface Ask<V, T = unknown> {
   right?: Msg;
   /** 答错、看解释时画面和题干换成这个（如点错 mid 后把 mid 亮出来）；不给就保持原样 */
   reveal?: { view: V; prompt: Msg };
+  /** 有 right 的问：答对看讲解时画面和题干也换成 reveal（默认只在答错时换） */
+  revealOnRight?: boolean;
   /**
    * 这一问答完（答对，或答错看完解释点了继续）以后先播一段动画，播完才进入下一问或结局。
    * frames 依次是画面的样子（第一帧马上显示，之后每帧按 core/timing 的节拍换），prompt 是播放时的题干。
