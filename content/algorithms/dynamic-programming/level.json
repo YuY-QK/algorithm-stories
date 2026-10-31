@@ -1,0 +1,19 @@
+{
+  "look": [
+    { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookStairs" }
+  ],
+  "play": [
+    { "id": "count", "kind": "game", "icon": "🐰", "rules": "count", "scene": "PlayCount", "sayLines": 2 },
+    { "id": "notes", "kind": "game", "icon": "📝", "rules": "notes", "scene": "PlayNotes", "after": "NotesBig", "sayLines": 2 }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceDp" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictDp" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugDp" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "DynamicProgramming.kt", "package": "dp" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "ChallengeGrid", "after": "GridMsg", "frame": "stage" }
+  ],
+  "more": [
+    { "kind": "markdown", "src": "more" }
+  ]
+}

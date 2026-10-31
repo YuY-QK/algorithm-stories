@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
+
 // 楼梯：第 0 级是地面，往上每一级贴一张便签。看、玩法一共用，只负责画，不管规则。
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   /** 最高一级 */
   n: number;
   /** 小兔子站在第几级 */
@@ -15,15 +18,19 @@ withDefaults(defineProps<{
   ask?: number | null;
   /** 终点旗子 */
   goal?: number | null;
+  t: (msg: Msg) => string;
 }>(), { bunny: null, from: () => [], glow: () => [], ask: null, goal: null });
 
 function label(i: number, v: number | null): string {
-  return (i === 0 ? '地面' : '第 ' + i + ' 级') + (v === null ? '，便签还空着' : '，便签写着 ' + v);
+  return props.t(m('scene.stairs.label', {
+    where: i === 0 ? m('scene.stairs.ground') : m('scene.stairs.level', { i }),
+    note: v === null ? m('scene.stairs.empty') : m('scene.stairs.note', { v }),
+  }));
 }
 </script>
 
 <template>
-  <div class="stairs" :style="{ '--cols': n + 1 }" role="img" :aria-label="'楼梯，一共 ' + n + ' 级'">
+  <div class="stairs" :style="{ '--cols': n + 1 }" role="img" :aria-label="t(m('scene.stairs', { n }))">
     <div v-for="(_, i) in n + 1" :key="i" class="col" :class="{ from: from.includes(i), glow: glow.includes(i) }">
       <div class="top" aria-hidden="true">
         <span v-if="goal === i && bunny !== i" class="flag">🚩</span>

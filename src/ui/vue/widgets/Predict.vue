@@ -75,7 +75,7 @@ const next = () => set(flow.nextPuzzle(st.value, rules.puzzle()));
       <span v-for="c in chips" :key="c.k" class="chip"><small>{{ c.k }}</small>{{ c.val }}</span>
     </template>
     <template #board>
-      <component :is="Scene" :view="v.view" :picked="v.picked" :pickable="v.pickable" :t="tr" @act="answer" />
+      <component :is="Scene" :view="v.view" :picked="v.picked" :pickable="v.pickable" v-bind="v.got.length ? { got: v.got } : {}" :t="tr" @act="answer" />
     </template>
     <template #answers>
       <div v-if="v.options" class="answers">

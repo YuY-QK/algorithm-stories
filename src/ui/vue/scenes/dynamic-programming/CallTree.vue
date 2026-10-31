@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { CallNode } from '../../engine/dynamic-programming';
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
+import type { CallNode } from '../../../../engine/dynamic-programming';
 
 // 递归调用树：每个圆圈是一次「到第 n 级有几种跳法」的调用，下面两个孩子是它要先问的两个小问题。
 // 贴了便签的圆圈（lookup）直接抄答案，下面整棵子树都不用算，变灰。
@@ -14,6 +16,7 @@ const props = withDefaults(defineProps<{
   shakeId?: number | null;
   clickable?: boolean;
   dimmed?: boolean;
+  t: (msg: Msg) => string;
 }>(), { found: () => [], reveal: false, glow: () => [], shakeId: null, clickable: false, dimmed: false });
 
 const emit = defineEmits<{ pick: [node: CallNode] }>();
@@ -28,13 +31,13 @@ const below = computed(() => props.dimmed || noted.value);
       type="button" class="nd"
       :class="{ noted, dim: dimmed, glow: glow.includes(node.id), shake: shakeId === node.id }"
       :disabled="!clickable || dimmed"
-      :aria-label="'第 ' + node.n + ' 级' + (noted ? '，直接抄便签' : '')"
+      :aria-label="t(noted ? m('scene.node.noted', { n: node.n }) : m('scene.node', { n: node.n }))"
       @click="emit('pick', node)"
     >{{ node.n }}</button>
     <div v-if="node.children.length" class="kids">
       <CallTree
         v-for="c in node.children" :key="c.id" :node="c"
-        :found="found" :reveal="reveal" :glow="glow" :shake-id="shakeId" :clickable="clickable" :dimmed="below"
+        :found="found" :reveal="reveal" :glow="glow" :shake-id="shakeId" :clickable="clickable" :dimmed="below" :t="t"
         @pick="emit('pick', $event)"
       />
     </div>

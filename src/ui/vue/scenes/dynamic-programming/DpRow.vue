@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { m } from '../../../../core/i18n';
+import type { Msg } from '../../../../core/types';
+
 // dp 表：一排格子，上面是 i / from 之类的标记，下面是下标。三个「做」都用它。
 const props = withDefaults(defineProps<{
   dp: (number | null)[];
@@ -13,6 +16,7 @@ const props = withDefaults(defineProps<{
   /** 刚刚填好的格子，闪一下 */
   fresh?: number | null;
   clickable?: boolean;
+  t: (msg: Msg) => string;
 }>(), { cur: null, from: () => [], picked: () => [], miss: null, fresh: null, clickable: false });
 
 const emit = defineEmits<{ pick: [i: number] }>();
@@ -31,7 +35,7 @@ function tag(k: number): string {
       v-for="(v, k) in dp" :key="k" type="button" class="dc"
       :class="{ cur: k === cur, from: from.includes(k), picked: picked.includes(k), miss: k === miss, empty: v === null, fresh: k === fresh }"
       :disabled="!clickable"
-      :aria-label="'dp[' + k + ']，' + (v === null ? '还空着' : '值 ' + v)"
+      :aria-label="t(v === null ? m('scene.dp.empty', { k }) : m('scene.dp.value', { k, v }))"
       @click="emit('pick', k)"
     >
       <span class="tg">{{ tag(k) }}</span>
