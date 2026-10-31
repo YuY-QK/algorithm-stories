@@ -1,0 +1,19 @@
+{
+  "look": [
+    { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookLine" }
+  ],
+  "play": [
+    { "id": "stand", "kind": "game", "icon": "🚩", "rules": "stand", "scene": "PlayStand", "sayLines": 2 },
+    { "id": "pick", "kind": "game", "icon": "🎯", "rules": "pick", "scene": "PlayPick", "sayLines": 2 }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceParts", "after": "TraceStack" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictParts" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugParts" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "QuickSort.kt", "package": "quicksort" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "ChallengeQuiz", "frame": "stage" }
+  ],
+  "more": [
+    { "kind": "markdown", "src": "more" }
+  ]
+}

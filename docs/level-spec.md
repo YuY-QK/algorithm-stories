@@ -1,25 +1,34 @@
 # 关卡规格
 
-每个算法做成「看、玩、做、延伸」四步的小关卡。基调见 `docs/overview.md` 4a，冲突时以它为准。三层结构见 `AGENTS.md`。
+每个算法做成「看、玩、做、延伸」四步的小关卡。基调见 `docs/overview.md` 4a，冲突时以它为准。分层见 `AGENTS.md` 和本文末节；设计的来龙去脉见 `docs/refactor-plan.md`。
 
 ## 新增一个算法
 
-照二分查找这个样板关做（`src/demos/binary-search/`、`src/engine/binary-search.ts`、`exercises/.../binarysearch/`）。
+新增一关 = **配置**（页面结构 + 文案 + 延伸阅读）+ **规则**（引擎，纯 TS）+ **画面**（只负责画）。流程（翻页、逐步执行、猜下一步、找 bug、小游戏的回合与反馈、计时）都是共享的，新关卡不写流程代码。
 
-1. `content/algorithms/<slug>/`：写 `meta.json`、`notes.md`、`story.md`
-2. `src/engine/<slug>.ts`：引擎，参考代码的行号要和 `CODE` 数组一致
-3. `tests/<slug>.test.ts`：大量随机输入检查每一步和最终结果。最终结果要和一个**独立的标准答案**比：语言自带的函数（如 `Array.prototype.sort`），或测试里另写的最朴素做法（暴力枚举、逐个比较），不能拿引擎自己的函数当答案
-4. `src/demos/<slug>/`：`Demo.astro` 加四步的 Vue 组件，用 `<Fragment slot="look|play|do|more">` 传给 `AlgoLayout`。`src/demos/index.ts` 自动收集，不用登记
+照二分查找这个样板关做：`content/algorithms/binary-search/`、`src/engine/binary-search.ts`、`src/ui/vue/scenes/binary-search/`、`tests/binary-search.*.test.ts`、`exercises/.../binarysearch/`。
+
+1. `content/algorithms/<slug>/`：
+   - `meta.json`、`notes.md`、`story.md`
+   - `level.json`：四步各有哪些块（类型、图标、指向的规则和画面），格式见 `src/core/level.ts`，构建时校验
+   - `copy.zh.json`：这一关所有给人看的字，键 → 模板
+   - `more.zh.md`：延伸阅读
+2. `src/engine/<slug>.ts`：规则。只产出 `Msg`（文案键 + 参数），不拼中文；导出 `CODE`（行号和 `Step.line` 一致）和 `level: LevelModule`（`look`、`trace`、`predict`、`bugs`、`games` 各组规则，接口见 `src/core/types.ts`）
+3. `src/ui/vue/scenes/<slug>/`：画面组件，加一个 `index.ts` 默认导出 `{ engine, scenes }`（画面注册表，`level.json` 里的 `scene` 名字 → 组件）。自动收集，不用在别处登记
+4. 测试：
+   - `tests/<slug>.test.ts`：大量随机输入检查每一步和最终结果。最终结果要和一个**独立的标准答案**比：语言自带的函数（如 `Array.prototype.sort`），或测试里另写的最朴素做法（暴力枚举、逐个比较），不能拿引擎自己的函数当答案
+   - `tests/<slug>.games.test.ts`：小游戏和挑战的规则，「玩」的每条引导（摇头、透光、追问、秘诀、星星）都要有用例
+   - `tests/<slug>.copy.test.ts`：跑遍引擎产生的 `Msg`，缺键为空，文案表里没有用不到的键（照二分查找的写法，工具在 `tests/helpers/copy.ts`）
 5. `exercises/`：加一个包，放函数框架、测试和参考答案
 6. 更新 `docs/algorithm-catalog.md` 和根目录 `README.md`（由主线程统一做）
 
-**为什么不再写 Python**：同一个算法原本写三遍（TS 引擎、Python、Kotlin 参考答案）。Python 的作用只是给引擎对拍，第 3 步的独立标准答案能起同样的作用，还少一个文件、少一套运行环境。早期关卡的 `<name>.py` 和 `tests/<slug>.crosscheck.test.ts` 保留，不回头删。
+**为什么不再写 Python**：同一个算法原本写三遍（TS 引擎、Python、Kotlin 参考答案）。Python 的作用只是给引擎对拍，第 4 步的独立标准答案能起同样的作用，还少一个文件、少一套运行环境。早期关卡的 `<name>.py` 和 `tests/<slug>.crosscheck.test.ts` 保留，不回头删。
 
 ## 关卡结构
 
 每个算法四步，页面上是四个标签：
 
-| 步骤 | slot | 给谁 | 内容 |
+| 步骤 | level.json 的键 | 给谁 | 内容 |
 |---|---|---|---|
 | 看 | `look` | 孩子和大人 | 会动的绘本，每个画面最多一行字，画面由引擎生成 |
 | 玩 | `play` | 孩子停在这里 | 一到两个小游戏，孩子当主角 |
@@ -30,69 +39,37 @@
 
 ## 页面约定
 
-- 配色、字体和通用控件在 `src/styles/theme.css`，用里面的 CSS 变量，不写死颜色；算法独有的画面样式写在组件的 `<style scoped>` 里。theme.css 里有不少全局类名（如 `.num`、`.tag`、`.idx`、`.say`、`.note`、`.result`），scoped 样式挡不住它们，起类名前先搜一下
+- 颜色、圆角、阴影、字体、速度的唯一来源是 `src/theme/tokens.json`；改了要运行 `npm run gen:theme` 重新生成 `src/styles/tokens.css`（有测试检查两者一致）。速度和停顿从 `src/core/timing.ts` 引用，不自己写数字
+- 用 CSS 变量，不写死颜色；画面独有的样式写在组件的 `<style scoped>` 里。`src/styles/theme.css` 里有不少全局类名（如 `.num`、`.tag`、`.idx`、`.say`、`.note`、`.result`、`.oops-box`、`.dots`），scoped 样式挡不住它们，起类名前先搜一下
 - 同时支持浅色和深色主题，手机宽度（375px）下不横向滚动
-- 语言：简体中文
+- 语言：简体中文。给人看的文字一律进文案表，引擎和组件里不写中文（注释和给开发者看的报错除外；迁移遗留的几处见 `docs/progress.md` 待办）
 - `prototypes/` 是最早的单文件原型，只做参考，不再修改
 
-## 共享组件与引擎数据格式（阶段 B 规格，2026-10-25）
+## 分层（阶段 R，2026-10-31 定稿）
 
-背景：13 关的「看」「猜下一步」「找 bug」骨架相同却各写一份（盘点见 `docs/progress.md` 的阶段 B 记录）。原则：**共享骨架，不共享画面**。每关独有的是画面组件（`Street`、`Maze` 等）、题目内容、「玩」的小游戏和「挑战」；骨架（翻页、计时器、连对、答错提示、找 bug 面板）一律走共享组件，新关卡不许再抄。
-
-### 1. 共享组件（`src/components/shared/`）
-
-| 组件 | 管什么 | 接口 |
-|---|---|---|
-| `BookPager.vue`（新） | 看：`say` 台词、`.dots`、◀ ▶️⏸ ▶、末页的「再看一次」和「去玩」 | props：`frames: { say: string }[]`、`interval = 2200`、`againLabel = '再看一次'`；emit：`again`；默认插槽 `{ frame, index }` 放画面。内部用 `usePlayer(frames, [单档速度])`，所以自动订阅 `STAGE_CHANGE_EVENT`。「去玩」按钮保持 `data-goto="play"` |
-| `useStreak.ts`（新） | 猜下一步的连对计数 | `useStreak(goal = 5)` → `{ streak, passed, hit(), miss() }`；`hit()` 连对 +1，达标则 `passed = true`；`miss()` 清零 |
-| `PredictFrame.vue`（新） | 猜下一步的外框：`.stage`、连对和过关 chip、题干、答错提示、「下一题」 | props：`streak`、`goal`、`passed`、`prompt: string`、`wrong: string \| null`（非空时显示 `.oops-box` 和「知道了，继续」）、`ended: boolean`（显示「下一题」）；emit：`continue`、`next`；插槽：`chips`（本关额外 chip，如 target）、`board`（画面）、`answers`（按钮） |
-| `BugHunt.vue`（新） | 找 bug 整个面板：选坑、已找到 n/m、标题、播放、`CodePanel` 可点行、红绿标记、答对后的解释与修正 | props：`bugs: Bug[]`、`run: (bug) => Step[]`（即各关 `runBug`）、`vars: (step, bug) => [string, string \| number][]`、`verdict: (step, bug) => string`、`speeds?`；作用域插槽 `board`（`{ step, bug }`）放本关画面，插槽 `input` 放输入说明。`solved / tried / marks / pick / count` 全在里面 |
-| `usePlayer.ts`（扩） | 增加 `useStageStop(stop)`：挂载时监听 `STAGE_CHANGE_EVENT`，卸载时清理 | 任何自己开 `setTimeout` / `setInterval` 的组件（动画、赛跑）必须调用，切标签要停 |
-| `timing.ts`（新） | 集中的速度与停顿：`SPEEDS`（慢/中/快 = 1300/800/350 ms）、`BOOK_INTERVAL`（绘本翻页 2200）、`PAUSE_SHORT/MID/LONG`（「玩」动画停顿 700/800/900） | `usePlayer` 的 `speeds` 缺省用 `SPEEDS`，`BookPager` 的 `interval` 缺省用 `BOOK_INTERVAL`。**新关卡与迁移的关卡不许自己写速度数字，一律引用 `timing.ts`**；以后调快慢只改这一个文件 |
-| `theme.css`（扩） | 把重复 scoped 的类提到全局：`.oops-box`、`.dots`、`.nav`、`.pager-btn`（`.pager-btn.main`、`:disabled`、`:focus-visible`） | 各关删掉自己那份；各关旧 LookStory 的 scoped `.big`、`.big-btn` 迁移时删掉；全局类不叫 `.big`，因为 `.big` 在 greedy、queue、dp、merge 的「玩」里另有用途，会撞名 |
-
-不动：`usePlayer`、`Transport`、`CodePanel`、`VarChips`、`Segmented`、`LogCompare` 现有接口。
-
-**不抽共享的**：「玩」的两个小游戏、「挑战」、`DoTrace`（已是共享组件拼装）、猜下一步里的 `phase` 状态机（各关步骤数和点选方式不同，留在本关，只把计数和外框交给 `useStreak` / `PredictFrame`）。挑战的外框以后看样子再抽，现在不做。
-
-### 2. 引擎数据格式（`src/engine/types.ts` 新增，新关卡必须用，旧关卡迁移时顺手对齐）
-
-```ts
-/** 看：绘本的一页。各关用交叉类型加自己的画面字段，台词一律由引擎生成 */
-export interface LookFrame { say: string }
-
-/** 找 bug 的一个坑。输入数据（数组、迷宫、操作序列等）放各关自己的扩展字段 */
-export interface BugInfo {
-  id: string;
-  title: string;
-  code: string[];       // 有坑的 Kotlin 代码，行号从 1 开始
-  wrongLine: number;
-  fixed: string;        // 该行的正确写法
-  explain: string;
-  expect: string;       // 正确的结果应该是什么
-}
+```
+content/algorithms/<slug>/   数据：level.json、copy.zh.json、more.zh.md（谁都能读的 JSON / Markdown）
+src/engine/<slug>.ts         规则：纯 TS，只产出 Msg
+src/core/                    流程：纯 TS，不碰 DOM、不依赖 Vue
+  types.ts                     Msg、Outcome、Control、LookRules、TraceRules、PredictRules、BugRules、GameRules、LevelModule
+  level.ts                     level.json 的类型和校验
+  i18n.ts                      t(msg, copy)：把 Msg 填成文字
+  flows/                       player、predict、bughunt、game、transport 的状态机
+  timing.ts、copy.zh.json      速度常量（读 tokens.json）、共用文案（键以 ui. 开头）
+src/theme/tokens.json        主题：唯一来源，生成 src/styles/tokens.css
+src/ui/                      界面：只有这一层和平台有关
+  levelData.ts、mini-md.ts     构建时读一关的配置、文案、Markdown
+  vue/LevelPage.astro          按 level.json 组装页面，src/pages/algo/[slug].astro 只调它
+  vue/widgets/                 Book、Trace、Predict、BugHunt、Game、Controls：只认核心层接口，不认识具体算法
+  vue/shared/                  底层零件：usePlayer、Transport、CodePanel、VarChips、Segmented、BookPager、PredictFrame、Block、LogCompare、sound
+  vue/scenes/<slug>/           每关的画面和注册表
 ```
 
-命名约定（每个 `src/engine/<slug>.ts` 都导出这些名字，没有的功能不导出）：
+规矩：
 
-| 名字 | 形状 | 说明 |
-|---|---|---|
-| `CODE` | `string[]` | 参考代码，行号与 `Step.line` 一致 |
-| `<Xxx>Step` | `extends Step` | 用算法全名，如 `SelectionStep`；旧的 `SortStep`、`QStep`、`SelStep` 迁移时改名 |
-| `buildTrace(...)` | `Trace<XxxStep>` | 参数由算法决定，**不接收 bug 参数** |
-| `BUGS` | `readonly (BugInfo & {...输入})[]` | 每个坑带齐自己的输入，输入字段名保持各关原样（不强行统一），但 `id` 一律是字面量联合 |
-| `runBug(bug)` | `Trace<XxxStep>` | 返回的轨迹最后一步带 `outcome` 之类的结果字段 |
-| `bugVerdict(step, bug)` | `string` | 找 bug 面板底部的判定文字，从组件搬进引擎（lru 的 `runBug().verdict` 改成这个） |
-| `lookFrames(...)` | `LookFrame[]` 的子类型 | 「看」的全部页，**台词在引擎里**，不在组件里；`storyFrames` 改名 `lookFrames`；入参里有随机的，用 `rand` 参数 |
-| `rounds(...)` | `Round[]` | 猜下一步的题；每题要有答案和 `why: string`（答错的解释文字在引擎，不在组件）；`Quiz`、`Question`、`Decision` 迁移时统一叫 `Round`，生成函数统一叫 `rounds`（出选项的题 `Round` 里带 `options`、`correct`） |
-| `CHALLENGE_*`、`genChallenge(rand)` | | 挑战规模常量和出题函数。组件里不许直接 `Math.random`，随机一律由引擎函数的 `rand` 参数（默认 `Math.random`）注入，方便测试固定种子 |
-
-随机源参数统一为**最后一个参数** `rand: () => number = Math.random`。
-
-### 3. 迁移规则
-
-1. 先只迁移二分查找，作为样板：`LookStory`、`DoPredict`、`DoBug` 改用共享组件，引擎名字对齐；Yumor 试玩确认样子没变、没坏。
-2. 之后每关一个提交：改引擎（名字、台词、`why`、`bugVerdict`）→ 改三个组件 → 删掉该关的重复样式 → `npm test`、`npm run check`、对该关跑 `check-pages.cjs`。
-3. 迁移是**纯重构**：页面外观和行为不变，除非顺手修了盘点里的三处计时器泄漏（`bubble-sort/DoPredict`、`dynamic-programming/DoPredict`、`insertion-sort/DoChallenge`，都改用 `useStageStop`）。
-4. 引擎里改名要同步改 `tests/` 和（若有）`<name>.py` 对拍测试，改完测试必须全绿。
-5. 迁移期间，没迁移的旧关卡继续能用；共享组件只加不改旧接口。
+- **规则**只产出 `Msg` 和状态，不知道有页面；**流程**只认 `src/core/types.ts` 的接口；**画面**只收 props、emit `act`，不放计时器、不放台词、不判断对错
+- 「玩」和「挑战」一律写成 `GameRules`：`start` 里把答案定死（孩子没法耍赖），做错的提示（晃、透光、摇头）通过 `Outcome` 表达，追问和星星通过 `result` 表达
+- 随机源一律作为最后一个参数 `rand` 注入（默认 `Math.random`），组件里不许直接 `Math.random`，测试用 `tests/helpers/seeded.ts` 固定种子
+- 块标题和说明不写在 level.json，按约定从文案表取：`<id>.title`、`<id>.intro`（可没有）、`<id>.goal`（「玩」开头的目标提示，可没有）；小游戏的开场白不要叫 `.intro`
+- 共享接口不够用时，先看 `docs/refactor-plan.md` 7.6 有没有现成的字段；确实要加，只加可选字段、不改旧字段，并在总结里写明，由主线程登记到 7.6
+- 换平台只重写 `src/ui/`；换语言只加 `copy.<语言>.json` 和 `more.<语言>.md`

@@ -5,7 +5,13 @@ import {
   lookFrames, mergeCompares, nextRow, pickOrder, pickRound, rounds, runBug, showCards, simulate, splitRounds, stars,
   type Piece,
 } from '../src/engine/merge-sort';
+import { mergeCopy, t } from '../src/core/i18n';
+import coreCopy from '../src/core/copy.zh.json';
+import levelCopy from '../content/algorithms/merge-sort/copy.zh.json';
+import { asCopy } from './helpers/copy';
 import { seeded } from './helpers/seeded';
+
+const copy = mergeCopy(asCopy(coreCopy), asCopy(levelCopy));
 
 const sortNum = (a: number[]) => [...a].sort((x, y) => x - y);
 
@@ -14,7 +20,7 @@ describe('归并排序 看：小动物排队', () => {
     expect(STORY_KIDS).toEqual([5, 2, 6, 1, 4, 3]);
     const frames = lookFrames(STORY_KIDS);
     expect(frames.filter((f) => f.cmp !== null)).toHaveLength(4);
-    expect(frames.some((f) => f.say.includes('只比了 4 次'))).toBe(true);
+    expect(frames.some((f) => t(f.say, copy).includes('只比了 4 次'))).toBe(true);
     // 16 页上下，别太长
     expect(frames.length).toBeGreaterThanOrEqual(12);
     expect(frames.length).toBeLessThanOrEqual(18);
@@ -277,7 +283,7 @@ describe('归并排序 做：猜下一步', () => {
         expect(q.revealAt).toBe(q.at + 1);
         expect(q.options.filter((o) => o.value === q.answer)).toHaveLength(1);
         expect(new Set(q.options.map((o) => o.value)).size).toBe(q.options.length);
-        expect(q.why.length).toBeGreaterThan(5);
+        expect(t(q.why, copy).length).toBeGreaterThan(5);
         const cur = steps[q.at];
         const nx = steps[q.revealAt];
         if (q.kind === 'side') {
@@ -375,7 +381,7 @@ describe('归并排序 引擎：台词、出题和固定种子', () => {
       expect(a).toHaveLength(STORY_N);
       expect(sortNum(a)).toEqual(Array.from({ length: STORY_N }, (_, x) => x + 1));
       const fs = lookFrames(a);
-      expect(fs.every((f) => f.say.length > 0)).toBe(true);
+      expect(fs.every((f) => t(f.say, copy).length > 0)).toBe(true);
       expect(fs.at(-1)!.queues.map((q) => q.map((id) => a[id]))).toEqual([sortNum(a)]);
     }
   });
@@ -410,12 +416,12 @@ describe('归并排序 引擎：台词、出题和固定种子', () => {
   });
 
   it('bugVerdict：没跑完是空，跑完按结果写', () => {
-    for (const b of BUGS) expect(bugVerdict(runBug(b)[0], b)).toBe('');
-    const text = Object.fromEntries(BUGS.map((b) => [b.id, bugVerdict(runBug(b).at(-1)!, b)]));
+    for (const b of BUGS) expect(bugVerdict(runBug(b)[0], b)).toBeNull();
+    const text = Object.fromEntries(BUGS.map((b) => [b.id, t(bugVerdict(runBug(b).at(-1)!, b)!, copy)]));
     expect(text.lt).toContain('不稳定');
     expect(text.lt).toContain('3♥');
     expect(text.copy0).toBe('❌ 结果 ' + showCards(runBug(BUGS[1]).at(-1)!.arr, [], false) + '，没排好，还丢了数');
     expect(text.base).toContain('StackOverflowError');
-    expect(bugVerdict(buildTrace([2, 1]).at(-1)!, BUGS[0])).toBe('✅ 排好了');
+    expect(t(bugVerdict(buildTrace([2, 1]).at(-1)!, BUGS[0])!, copy)).toBe('✅ 排好了');
   });
 });

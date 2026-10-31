@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
+import coreCopy from '../src/core/copy.zh.json';
+import { mergeCopy, t } from '../src/core/i18n';
+import type { Msg } from '../src/core/types';
+import levelCopy from '../content/algorithms/dfs/copy.zh.json';
+import { asCopy } from './helpers/copy';
 import {
   BACK, BUGS, CODE, DIRS, ISLAND_MAPS, KID_MAZES, L, PLAY_MAZES, STACK_LIMIT, TRACE_MAZES,
   around, bestSteps, bugVerdict, buildTrace, challengeK, genChallenge, genPredict, lookFrames, PREDICT_ROOMS, countIslands, expectedChoice, floodFill, genMaze, islandChoices, islands,
   isLand, isWall, judgeChoice, judgeIslandTap, neighbors, openCount, parseIslands, parseMaze, reachable, rounds,
   routeOf, runBug, seeded, shortestRoute, tour, visitOrder, walkedSteps, type Choice, type Maze,
 } from '../src/engine/dfs';
+
+/** 台词按文案表填成文字 */
+const T = (x: Msg | null) => t(x!, mergeCopy(asCopy(coreCopy), asCopy(levelCopy)));
 
 function randomGrid(rand: () => number): string[] {
   const h = 1 + Math.floor(rand() * 7);
@@ -295,16 +303,16 @@ describe('DFS 看：绘本', () => {
       const frames = lookFrames(m);
       expect(frames.length).toBeGreaterThanOrEqual(5);
       for (const f of frames) {
-        expect(f.say.length).toBeGreaterThan(0);
+        expect(T(f.say).length).toBeGreaterThan(0);
       }
       for (const f of frames.slice(1)) expect(f.tones[m.start]).toBeDefined();
       expect(frames[0].hero).toBe(m.start);
       expect(frames.at(-1)!.hero).toBe(m.end);
-      expect(frames.at(-1)!.say).toContain('只要 ' + bestSteps(m) + ' 步');
+      expect(T(frames.at(-1)!.say)).toContain('只要 ' + bestSteps(m) + ' 步');
       // 倒数第二页：路上的格子数 = 走出来的路 + 1
       const walked = Object.values(frames.at(-2)!.tones).filter((t) => t === 'path').length;
       expect(walked).toBe(routeOf(m).length);
-      expect(frames.at(-2)!.say).toContain('留在路上的 ' + (routeOf(m).length - 1) + ' 步');
+      expect(T(frames.at(-2)!.say)).toContain('留在路上的 ' + (routeOf(m).length - 1) + ' 步');
       // 最后一页亮出的最短路正好是 shortestRoute
       const best = Object.entries(frames.at(-1)!.tones).filter(([, t]) => t === 'best').map(([id]) => Number(id));
       expect(best.sort((a, b) => a - b)).toEqual([...shortestRoute(m)].sort((a, b) => a - b));
@@ -317,15 +325,16 @@ describe('DFS 做：猜下一步', () => {
     for (let i = 0; i < 100; i++) {
       const m = parseMaze(genPredict(seeded(i)));
       for (const q of rounds(m)) {
-        expect(q.why.startsWith('不对，')).toBe(true);
-        expect(q.ask).toContain('探险家刚走进');
-        expect(q.right.length).toBeGreaterThan(0);
-        expect(q.endNote.length).toBeGreaterThan(0);
-        if (q.answer.kind === 'end') expect(q.why).toContain('宝藏');
+        const why = T(q.why);
+        expect(why.startsWith('不对，')).toBe(true);
+        expect(T(q.ask)).toContain('探险家刚走进');
+        expect(T(q.right).length).toBeGreaterThan(0);
+        expect(T(q.endNote).length).toBeGreaterThan(0);
+        if (q.answer.kind === 'end') expect(why).toContain('宝藏');
         else {
-          expect(q.why).toContain('上、右、下、左');
-          if (q.answer.kind === 'back') expect(q.why).toContain('return false');
-          if (q.answer.kind === 'go') expect(q.why).toContain('新格子，进去');
+          expect(why).toContain('上、右、下、左');
+          if (q.answer.kind === 'back') expect(why).toContain('return false');
+          if (q.answer.kind === 'go') expect(why).toContain('新格子，进去');
         }
       }
     }
@@ -401,8 +410,8 @@ describe('DFS 找 bug：判定文字', () => {
   it('bugVerdict：没跑完是空，跑完按结果说话', () => {
     for (const b of BUGS) {
       const tr = runBug(b);
-      for (const s of tr.slice(0, -1)) expect(bugVerdict(s, b)).toBe('');
-      const v = bugVerdict(tr.at(-1)!, b);
+      for (const s of tr.slice(0, -1)) expect(bugVerdict(s, b)).toBeNull();
+      const v = T(bugVerdict(tr.at(-1)!, b));
       if (b.id === 'no-mark') expect(v).toContain('StackOverflowError');
       if (b.id === 'bounds') expect(v).toContain('越界');
       if (b.id === 'ignore') expect(v).toBe('❌ 返回了 false，可是宝藏明明走得到，应该返回 true');

@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import coreCopy from '../src/core/copy.zh.json';
+import { mergeCopy, t } from '../src/core/i18n';
+import type { Msg } from '../src/core/types';
+import levelCopy from '../content/algorithms/bfs/copy.zh.json';
+import { asCopy } from './helpers/copy';
 import {
   BUGS, CHALLENGE_ROOMS, CODE, PREDICT_ROOMS, EXPLODE_AT, KID_MAZES, L, TRACE_MAZES,
   applyDrawTap, around, bestSteps, bugVerdict, buildTrace, genChallenge, genMaze, genPredict, lookFrames, isNeighbor, isWall, judgeDrawTap, judgeRingTap,
   neighbors, openCount, parseMaze, pathTo, ringStars, rounds, routeStars, runBug, seeded, waves, type Maze,
 } from '../src/engine/bfs';
+
+/** 台词按文案表填成文字 */
+const T = (x: Msg | null) => t(x!, mergeCopy(asCopy(coreCopy), asCopy(levelCopy)));
 
 /** 随机迷宫：大小随机，三成是墙，S、E 位置随机 */
 function randomGrid(rand: () => number): string[] {
@@ -146,7 +154,7 @@ describe('BFS 看：绘本', () => {
       const frames = lookFrames(m);
       // 开场 2 页 + 每圈 1 页 + 倒数 + 吃到
       expect(frames).toHaveLength(2 + (wv.rings.length - 1) + 2);
-      for (const f of frames) expect(f.say.length).toBeGreaterThan(0);
+      for (const f of frames) expect(T(f.say).length).toBeGreaterThan(0);
       expect(frames[0].mouse).toBe(m.start);
       expect(frames.at(-1)!.mouse).toBe(m.end);
       // 数字标签就是 waves 的 dist
@@ -154,8 +162,8 @@ describe('BFS 看：绘本', () => {
     }
     for (const g of KID_MAZES) {
       const f = lookFrames(parseMaze(g));
-      expect(f.at(-1)!.say).toContain('6 步');
-      expect(f.at(-2)!.say).toBe('从奶酪倒着数回去：6 → 5 → 4 → 3 → 2 → 1 → 0');
+      expect(T(f.at(-1)!.say)).toContain('6 步');
+      expect(T(f.at(-2)!.say)).toBe('从奶酪倒着数回去：6 → 5 → 4 → 3 → 2 → 1 → 0');
     }
   });
 });
@@ -244,10 +252,11 @@ describe('BFS 做：猜下一步', () => {
     for (const g of [...KID_MAZES, ...GRIDS.slice(0, 300)]) {
       const m = parseMaze(g);
       for (const r of rounds(m)) {
-        expect(r.why.startsWith('不对，')).toBe(true);
-        if (r.isEnd) expect(r.why).toContain('终点');
+        const why = T(r.why);
+        expect(why.startsWith('不对，')).toBe(true);
+        if (r.isEnd) expect(why).toContain('终点');
         else {
-          const lines = r.why.split('\n').slice(1);
+          const lines = why.split('\n').slice(1);
           expect(lines).toHaveLength(4);
           r.checks.forEach((c, k) => {
             expect(lines[k].startsWith(['上', '下', '左', '右'][c.dir])).toBe(true);
@@ -278,7 +287,7 @@ describe('BFS 做：找 bug', () => {
     expect(last.stack.result).toBeGreaterThan(best.stack);
     expect(last.range.outcome).toBe('crash');
     for (const b of BUGS) {
-      expect(b.expect).toContain(String(best[b.id]));
+      expect(T(b.expect)).toContain(String(best[b.id]));
       const steps = runBug(b);
       expect(steps.filter((s) => s.done)).toHaveLength(1);
       for (const s of steps) {
@@ -306,8 +315,8 @@ describe('BFS 找 bug：判定文字', () => {
   it('bugVerdict：没跑完是空，跑完按结果说话', () => {
     for (const b of BUGS) {
       const steps = runBug(b);
-      for (const s of steps.slice(0, -1)) expect(bugVerdict(s, b)).toBe('');
-      const v = bugVerdict(steps.at(-1)!, b);
+      for (const s of steps.slice(0, -1)) expect(bugVerdict(s, b)).toBeNull();
+      const v = T(bugVerdict(steps.at(-1)!, b));
       if (b.id === 'no-visited') expect(v).toContain('队列爆炸');
       if (b.id === 'range') expect(v).toContain('越界');
       if (b.id === 'stack') expect(v).toMatch(/^❌ 返回了 \d+，可是最短只要 3 步$/);

@@ -5,7 +5,15 @@ import {
   lookFrames, memoCalls, naiveCalls, noteOptions, pathKey, playStars, randomRocks, rounds,
   runBug, twinOf, valueOptions, ways, waysTable, whyFrom,
 } from '../src/engine/dynamic-programming';
+import { mergeCopy, t } from '../src/core/i18n';
+import coreCopy from '../src/core/copy.zh.json';
+import levelCopy from '../content/algorithms/dynamic-programming/copy.zh.json';
+import type { Msg } from '../src/core/types';
 import { seeded } from './helpers/seeded';
+
+const copy = mergeCopy(coreCopy, levelCopy);
+/** Msg 填成文字，断言台词内容用 */
+const T = (msg: Msg | null) => t(msg ?? { key: 'none' }, copy);
 
 describe('动态规划 看、玩：小兔子爬楼梯', () => {
   it('跳法数：1, 1, 2, 3, 5, 8, 13', () => {
@@ -56,7 +64,8 @@ describe('动态规划 看、玩：小兔子爬楼梯', () => {
       // 高亮的台阶就是它的便签来源，数字要已经写好
       for (const h of f.from) expect(f.notes[h]).not.toBeNull();
       // 每个画面一行字
-      expect(f.say).not.toContain('\n');
+      expect(T(f.say)).not.toContain('\n');
+      expect(T(f.say)).not.toContain('⟦');
     }
     expect(frames.at(-1)!.notes).toEqual(t);
     // 便签只增不减
@@ -184,9 +193,9 @@ describe('动态规划 做：猜下一步', () => {
     for (let n = 2; n <= 12; n++) {
       for (const r of rounds(n)) {
         expect(r.options).toEqual(valueOptions(r));
-        expect(r.why).toBe('dp[' + r.i + '] = dp[' + (r.i - 1) + '] + dp[' + (r.i - 2) + '] = ' + r.dp[r.i - 1] + ' + ' + r.dp[r.i - 2] + ' = ' + r.value + '。两格都要加上，一格也不能少。');
-        expect(whyFrom(r, r.i)).toContain('还空着');
-        if (r.i >= 3) expect(whyFrom(r, 0)).toContain('紧挨着的前两格');
+        expect(T(r.why)).toBe('dp[' + r.i + '] = dp[' + (r.i - 1) + '] + dp[' + (r.i - 2) + '] = ' + r.dp[r.i - 1] + ' + ' + r.dp[r.i - 2] + ' = ' + r.value + '。两格都要加上，一格也不能少。');
+        expect(T(whyFrom(r, r.i))).toContain('还空着');
+        if (r.i >= 3) expect(T(whyFrom(r, 0))).toContain('紧挨着的前两格');
       }
     }
   });
@@ -237,9 +246,9 @@ describe('动态规划 做：找 bug', () => {
   it('bugVerdict：没跑完是空，跑完按结果说话', () => {
     for (const b of BUGS) {
       const tr = runBug(b);
-      for (const st of tr.slice(0, -1)) expect(bugVerdict(st, b)).toBe('');
+      for (const st of tr.slice(0, -1)) expect(bugVerdict(st, b)).toBeNull();
     }
-    const v = Object.fromEntries(BUGS.map((b) => [b.id, bugVerdict(runBug(b).at(-1)!, b)]));
+    const v = Object.fromEntries(BUGS.map((b) => [b.id, T(bugVerdict(runBug(b).at(-1)!, b))]));
     expect(v.init).toBe('❌ 返回了 5，不对');
     expect(v.from1).toContain('下标越界');
     expect(v.size).toContain('下标越界');
@@ -310,7 +319,7 @@ describe('动态规划 做：挑战（网格数路线）', () => {
       for (const [r, c] of cells) {
         expect(rocks[r][c]).toBe(false);
         expect(t[r][c]).toBe(t[r - 1][c] + t[r][c - 1]);
-        expect(cellHint(rocks, r, c)).toContain('= ' + t[r][c]);
+        expect(T(cellHint(rocks, r, c))).toContain('= ' + t[r][c]);
       }
       // 按顺序填，填到某格时它上面和左边都已经填好
       const order = new Set(cells.map(([r, c]) => r + ',' + c));

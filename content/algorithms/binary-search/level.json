@@ -1,0 +1,72 @@
+{
+  "look": [
+    {
+      "id": "story",
+      "kind": "book",
+      "icon": "📖",
+      "rules": "story",
+      "scene": "LookStreet"
+    }
+  ],
+  "play": [
+    {
+      "id": "hide",
+      "kind": "game",
+      "icon": "🍃",
+      "rules": "hide",
+      "scene": "PlayStreet"
+    },
+    {
+      "id": "find",
+      "kind": "game",
+      "icon": "🐰",
+      "rules": "find",
+      "scene": "PlayStreet"
+    }
+  ],
+  "do": [
+    {
+      "id": "trace",
+      "kind": "trace",
+      "icon": "①",
+      "rules": "main",
+      "scene": "TraceArray"
+    },
+    {
+      "id": "predict",
+      "kind": "predict",
+      "icon": "②",
+      "rules": "main",
+      "scene": "PredictArray"
+    },
+    {
+      "id": "bug",
+      "kind": "bugs",
+      "icon": "③",
+      "rules": "main",
+      "scene": "BugArray"
+    },
+    {
+      "id": "write",
+      "kind": "exercise",
+      "icon": "④",
+      "file": "BinarySearch.kt",
+      "package": "binarysearch"
+    },
+    {
+      "id": "challenge",
+      "kind": "game",
+      "icon": "⑤",
+      "rules": "challenge",
+      "scene": "GuessRange",
+      "after": "GuessLog",
+      "frame": "stage"
+    }
+  ],
+  "more": [
+    {
+      "kind": "markdown",
+      "src": "more"
+    }
+  ]
+}

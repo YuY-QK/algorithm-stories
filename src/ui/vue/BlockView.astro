@@ -1,0 +1,38 @@
+---
+/**
+ * 按 level.json 里一个块的类型，挂上对应的控件，外面包一个 Block 卡片。
+ * 标题、说明、目标提示按约定从文案表取：<id>.title、<id>.intro、<id>.goal。
+ */
+import Block from './shared/Block.astro';
+import type { Block as LevelBlock } from '../../core/level';
+import type { Copy } from '../../core/types';
+import { renderMiniMd } from '../mini-md';
+import Book from './widgets/Book.vue';
+import BugHunt from './widgets/BugHunt.vue';
+import Game from './widgets/Game.vue';
+import Predict from './widgets/Predict.vue';
+import Trace from './widgets/Trace.vue';
+
+interface Props {
+  slug: string;
+  block: Exclude<LevelBlock, { kind: 'markdown' }>;
+  copy: Copy;
+}
+const { slug, block, copy } = Astro.props;
+const title = copy[block.id + '.title'];
+const intro = copy[block.id + '.intro'];
+---
+
+<Block icon={block.icon} title={title} intro={intro}>
+  {block.kind === 'book' && <Book client:only="vue" slug={slug} id={block.id} rules={block.rules} scene={block.scene} />}
+  {block.kind === 'game' && <Game client:only="vue" slug={slug} id={block.id} rules={block.rules} scene={block.scene} after={block.after} frame={block.frame} sayLines={block.sayLines} saySize={block.saySize} />}
+  {block.kind === 'trace' && <Trace client:only="vue" slug={slug} rules={block.rules} scene={block.scene} after={block.after} />}
+  {block.kind === 'predict' && <Predict client:only="vue" slug={slug} rules={block.rules} scene={block.scene} />}
+  {block.kind === 'bugs' && <BugHunt client:only="vue" slug={slug} rules={block.rules} scene={block.scene} />}
+  {block.kind === 'exercise' && (
+    <div class="md">
+      <Fragment set:html={renderMiniMd(copy[block.id + '.body'])} />
+      <div class="code"><div class="codehead">TERMINAL</div><pre><div class="line"><i>$</i><span>./gradlew test --tests '{block.package}.*'</span></div></pre></div>
+    </div>
+  )}
+</Block>

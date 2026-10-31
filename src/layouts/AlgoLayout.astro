@@ -6,7 +6,7 @@
 import Base from './Base.astro';
 import { STAGES } from '../content.config';
 import { STAGE_INFO } from '../stages';
-import SoundToggle from '../components/shared/SoundToggle.vue';
+import SoundToggle from '../ui/vue/shared/SoundToggle.vue';
 
 interface Props {
   slug: string;
@@ -40,6 +40,7 @@ const first = stages[0];
     {Astro.slots.has('play') && <section id="panel-play" class="panel" role="tabpanel" aria-labelledby="tab-play" hidden={first !== 'play'}><slot name="play" /></section>}
     {Astro.slots.has('do') && <section id="panel-do" class="panel" role="tabpanel" aria-labelledby="tab-do" hidden={first !== 'do'}><slot name="do" /></section>}
     {Astro.slots.has('more') && <section id="panel-more" class="panel" role="tabpanel" aria-labelledby="tab-more" hidden={first !== 'more'}><slot name="more" /></section>}
+    <slot name="data" />
   </main>
 
   <p class="foot">
@@ -49,7 +50,7 @@ const first = stages[0];
 </Base>
 
 <script>
-  import { STAGE_CHANGE_EVENT } from '../components/shared/usePlayer';
+  import { STAGE_CHANGE_EVENT } from '../ui/vue/shared/usePlayer';
 
   // 步骤切换：支持 ?stage=look|play|do|more 直接打开某一步
   const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"][data-stage]')];

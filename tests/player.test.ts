@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ref } from 'vue';
-import { usePlayer } from '../src/components/shared/usePlayer';
-import { MANUAL, SPEEDS } from '../src/components/shared/timing';
+import { usePlayer } from '../src/ui/vue/shared/usePlayer';
+import { MANUAL, SPEEDS } from '../src/core/timing';
 
 describe('usePlayer 手动档', () => {
   it('手动档点一下走一步，不自动播放', () => {

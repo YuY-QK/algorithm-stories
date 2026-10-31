@@ -13,7 +13,7 @@
 
 ## 技术栈
 
-网站：Astro + Vue 3 + TypeScript，静态网站，推到 `main` 后由 `.github/workflows/deploy.yml` 测试并部署到 GitHub Pages（`base` 是 `/algorithm-stories`，站内链接一律用 `import.meta.env.BASE_URL` 拼）。
+网站：Astro + Vue 3 + TypeScript，静态网站，推到 `main` 后由 `.github/workflows/deploy.yml` 测试并部署到 GitHub Pages（`base` 是 `/algorithm-stories`，站内链接一律用 `import.meta.env.BASE_URL` 拼）。推到 `preview` 分支则部署预览版到 `/algorithm-stories/preview/`（构建时设 `SITE_BASE`），用来在合并前看最新代码的效果：`git push origin HEAD:preview --force`。
 
 练习：`exercises/` 是一个 Kotlin Gradle 项目，给 Yumor 在本地 IDE 里「亲手写」。`src/main/kotlin/<包>/` 放函数框架（`TODO()`），`src/test/kotlin/<包>/` 放测试，`solutions/<包>/` 放参考答案；CI 用 `./gradlew test -Psolutions` 检查测试本身没写错。
 
@@ -23,13 +23,17 @@ cd exercises && ./gradlew test -Psolutions
 node scripts/check-pages.cjs <页面地址> --each '[role=tab]'   # 页面检查，只出文字报告，不看截图
 ```
 
-## 三层结构
+## 分层
+
+新增一关 = 配置 + 规则 + 画面，流程全部共享（详见 `docs/level-spec.md` 末节）。
 
 | 层 | 位置 | 规则 |
 |---|---|---|
-| 内容 | `content/algorithms/<slug>/` | `meta.json`（标题、分类、已做的步骤等，字段见 `src/content.config.ts`）、`notes.md` 资料、`story.md` 故事稿；早期关卡另有 `<name>.py` 参考实现，用于和引擎对拍（新关卡不再写，见 `docs/level-spec.md`） |
-| 引擎 | `src/engine/<slug>.ts` | 纯函数，不碰 DOM、不依赖 Vue。看和玩的规则、逐步执行的 `buildTrace`、找 bug 的 bug 版本都在这里。步骤轨迹每一步继承 `src/engine/types.ts` 的 `Step`（`line` 代码行号、`note` 说明、`done`），`CODE` 是 Kotlin 代码 |
-| 界面 | `src/demos/<slug>/` | `Demo.astro` 组织四步的面板（`src/demos/index.ts` 自动收集，不用登记），交互部分写成 Vue 组件，用 `client:only="vue"` 挂载。通用部分用 `src/components/shared/`：`usePlayer`、`Transport`、`CodePanel`（可点行，用于找 bug）、`VarChips`、`Segmented`、`LogCompare` |
+| 配置 | `content/algorithms/<slug>/` | `meta.json`（字段见 `src/content.config.ts`）、`level.json`（四步各有哪些块，格式见 `src/core/level.ts`）、`copy.zh.json`（全部给人看的字）、`more.zh.md`（延伸阅读）、`notes.md` 资料、`story.md` 故事稿；早期关卡另有 `<name>.py` 对拍（新关卡不再写） |
+| 规则 | `src/engine/<slug>.ts` | 纯函数，不碰 DOM、不依赖 Vue，只产出 `Msg`（文案键 + 参数）。导出 Kotlin `CODE` 和 `level: LevelModule`（看、逐步执行、猜下一步、找 bug、小游戏的规则） |
+| 流程 | `src/core/` | 纯 TS 的接口（`types.ts`）、`level.json` 校验、文案 `t()`、各种状态机（`flows/`）、速度（`timing.ts`）、共用文案。各关不写流程代码 |
+| 主题 | `src/theme/tokens.json` | 颜色、圆角、阴影、字体、速度的唯一来源，`npm run gen:theme` 生成 `src/styles/tokens.css` |
+| 界面 | `src/ui/` | 只有这一层和平台有关。`vue/LevelPage.astro` 按 `level.json` 组装页面；`vue/widgets/` 通用控件；`vue/shared/` 底层零件（`usePlayer`、`Transport`、`CodePanel`、`VarChips`、`Segmented`……）；`vue/scenes/<slug>/` 每关的画面和注册表 `index.ts`（自动收集）。画面只收 props、emit `act`，不放流程 |
 | 练习 | `exercises/` | 每个算法一个 Kotlin 包：框架、测试、参考答案 |
 
 `<slug>` 是算法英文名，短横线分隔。
@@ -42,7 +46,7 @@ node scripts/check-pages.cjs <页面地址> --each '[role=tab]'   # 页面检查
 
 1. `algorithm-researcher`：整理资料，写 `notes.md`
 2. `story-writer`：写故事稿 `story.md`
-3. `demo-builder`：写引擎、测试、演示组件和 Kotlin 练习，并验证
+3. `demo-builder`：写配置、规则、画面、测试和 Kotlin 练习，并验证
 4. `content-reviewer`：发布前审校，只报告问题
 
 ## 子线程

@@ -1,0 +1,19 @@
+{
+  "look": [
+    { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookSeats" }
+  ],
+  "play": [
+    { "id": "next", "kind": "game", "icon": "🧋", "rules": "next", "scene": "PlayNext", "sayLines": 2 },
+    { "id": "clerk", "kind": "game", "icon": "🧑‍🍳", "rules": "clerk", "scene": "PlayClerk", "sayLines": 2 }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceQueue" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictRing" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugQueue" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "RingQueue.kt", "package": "queue" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "GuessCells", "after": "GuessResult", "frame": "stage" }
+  ],
+  "more": [
+    { "kind": "markdown", "src": "more" }
+  ]
+}

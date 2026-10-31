@@ -4,7 +4,14 @@ import {
   challengeAverage, countChecks, genChallenge, genPuzzle, hideBear, judgeAverage, judgeWorst, linearSearch, lookFrames, makePuzzle,
   playStars, robotFrames, robotNote, robotRow, rounds, runBug, simulate, tapBox, toyCells, CHALLENGE_MAX, CHALLENGE_MIN,
 } from '../src/engine/linear-search';
+import { mergeCopy, t } from '../src/core/i18n';
+import coreCopyJson from '../src/core/copy.zh.json';
+import ownCopyJson from '../content/algorithms/linear-search/copy.zh.json';
+import { asCopy } from './helpers/copy';
 import { seeded } from './helpers/seeded';
+
+const copy = mergeCopy(asCopy(coreCopyJson), asCopy(ownCopyJson));
+const say = (msg: Parameters<typeof t>[0] | null) => t(msg!, copy);
 
 /** 独立的标准答案：语言自带的 indexOf */
 const randArr = (rand: () => number, n: number, range = 8) => Array.from({ length: n }, () => Math.floor(rand() * range) - 2);
@@ -32,7 +39,8 @@ describe('顺序查找：引擎', () => {
         expect(s.line).toBeGreaterThanOrEqual(1);
         expect(s.line).toBeLessThanOrEqual(CODE.length);
         expect(s.done).toBe(j === tr.length - 1);
-        expect(s.note.length).toBeGreaterThan(0);
+        expect(say(s.note)).not.toContain('⟦');
+        expect(say(s.note).length).toBeGreaterThan(0);
         if (j > 0) expect(s.checks).toBeGreaterThanOrEqual(tr[j - 1].checks);
         if (s.line === 3) expect(s.hits.length).toBe(arr[s.i] === target ? 1 : 0);
         if (s.line === 4) expect(s.result).toBe(s.i);
@@ -68,16 +76,16 @@ describe('顺序查找：引擎', () => {
 describe('顺序查找：看', () => {
   it('绘本用故事稿的数字：8 个箱子，小熊第 5 个，第一个是积木，第二排全开 8 次', () => {
     const f = lookFrames();
-    expect(f.every((p) => p.say.length > 0 && p.cells.length === 8)).toBe(true);
-    expect(f[1].say).toContain('积木');
+    expect(f.every((p) => say(p.say).length > 0 && p.cells.length === 8)).toBe(true);
+    expect(say(f[1].say)).toContain('积木');
     const hitPage = f.find((p) => p.cells.some((c) => c.state === 'hit'))!;
     expect(hitPage.cells.findIndex((c) => c.state === 'hit')).toBe(4);
     expect(hitPage.cells[4].label).toBe(TOYS[BEAR]);
     expect(hitPage.cells.slice(5).every((c) => c.state === 'closed' && c.label === '')).toBe(true);
-    expect(f.some((p) => p.say.includes('开了 5 次'))).toBe(true);
+    expect(f.some((p) => say(p.say).includes('开了 5 次'))).toBe(true);
     const lastPage = f.at(-1)!;
     expect(lastPage.cells.every((c) => c.state === 'seen' && c.label !== '')).toBe(true);
-    expect(lastPage.say).toContain('没有');
+    expect(say(lastPage.say)).toContain('没有');
   });
 });
 
@@ -142,9 +150,9 @@ describe('顺序查找：玩', () => {
   });
 
   it('引导语随试过的藏法变化', () => {
-    expect(robotNote([])).toContain('藏');
-    expect(robotNote([{ at: 0, count: 1 }, { at: null, count: 8 }])).toContain('没有捷径');
-    expect(robotNote([{ at: 3, count: 4 }])).not.toContain('没有捷径');
+    expect(say(robotNote([]))).toContain('藏');
+    expect(say(robotNote([{ at: 0, count: 1 }, { at: null, count: 8 }]))).toContain('没有捷径');
+    expect(say(robotNote([{ at: 3, count: 4 }]))).not.toContain('没有捷径');
   });
 });
 
@@ -182,14 +190,14 @@ describe('顺序查找：猜下一步', () => {
         expect(r.i).toBe(i);
         expect(r.correct).toBe(p.arr[i] === p.target ? 'return' : 'go');
         expect(r.options.map((o) => o.key)).toContain(r.correct);
-        expect(r.why.length).toBeGreaterThan(0);
+        expect(say(r.why).length).toBeGreaterThan(0);
       });
       // 只有最后一题结束
       rs.forEach((r, j) => expect(r.ended).toBe(j === rs.length - 1));
       const last = rs.at(-1)!;
       expect(last.kind).toBe(want === -1 ? 'end' : 'cmp');
-      if (want === -1) expect(last.result).toContain('-1');
-      else expect(last.result).toContain('返回 ' + want);
+      if (want === -1) expect(say(last.result)).toContain('-1');
+      else expect(say(last.result)).toContain('返回 ' + want);
       // 「下一个 i」的题最多一道，答案是加 1
       const nexts = rs.filter((r) => r.kind === 'next');
       expect(nexts.length).toBe(want === 0 ? 0 : 1);
@@ -236,8 +244,8 @@ describe('顺序查找：找 bug', () => {
       expect(b.wrongLine).toBeLessThanOrEqual(b.code.length);
       expect(b.code[b.wrongLine - 1]).not.toBe(b.fixed);
       expect(tr.some((s) => s.line === b.wrongLine)).toBe(true);
-      expect(bugVerdict(tr[0], b)).toBe('');
-      expect(bugVerdict(tr.at(-1)!, b).length).toBeGreaterThan(0);
+      expect(bugVerdict(tr[0], b)).toBeNull();
+      expect(say(bugVerdict(tr.at(-1)!, b)).length).toBeGreaterThan(0);
     }
     expect(BUGS[0].code[1]).toContain('0..arr.size');
     expect(BUGS[1].code[6]).toContain('return 0');

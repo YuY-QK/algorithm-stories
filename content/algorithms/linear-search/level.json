@@ -1,0 +1,19 @@
+{
+  "look": [
+    { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookBoxes" }
+  ],
+  "play": [
+    { "id": "find", "kind": "game", "icon": "🐻", "rules": "find", "scene": "PlayBoxes", "saySize": "small" },
+    { "id": "robot", "kind": "game", "icon": "🤖", "rules": "robot", "scene": "PlayRobot", "saySize": "small" }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceBoxes" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictBoxes" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugBoxes" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "LinearSearch.kt", "package": "linearsearch" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "ChallengeLead", "after": "ChallengeNote", "frame": "stage" }
+  ],
+  "more": [
+    { "kind": "markdown", "src": "more" }
+  ]
+}

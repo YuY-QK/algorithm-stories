@@ -1,0 +1,19 @@
+{
+  "look": [
+    { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookCandies" }
+  ],
+  "play": [
+    { "id": "pick", "kind": "game", "icon": "🍬", "rules": "pick", "scene": "PlayPick" },
+    { "id": "hand", "kind": "game", "icon": "🐻", "rules": "hand", "scene": "PlayHand", "sayLines": 2 }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceCandies" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictCells" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugCandies" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "SelectionSort.kt", "package": "selectionsort" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "ChallengeCells", "frame": "stage" }
+  ],
+  "more": [
+    { "kind": "markdown", "src": "more" }
+  ]
+}

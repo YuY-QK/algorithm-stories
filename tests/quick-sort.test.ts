@@ -4,6 +4,13 @@ import {
   countCompares, dealLine, dealStand, genArray, genChallenge, isBalanced, isSorted, lookFrames, makeInput, medianIdx,
   permutation, rounds, runBug, seeded, sideOf, simulate, splitOf, stars, worstCompares, zoneOf,
 } from '../src/engine/quick-sort';
+import { mergeCopy, t } from '../src/core/i18n';
+import type { Msg } from '../src/core/types';
+import coreCopy from '../src/core/copy.zh.json';
+import levelCopy from '../content/algorithms/quick-sort/copy.zh.json';
+
+const copy = mergeCopy(coreCopy, levelCopy);
+const T = (msg: Msg | string) => t(msg, copy);
 
 const sortNum = (a: number[]) => [...a].sort((x, y) => x - y);
 
@@ -15,7 +22,7 @@ describe('快速排序 看：体育课排队', () => {
       const last = frames.at(-1)!;
       expect(last.order.map((id) => values[id])).toEqual(sortNum(values));
       expect(last.kinds.every((x) => x === 'placed')).toBe(true);
-      expect(last.say).toContain('比了 ' + buildTrace(values).at(-1)!.compares + ' 次');
+      expect(T(last.say)).toContain('比了 ' + buildTrace(values).at(-1)!.compares + ' 次');
       for (const f of frames) {
         expect([...f.order].sort((a, b) => a - b)).toEqual(values.map((_, id) => id));
         expect(f.kinds).toHaveLength(values.length);
@@ -32,9 +39,9 @@ describe('快速排序 看：体育课排队', () => {
     expect(STORY_ROW).toEqual([6, 2, 8, 4, 1, 7, 3, 5]);
     const frames = lookFrames(STORY_ROW);
     expect(frames).toHaveLength(16);
-    expect(frames.at(-1)!.say).toContain('14 次');
+    expect(T(frames.at(-1)!.say)).toContain('14 次');
     // 第一次分区后：标杆 5 站到下标 4，左边都比它矮，右边都比它高
-    const f = frames.find((x) => x.say.includes('问完啦'))!;
+    const f = frames.find((x) => T(x.say).includes('问完啦'))!;
     const h = f.order.map((id) => STORY_ROW[id]);
     expect(h[4]).toBe(5);
     expect(h.slice(0, 4).every((x) => x < 5)).toBe(true);
@@ -208,10 +215,10 @@ describe('快速排序 做：猜下一步', () => {
           expect(q.options).toHaveLength(3);
           expect(q.options.filter((o) => o.ok)).toHaveLength(1);
           const { lo, hi } = q.step;
-          expect(q.options.find((o) => o.ok)!.text).toBe(`[${lo}, ${q.p - 1}] 和 [${q.p + 1}, ${hi}]`);
+          expect(T(q.options.find((o) => o.ok)!.text)).toBe(`[${lo}, ${q.p - 1}] 和 [${q.p + 1}, ${hi}]`);
           // 下一步确实是调用 quickSort(lo, p − 1)
           expect(steps[at + 1].line).toBe(4);
-          expect(steps[at + 1].note).toContain(`quickSort(${lo}, ${q.p - 1})`);
+          expect(T(steps[at + 1].note)).toContain(`quickSort(${lo}, ${q.p - 1})`);
         }
       }
     }
@@ -224,28 +231,28 @@ describe('快速排序 做：猜下一步的 why 和提示', () => {
     const b = rounds([5, 2, 8, 1, 9, 3, 7], seeded(11));
     expect(a).toEqual(b);
     for (const q of a) {
-      expect(q.prompt.length).toBeGreaterThan(5);
-      expect(q.why.length).toBeGreaterThan(5);
+      expect(T(q.prompt).length).toBeGreaterThan(5);
+      expect(T(q.why).length).toBeGreaterThan(5);
       if (q.kind === 'swap') {
-        expect(q.targetPrompt).toContain('i++ 之后 i = ' + q.target);
-        expect(q.whyTarget).toContain('arr[' + q.target + ']');
+        expect(T(q.targetPrompt)).toContain('i++ 之后 i = ' + q.target);
+        expect(T(q.whyTarget)).toContain('arr[' + q.target + ']');
         const v = q.step.arr[q.step.j!];
-        expect(q.why).toContain(String(v));
+        expect(T(q.why)).toContain(String(v));
       }
-      if (q.kind === 'land') expect(q.why).toContain('落在下标 ' + q.target);
-      if (q.kind === 'ranges') expect(q.why).toContain('下标 ' + q.p);
+      if (q.kind === 'land') expect(T(q.why)).toContain('落在下标 ' + q.target);
+      if (q.kind === 'ranges') expect(T(q.why)).toContain('下标 ' + q.p);
     }
   });
 });
 
 describe('快速排序 做：找 bug', () => {
-  it('bugVerdict：没跑完是空串，三种错的结局各有文字', () => {
+  it('bugVerdict：没跑完是 null，三种错的结局各有文字', () => {
     const bug = BUGS[0];
-    expect(bugVerdict(runBug(bug)[0], bug)).toBe('');
-    expect(bugVerdict(runBug(BUGS[0]).at(-1)!, BUGS[0])).toContain('StackOverflowError');
-    expect(bugVerdict(runBug(BUGS[1]).at(-1)!, BUGS[1])).toContain('[5, 4, 3, 2, 1]');
-    expect(bugVerdict(simulate([2, 3, 1], 'swap-i').at(-1)!)).toContain('下标越界');
-    expect(bugVerdict(buildTrace([3, 1, 2]).at(-1)!)).toBe('✅ 排好了');
+    expect(bugVerdict(runBug(bug)[0], bug)).toBeNull();
+    expect(T(bugVerdict(runBug(BUGS[0]).at(-1)!, BUGS[0])!)).toContain('StackOverflowError');
+    expect(T(bugVerdict(runBug(BUGS[1]).at(-1)!, BUGS[1])!)).toContain('[5, 4, 3, 2, 1]');
+    expect(T(bugVerdict(simulate([2, 3, 1], 'swap-i').at(-1)!)!)).toContain('下标越界');
+    expect(T(bugVerdict(buildTrace([3, 1, 2]).at(-1)!)!)).toBe('✅ 排好了');
   });
 
   it('每个 bug 版本和 CODE 只差一行，并且在给定输入上出错', () => {
@@ -315,7 +322,7 @@ describe('快速排序 做：挑战', () => {
       expect(countCompares(q.arr, 'last').compares).toBe(worstCompares(CHALLENGE_N));
     }
     expect(new Set(qs[2].arr).size).toBe(1);
-    expect(qs[2].name).toContain(String(qs[2].arr[0]));
+    expect(T(qs[2].name)).toContain(String(qs[2].arr[0]));
     expect(CHALLENGE_OPTIONS).toContain(worstCompares(CHALLENGE_N));
   });
 

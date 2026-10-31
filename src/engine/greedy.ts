@@ -1,4 +1,8 @@
-import type { BugInfo, LookFrame, Step, Trace } from './types';
+import { m } from '../core/i18n';
+import { PAUSE_LONG, PAUSE_MID, PAUSE_RETRY } from '../core/timing';
+import type {
+  BugInfo, BugRules, Control, GameRules, LevelModule, LookFrame, LookRules, Msg, Outcome, PredictRules, Puzzle, Step, Trace, TraceRules, Var,
+} from '../core/types';
 
 /* ---------- 通用：贪心找零和动态规划的最少枚数 ---------- */
 
@@ -51,6 +55,7 @@ export function minCoins(coins: number[], amount: number): number {
 }
 
 const sum = (a: number[]) => a.reduce((s, x) => s + x, 0);
+
 
 /* ---------- 看、玩：小熊的小卖部 ---------- */
 
@@ -111,14 +116,14 @@ function coinPages(coins: number[], amount: number): LookPage[] {
   const out: LookPage[] = [];
   let plate: number[] = [];
   let dim: number[] = [];
-  for (const m of cashierTrace(coins, amount)) {
-    if (m.action === 'skip') {
-      dim = [...dim, m.coin];
-      out.push({ say: m.coin + ' 比 ' + m.left + ' 大，找多啦 🙅', coins, left: m.left, plate, focus: m.coin, dim, compare: null });
+  for (const mv of cashierTrace(coins, amount)) {
+    if (mv.action === 'skip') {
+      dim = [...dim, mv.coin];
+      out.push({ say: m('look.skip', { coin: mv.coin, left: mv.left }), coins, left: mv.left, plate, focus: mv.coin, dim, compare: null });
     } else {
-      plate = [...plate, m.coin];
-      const left = m.left - m.coin;
-      out.push({ say: '拿 ' + m.coin + '！' + (left ? '还要找 ' + left : '找完啦'), coins, left, plate, focus: m.coin, dim, compare: null });
+      plate = [...plate, mv.coin];
+      const left = mv.left - mv.coin;
+      out.push({ say: m('look.take', { coin: mv.coin, tail: m(left ? 'look.more' : 'look.finish', { left }) }), coins, left, plate, focus: mv.coin, dim, compare: null });
     }
   }
   return out;
@@ -134,17 +139,24 @@ export function lookFrames(): LookPage[] {
   const lastB = b[b.length - 1];
   const best = bestPicks(odd, ODD.amount)!;
   return [
-    { say: '🐰 买了蜂蜜，小熊要找她 ' + LOOK_AMOUNT, coins: kid, left: LOOK_AMOUNT, plate: [], focus: null, dim: [], compare: null },
-    { say: '小熊的秘诀：每次拿最大的、不超过剩下的 🪙', coins: kid, left: LOOK_AMOUNT, plate: [], focus: kid[0], dim: [], compare: null },
+    { say: m('look.start', { amount: LOOK_AMOUNT }), coins: kid, left: LOOK_AMOUNT, plate: [], focus: null, dim: [], compare: null },
+    { say: m('look.how'), coins: kid, left: LOOK_AMOUNT, plate: [], focus: kid[0], dim: [], compare: null },
     ...a,
-    { ...lastA, say: '只用了 ' + lastA.plate.length + ' 枚，最少！🎉', focus: null, dim: [] },
-    { say: '咦？换一盒奇怪的硬币，找 ' + ODD.amount, coins: odd, left: ODD.amount, plate: [], focus: null, dim: [], compare: null },
+    { ...lastA, say: m('look.best', { n: lastA.plate.length }), focus: null, dim: [] },
+    { say: m('look.odd', { amount: ODD.amount }), coins: odd, left: ODD.amount, plate: [], focus: null, dim: [], compare: null },
     ...b,
-    { ...lastB, say: '贪心用了 ' + lastB.plate.length + ' 枚……', focus: null, dim: [] },
-    { ...lastB, say: best.join(' + ') + ' 只要 ' + best.length + ' 枚！😮', focus: null, dim: [], compare: best },
-    { ...lastB, say: '眼前最大的，不一定最少 🤔', focus: null, dim: [], compare: best },
+    { ...lastB, say: m('look.oddGreedy', { n: lastB.plate.length }), focus: null, dim: [] },
+    { ...lastB, say: m('look.oddBest', { picks: best.join(' + '), n: best.length }), focus: null, dim: [], compare: best },
+    { ...lastB, say: m('look.end'), focus: null, dim: [], compare: best },
   ];
 }
+
+/** 看的规则：故事是固定的，「再看一次」从头再来 */
+const lookRules: LookRules<number, LookPage> = {
+  first: 0,
+  next: (prev) => prev,
+  frames: () => lookFrames(),
+};
 
 /** 能不能把这枚硬币放进找零盘：比剩下的大就找多了 */
 export function canTake(left: number, coin: number): boolean {
@@ -170,11 +182,11 @@ export function cashierAmount(rand: () => number = Math.random): number {
 }
 
 /** 玩法二「打败贪心机器人」：每一关贪心都会多拿，孩子要找出更少的拿法 */
-export interface Puzzle {
+export interface RobotPuzzle {
   coins: number[];
   amount: number;
 }
-export const PUZZLES: Puzzle[] = [
+export const PUZZLES: RobotPuzzle[] = [
   { coins: [4, 3, 1], amount: 6 },
   { coins: [5, 4, 1], amount: 8 },
   { coins: [10, 7, 1], amount: 14 },
@@ -182,12 +194,250 @@ export const PUZZLES: Puzzle[] = [
 ];
 
 /** 孩子凑好之后的判定：凑齐了没有、比贪心少没有 */
-export function judgePuzzle(p: Puzzle, picks: number[]): 'short' | 'over' | 'beat' | 'tie' {
+export function judgePuzzle(p: RobotPuzzle, picks: number[]): 'short' | 'over' | 'beat' | 'tie' {
   const s = sum(picks);
   if (s < p.amount) return 'short';
   if (s > p.amount) return 'over';
   return picks.length < greedyPicks(p.coins, p.amount).length ? 'beat' : 'tie';
 }
+
+/* ---------- 玩法一：当收银员（游戏状态） ---------- */
+
+export const CUSTOMERS = ['🐰', '🦊', '🐼', '🐱', '🐸', '🦉'];
+
+/**
+ * 孩子一枚一枚点硬币放进找零盘，金额一开始就定好。
+ * 引导：太大的硬币弹回、摇头；凑齐后数枚数，比最少的多就问「能更少吗？」，
+ * 同一个金额再找时，最大能拿的那枚一闪一闪；第一次拿到三颗星后问「每次先拿哪个？」。
+ */
+export interface CashierGame {
+  amount: number;
+  customer: string;
+  plate: number[];
+  /** 同一个金额已经再找了几次 */
+  tries: number;
+  /** 追问过了没有 */
+  asked: boolean;
+  quiz: 'ask' | 'right' | 'wrong' | null;
+  /** 摇头：[面值, 第几次] */
+  shake: [number, number] | null;
+}
+
+export type CashierAction =
+  | { type: 'tap'; coin: number }
+  | { type: 'undo' }
+  | { type: 'quiz'; right: boolean }
+  | { type: 'retry' }
+  | { type: 'next' };
+
+const CASHIER_COINS = desc(KID_COINS);
+export const cashierLeft = (g: CashierGame) => g.amount - sum(g.plate);
+export const cashierDone = (g: CashierGame) => cashierLeft(g) === 0;
+const cashierBest = (g: CashierGame) => minCoins(CASHIER_COINS, g.amount);
+const greet = (g: CashierGame): Msg => m('cashier.say.greet', { who: g.customer, amount: g.amount });
+const wiggle = (prev: [number, number] | null, coin: number): [number, number] => [coin, (prev?.[1] ?? 0) + 1];
+
+/** 同一个金额第二次找时给提示：最大能拿的那枚一闪一闪 */
+export function cashierPulse(g: CashierGame): number | null {
+  return g.tries >= 1 && !cashierDone(g) ? greedyNext(CASHIER_COINS, cashierLeft(g)) : null;
+}
+
+export const cashierRules: GameRules<CashierGame, CashierAction> = {
+  start(rand) {
+    const g: CashierGame = { amount: cashierAmount(rand), customer: CUSTOMERS[0], plate: [], tries: 0, asked: false, quiz: null, shake: null };
+    return { state: g, say: greet(g) };
+  },
+
+  act(g, a, rand) {
+    switch (a.type) {
+      case 'tap': {
+        if (cashierDone(g)) return null;
+        const left = cashierLeft(g);
+        if (!canTake(left, a.coin)) {
+          return { state: { ...g, shake: wiggle(g.shake, a.coin) }, say: m('cashier.say.big', { coin: a.coin, left }), sound: 'wrong' };
+        }
+        const n: CashierGame = { ...g, plate: [...g.plate, a.coin] };
+        if (!cashierDone(n)) return { state: n, say: m('cashier.say.put', { coin: a.coin, left: cashierLeft(n) }), sound: 'right' };
+        // 凑齐了
+        const used = n.plate.length;
+        if (used <= cashierBest(n)) {
+          return { state: n.asked ? n : { ...n, asked: true, quiz: 'ask' }, say: m('cashier.say.best', { n: used }), sound: 'win' };
+        }
+        return { state: n, say: m('cashier.say.more', { n: used }), sound: 'win' };
+      }
+      case 'undo': {
+        if (cashierDone(g) || !g.plate.length) return null;
+        const back = g.plate[g.plate.length - 1];
+        const n = { ...g, plate: g.plate.slice(0, -1) };
+        return { state: n, say: m('cashier.say.undo', { coin: back, left: cashierLeft(n) }) };
+      }
+      case 'quiz':
+        if (g.quiz !== 'ask') return null;
+        return { state: { ...g, quiz: a.right ? 'right' : 'wrong' }, sound: a.right ? 'right' : 'wrong' };
+      case 'retry':
+        if (!cashierDone(g)) return null;
+        return { state: { ...g, tries: g.tries + 1, plate: [] }, say: m('cashier.say.retry', { amount: g.amount }) };
+      case 'next': {
+        if (!cashierDone(g)) return null;
+        let amount = g.amount;
+        while (amount === g.amount) amount = cashierAmount(rand);
+        const n: CashierGame = {
+          ...g, amount, customer: CUSTOMERS[(CUSTOMERS.indexOf(g.customer) + 1) % CUSTOMERS.length], plate: [], tries: 0,
+          // 追问还没答就留着，答过了（对或错）就收起来
+          quiz: g.quiz === 'ask' ? 'ask' : null,
+        };
+        return { state: n, say: greet(n) };
+      }
+    }
+  },
+
+  clickable: (g) => !cashierDone(g),
+
+  controls(g) {
+    if (!cashierDone(g)) {
+      return [{ type: 'button', action: { type: 'undo' }, label: m('cashier.undo'), aria: m('cashier.aria.undo'), look: 'small', disabled: !g.plate.length }];
+    }
+    const out: Control<CashierAction>[] = [];
+    const over = g.plate.length > cashierBest(g);
+    if (over) out.push({ type: 'button', action: { type: 'retry' }, label: m('cashier.retry'), look: 'primary' });
+    out.push({ type: 'button', action: { type: 'next' }, label: m('cashier.next'), look: over ? undefined : 'primary' });
+    return out;
+  },
+
+  result(g) {
+    if (!cashierDone(g)) return null;
+    const stars = cashierStars(g.plate.length, cashierBest(g));
+    if (g.quiz === 'ask') {
+      const choice = (kind: string, right: boolean): Control<CashierAction> => ({
+        type: 'button', action: { type: 'quiz', right }, look: 'choice', label: m('cashier.quiz.' + kind), art: { scene: 'MiniCoins', props: { kind } },
+      });
+      return { stars, quiz: { prompt: m('cashier.quiz.ask'), options: [choice('small', false), choice('any', false), choice('big', true)] } };
+    }
+    if (g.quiz === 'right') return { stars, quiz: { prompt: m('cashier.quiz.right'), options: [] } };
+    if (g.quiz === 'wrong') return { stars, quiz: { prompt: m('cashier.quiz.wrong'), options: [] } };
+    return { stars };
+  },
+};
+
+/* ---------- 玩法二：打败贪心机器人（游戏状态） ---------- */
+
+/**
+ * 每关的面值和金额是固定的，机器人 🤖 先用贪心找一遍，孩子要找出比它更少的拿法。
+ * phase：robot 机器人在找；me 孩子凑；oops 没赢，盘子晃一下稍等；win 赢了；all 四关都赢了。
+ * 没赢时盘子晃一下；没赢两次，最少拿法里的第一枚会透光。
+ */
+export interface RobotGame {
+  level: number;
+  phase: 'robot' | 'me' | 'oops' | 'win' | 'all';
+  robot: number[];
+  plate: number[];
+  fails: number;
+  won: boolean[];
+  shake: [number, number] | null;
+  shakePlate: number;
+}
+
+export type RobotAction = { type: 'tap'; coin: number } | { type: 'undo' } | { type: 'next' } | { type: 'restart' };
+
+export const robotLeft = (g: RobotGame) => PUZZLES[g.level].amount - sum(g.plate);
+export const robotRobotLeft = (g: RobotGame) => PUZZLES[g.level].amount - sum(g.robot);
+/** 没赢两次以后，最少拿法里的第一枚透光 */
+export function robotGlow(g: RobotGame): number | null {
+  if (g.phase !== 'me' || g.fails < 2) return null;
+  const p = PUZZLES[g.level];
+  return bestPicks(p.coins, p.amount)![0];
+}
+
+/** 开始（或重新开始）这一关：机器人先找 */
+function robotBegin(g: Pick<RobotGame, 'level' | 'won' | 'shake' | 'shakePlate'>): Outcome<RobotGame> {
+  return {
+    state: { level: g.level, won: g.won, shake: g.shake, shakePlate: g.shakePlate, phase: 'robot', robot: [], plate: [], fails: 0 },
+    say: m('robot.say.start', { amount: PUZZLES[g.level].amount }),
+    sound: 'tick',
+    after: PAUSE_LONG,
+  };
+}
+
+export const robotRules: GameRules<RobotGame, RobotAction> = {
+  start: () => robotBegin({ level: 0, won: PUZZLES.map(() => false), shake: null, shakePlate: 0 }),
+
+  act(g, a) {
+    switch (a.type) {
+      case 'tap': {
+        if (g.phase !== 'me') return null;
+        const p = PUZZLES[g.level];
+        const left = robotLeft(g);
+        if (!canTake(left, a.coin)) {
+          return { state: { ...g, shake: [a.coin, (g.shake?.[1] ?? 0) + 1] }, say: m('robot.say.big', { coin: a.coin, left }), sound: 'wrong' };
+        }
+        const n: RobotGame = { ...g, plate: [...g.plate, a.coin] };
+        if (robotLeft(n) > 0) return { state: n, say: m('robot.say.put', { coin: a.coin, left: robotLeft(n) }), sound: 'right' };
+        const used = n.plate.length;
+        if (judgePuzzle(p, n.plate) === 'beat') {
+          return {
+            state: { ...n, phase: 'win', won: g.won.map((w, k) => w || k === g.level) },
+            say: m('robot.say.win', { n: used, r: g.robot.length }),
+            sound: 'win',
+          };
+        }
+        return {
+          state: { ...n, fails: g.fails + 1, shakePlate: g.shakePlate + 1, phase: 'oops' },
+          say: m('robot.say.oops', { n: used, r: g.robot.length }),
+          sound: 'wrong',
+          after: PAUSE_RETRY,
+        };
+      }
+      case 'undo': {
+        if (g.phase !== 'me' || !g.plate.length) return null;
+        const back = g.plate[g.plate.length - 1];
+        const n = { ...g, plate: g.plate.slice(0, -1) };
+        return { state: n, say: m('robot.say.undo', { coin: back, left: robotLeft(n) }) };
+      }
+      case 'next':
+        if (g.phase !== 'win') return null;
+        if (g.level >= PUZZLES.length - 1) return { state: { ...g, phase: 'all' }, say: m('robot.say.all', { n: PUZZLES.length }), sound: 'win' };
+        return robotBegin({ ...g, level: g.level + 1 });
+      case 'restart':
+        if (g.phase !== 'all') return null;
+        return robotBegin({ ...g, level: 0, won: PUZZLES.map(() => false) });
+    }
+  },
+
+  tick(g): Outcome<RobotGame> {
+    if (g.phase === 'robot') {
+      const p = PUZZLES[g.level];
+      const picks = greedyPicks(p.coins, p.amount);
+      const k = g.robot.length;
+      if (k >= picks.length) return { state: { ...g, phase: 'me' }, say: m('robot.say.used', { n: picks.length }) };
+      const n = { ...g, robot: [...g.robot, picks[k]] };
+      return { state: n, say: m('robot.say.took', { coin: picks[k], left: robotRobotLeft(n) }), sound: 'tick', after: PAUSE_MID };
+    }
+    if (g.phase === 'oops') {
+      return { state: { ...g, plate: [], phase: 'me' }, say: g.fails >= 2 ? m('robot.say.glow') : undefined };
+    }
+    return { state: g };
+  },
+
+  // 切标签时：机器人还没找完就从头再找（这样回到「玩」时能看到它找），晃盘子的等待直接结束
+  interrupt(g) {
+    if (g.phase === 'robot') return robotBegin(g);
+    if (g.phase === 'oops') return robotRules.tick!(g);
+    return { state: g };
+  },
+
+  clickable: (g) => g.phase === 'me',
+
+  controls(g) {
+    if (g.phase === 'me') return [{ type: 'button', action: { type: 'undo' }, label: m('cashier.undo'), aria: m('cashier.aria.undo'), look: 'small', disabled: !g.plate.length }];
+    if (g.phase === 'win') {
+      return [{ type: 'button', action: { type: 'next' }, label: m(g.level < PUZZLES.length - 1 ? 'robot.nextLevel' : 'robot.finish'), look: 'primary' }];
+    }
+    if (g.phase === 'all') return [{ type: 'button', action: { type: 'restart' }, label: m('robot.again'), look: 'primary' }];
+    return [];
+  },
+
+  result: (g) => (g.phase === 'all' ? { quiz: { prompt: m('robot.all.q'), options: [] } } : null),
+};
 
 /* ---------- 做：逐步执行 ---------- */
 
@@ -238,37 +488,88 @@ export function buildTrace(coins: number[], amount: number): Trace<GreedyStep> {
   let c: number | null = null;
   let left: number | null = null;
   let picked: number[] = [];
-  const push = (line: number, note: string, done = false) => {
+  const push = (line: number, note: Msg, done = false) => {
     steps.push({ line, note, done, outcome: done ? 'ok' : 'running', sorted, c, left, picked });
   };
 
   sorted = [...coins].sort((a, b) => b - a);
-  push(2, '面值从大到小排好：' + listText(sorted) + '。');
-  push(3, 'picked 是找零盘，一开始是空的。');
+  push(2, m('trace.note.sorted', { list: listText(sorted) }));
+  push(3, m('trace.note.picked'));
   left = amount;
-  push(4, '还要找 left = ' + amount + '。');
+  push(4, m('trace.note.left0', { amount }));
   for (const coin of sorted) {
     c = coin;
-    push(5, '看面值 c = ' + c + '。');
+    push(5, m('trace.note.see', { c }));
     for (;;) {
       if (left >= c) {
-        push(6, left + ' >= ' + c + '，拿得下，拿一枚。');
+        push(6, m('trace.note.fit', { left, c }));
         picked = [...picked, c];
-        push(7, '把 ' + c + ' 放进找零盘，现在 ' + picked.length + ' 枚。');
+        push(7, m('trace.note.put', { c, n: picked.length }));
         left -= c;
-        push(8, 'left = ' + (left + c) + ' - ' + c + ' = ' + left + '。');
+        push(8, m('trace.note.sub', { a: left + c, c, left }));
       } else {
-        push(6, left + ' < ' + c + '，' + c + ' 太大了，换下一种面值。');
+        push(6, m('trace.note.big', { left, c }));
         break;
       }
     }
   }
   c = null;
   push(11, left === 0
-    ? '返回 ' + listText(picked) + '，一共 ' + picked.length + ' 枚。'
-    : '返回 ' + listText(picked) + '，还差 ' + left + ' 没找出去（面值里没有 1）。', true);
+    ? m('trace.note.retOk', { list: listText(picked), n: picked.length })
+    : m('trace.note.retShort', { list: listText(picked), left }), true);
   return steps;
 }
+
+/** 逐步执行面板的输入：哪一套面值和金额 */
+export interface TraceInput {
+  sys: string;
+  amount: number;
+}
+
+export type TraceAction = { type: 'sys'; id: string } | { type: 'amount'; n: number } | { type: 'random' } | { type: 'odd' };
+
+/** 金额最多填多少 */
+export const TRACE_MAX = 200;
+
+export const traceCoins = (input: TraceInput) => SYSTEMS.find((s) => s.id === input.sys)!.coins;
+
+/** 做：逐步执行。面值、剩余金额、每种拿了几枚和代码行同步 */
+export const traceRules: TraceRules<TraceInput, GreedyStep, TraceAction> = {
+  code: CODE,
+  start: () => ({ sys: SYSTEMS[0].id, amount: 46 }),
+  act(input, a, rand) {
+    switch (a.type) {
+      case 'sys': return { ...input, sys: a.id };
+      case 'amount': return a.n >= 0 && a.n <= TRACE_MAX ? { ...input, amount: a.n } : input;
+      case 'random': return { ...input, amount: randomAmount(rand) };
+      case 'odd': return { sys: 'odd', amount: 6 };
+    }
+  },
+  controls: (input) => [
+    {
+      type: 'segmented', legend: m('trace.sys'), value: input.sys,
+      options: SYSTEMS.map((s) => ({ value: s.id, label: m('trace.sys.' + s.id) })),
+      choose: (v) => ({ type: 'sys', id: String(v) }),
+    },
+    { type: 'number', label: m('trace.amount', { max: TRACE_MAX }), value: input.amount, min: 0, max: TRACE_MAX, submit: (n) => ({ type: 'amount', n }) },
+    {
+      type: 'group', legend: m('trace.quick'),
+      items: [
+        { type: 'button', action: { type: 'random' }, label: m('trace.random'), look: 'small' },
+        { type: 'button', action: { type: 'odd' }, label: m('trace.odd'), look: 'small' },
+      ],
+    },
+  ],
+  trace: (input) => buildTrace(traceCoins(input), input.amount),
+  vars: (input, s): Var[] => [['amount', input.amount], ['c', s.c ?? '—'], ['left', s.left ?? '—'], ['picked', m('trace.n', { n: s.picked.length })]],
+  summary(input, s) {
+    if (!s.done) return null;
+    const g = s.picked.length;
+    const b = bestPicks(traceCoins(input), input.amount)!;
+    return g === b.length ? m('trace.summary.same', { g, b: b.length }) : m('trace.summary.diff', { g, picks: b.join(' + '), b: b.length });
+  },
+  jump: { label: m('trace.jump'), stop: (x) => x.done },
+};
 
 /* ---------- 做：猜下一步 ---------- */
 
@@ -280,7 +581,7 @@ export interface Round {
   /** 「拿几枚」的四个选项：正确答案和它附近的数 */
   options: number[];
   /** 拿几枚答错时的解释 */
-  why: string;
+  why: Msg;
 }
 
 /** 拿几枚的四个选项：正确答案和它附近的数 */
@@ -294,10 +595,10 @@ export function countOptions(n: number): number[] {
 }
 
 /** 点错面值时的解释：拿大了，或者还有更大的能拿 */
-export function whyCoin(r: Round, picked: number): string {
+export function whyCoin(r: Round, picked: number): Msg {
   return picked > r.left
-    ? picked + ' 比剩下的 ' + r.left + ' 大，拿了就找多了。不超过 ' + r.left + ' 的最大面值是 ' + r.coin + '。'
-    : picked + ' 拿得下，但还有更大的 ' + r.coin + ' 也拿得下。贪心每次拿不超过 left 的最大面值。';
+    ? m('why.big', { picked, left: r.left, coin: r.coin })
+    : m('why.small', { picked, left: r.left, coin: r.coin });
 }
 
 export function rounds(coins: number[], amount: number): Round[] {
@@ -307,10 +608,7 @@ export function rounds(coins: number[], amount: number): Round[] {
     if (c > left) continue;
     const count = Math.floor(left / c);
     const rest = left - count * c;
-    out.push({
-      left, coin: c, count, options: countOptions(count),
-      why: left + ' ÷ ' + c + ' = ' + count + ' 余 ' + rest + '：while 循环会一直拿 ' + c + '，拿 ' + count + ' 枚后剩 ' + rest + '，比 ' + c + ' 小才停。',
-    });
+    out.push({ left, coin: c, count, options: countOptions(count), why: m('why.count', { left, c, count, rest }) });
     left -= count * c;
   }
   return out;
@@ -321,6 +619,48 @@ export function genPredict(rand: () => number = Math.random): { coins: number[];
   const sys = SYSTEMS[Math.floor(rand() * SYSTEMS.length)];
   return { coins: desc(sys.coins), amount: 20 + Math.floor(rand() * 180) };
 }
+
+/** 猜下一步画面的样子：面值一排，已经拿的（面值 × 枚数），已经点对的面值（拿几枚那一问时） */
+export interface PredictView {
+  coins: number[];
+  plate: { coin: number; count: number }[];
+  chosen: number | null;
+}
+
+/** 把一道题排成一问接一问：每一轮先点出下一枚拿哪种面值，再选这种拿几枚 */
+export function makePuzzle(coins: number[], amount: number): Puzzle<PredictView, number> {
+  const list = rounds(coins, amount);
+  const plate: { coin: number; count: number }[] = [];
+  const asks = list.flatMap((r) => {
+    const before = [...plate];
+    plate.push({ coin: r.coin, count: r.count });
+    const chips: Var[] = [['amount', amount], ['left', r.left]];
+    return [
+      {
+        view: { coins, plate: before, chosen: null }, prompt: m('predict.coin', { left: r.left }), kind: 'pick' as const, answer: r.coin,
+        // 点错的解释随点的面值而变（whyFor），why 只是占位
+        why: whyCoin(r, r.coin), whyFor: (c: number) => whyCoin(r, c), chips,
+      },
+      {
+        view: { coins, plate: before, chosen: r.coin }, prompt: m('predict.count', { left: r.left, c: r.coin }), kind: 'choose' as const, answer: r.count, chips,
+        options: r.options.map((n) => ({ value: n, label: m('trace.n', { n }) })), why: r.why,
+      },
+    ];
+  });
+  const total = sum(list.map((r) => r.count));
+  return {
+    asks,
+    end: { view: { coins, plate: [...plate], chosen: null }, prompt: m('predict.end', { n: total }), chips: [['amount', amount], ['left', 0]] },
+  };
+}
+
+const predictRules: PredictRules<PredictView, number> = {
+  goal: 5,
+  puzzle(rand = Math.random) {
+    const q = genPredict(rand);
+    return makePuzzle(q.coins, q.amount);
+  },
+};
 
 /* ---------- 做：找 bug ---------- */
 
@@ -337,36 +677,36 @@ function variant(line: number, text: string): string[] {
 export const BUGS: readonly Bug[] = [
   {
     id: 'ascending',
-    title: '找了一大把硬币',
+    title: m('bug.ascending.title'),
     code: variant(2, '    val sorted = coins.sorted()'),
     wrongLine: 2,
     fixed: '    val sorted = coins.sortedDescending()',
     coins: [1, 2, 5, 10],
     amount: 12,
-    expect: '应该返回 [10, 2]，2 枚',
-    explain: 'sorted() 是从小到大排。贪心要先拿最大的，结果却先看 1，一枚一枚把 12 全用 1 凑完了。要从大到小：sortedDescending()。',
+    expect: m('bug.ascending.expect'),
+    explain: m('bug.ascending.explain'),
   },
   {
     id: 'if',
-    title: '钱没找够就收工',
+    title: m('bug.if.title'),
     code: variant(6, '        if (left >= c) {'),
     wrongLine: 6,
     fixed: '        while (left >= c) {',
     coins: [1, 2, 5, 10],
     amount: 27,
-    expect: '应该返回 [10, 10, 5, 2]，加起来是 27',
-    explain: 'if 只判断一次，每种面值最多拿一枚。27 要两枚 10，拿了一枚就换下一种，最后只找出 18。同一种面值要拿到拿不下为止，所以用 while。',
+    expect: m('bug.if.expect'),
+    explain: m('bug.if.explain'),
   },
   {
     id: 'reset',
-    title: '一直拿 10，停不下来',
+    title: m('bug.reset.title'),
     code: variant(8, '            left = amount - c'),
     wrongLine: 8,
     fixed: '            left -= c',
     coins: [1, 2, 5, 10],
     amount: 27,
-    expect: '应该返回 [10, 10, 5, 2]',
-    explain: '每次都从总金额 amount 里减，而不是从剩下的 left 里减。拿完第二枚 10，left 又变回 17，永远拿不完。余数要在剩下的基础上更新：left -= c。',
+    expect: m('bug.reset.expect'),
+    explain: m('bug.reset.explain'),
   },
 ];
 
@@ -380,60 +720,69 @@ export function runBug(bug: Bug): Trace<GreedyStep> {
   let c: number | null = null;
   let left: number | null = null;
   let picked: number[] = [];
-  const push = (line: number, note: string, outcome: GreedyStep['outcome'] = 'running') => {
+  const push = (line: number, note: Msg, outcome: GreedyStep['outcome'] = 'running') => {
     steps.push({ line, note, done: outcome !== 'running', outcome, sorted, c, left, picked });
   };
 
   sorted = bug.id === 'ascending' ? [...bug.coins].sort((a, b) => a - b) : [...bug.coins].sort((a, b) => b - a);
-  push(2, (bug.id === 'ascending' ? '面值从小到大排：' : '面值从大到小排：') + listText(sorted) + '。');
-  push(3, 'picked 一开始是空的。');
+  push(2, m(bug.id === 'ascending' ? 'bug.note.sortedAsc' : 'bug.note.sortedDesc', { list: listText(sorted) }));
+  push(3, m('bug.note.picked'));
   left = bug.amount;
-  push(4, '还要找 left = ' + left + '。');
+  push(4, m('trace.note.left0', { amount: left }));
   const seen = new Set<string>();
   for (const coin of sorted) {
     c = coin;
-    push(5, '看面值 c = ' + c + '。');
+    push(5, m('trace.note.see', { c }));
     for (;;) {
       const key = c + ',' + left;
       if (seen.has(key)) {
-        push(6, 'c = ' + c + '，left = ' + left + '，和上一圈一模一样，再转下去也不会变：死循环！', 'stuck');
+        push(6, m('bug.note.stuck', { c, left }), 'stuck');
         return steps;
       }
       seen.add(key);
       if (left < c) {
-        push(6, left + ' < ' + c + '，换下一种面值。');
+        push(6, m('bug.note.next', { left, c }));
         break;
       }
-      push(6, left + ' >= ' + c + '，拿一枚。');
+      push(6, m('bug.note.take', { left, c }));
       picked = [...picked, c];
-      push(7, '放进 ' + c + '，现在 ' + picked.length + ' 枚。');
+      push(7, m('bug.note.put', { c, n: picked.length }));
       if (bug.id === 'reset') {
         left = bug.amount - c;
-        push(8, 'left = amount - c = ' + bug.amount + ' - ' + c + ' = ' + left + '。');
+        push(8, m('bug.note.reset', { amount: bug.amount, c, left }));
       } else {
         left -= c;
-        push(8, 'left = ' + left + '。');
+        push(8, m('bug.note.sub', { left }));
       }
       if (bug.id === 'if') {
-        push(9, '这是 if，不会回头再判断，直接看下一种面值。');
+        push(9, m('bug.note.if'));
         break;
       }
     }
   }
   c = null;
-  push(11, '返回 ' + listText(picked) + '，' + picked.length + ' 枚，加起来 ' + sum(picked) + '。', 'ok');
+  push(11, m('bug.note.ret', { list: listText(picked), n: picked.length, total: sum(picked) }), 'ok');
   return steps;
 }
 
 /** 找 bug 面板底部的判定：没跑完是空，跑完按结果说话 */
-export function bugVerdict(step: GreedyStep, bug: Bug): string {
-  if (!step.done) return '';
-  if (step.outcome === 'stuck') return '🔁 死循环，程序卡住了';
+export function bugVerdict(step: GreedyStep, bug: Bug): Msg | null {
+  if (!step.done) return null;
+  if (step.outcome === 'stuck') return m('bug.verdict.stuck');
   const total = sum(step.picked);
   return total !== bug.amount
-    ? '❌ 只找出 ' + total + '，还差 ' + (bug.amount - total)
-    : '❌ 找了 ' + step.picked.length + ' 枚，太多了';
+    ? m('bug.verdict.short', { total, diff: bug.amount - total })
+    : m('bug.verdict.many', { n: step.picked.length });
 }
+
+const bugRules: BugRules<Bug, GreedyStep> = {
+  bugs: BUGS,
+  run: runBug,
+  input: (bug) => m('bug.input', { coins: bug.coins.join(', '), amount: bug.amount, expect: bug.expect }),
+  vars: (s, bug): Var[] => [['amount', bug.amount], ['c', s.c ?? '—'], ['left', s.left ?? '—'], ['picked', m('trace.n', { n: s.picked.length })]],
+  verdict: bugVerdict,
+  jump: { label: m('trace.jump'), stop: (x) => x.done },
+};
 
 /* ---------- 做：挑战「贪心靠得住吗」 ---------- */
 
@@ -466,14 +815,88 @@ export function counterexample(coins: number[]): Counterexample | null {
 }
 
 /** 挑战的题目：判断每套面值下贪心是不是总能拿到最少 */
-export const CHALLENGE: { coins: number[]; note: string }[] = [
-  { coins: [1, 5, 10, 25], note: '美元硬币：1、5、10、25 美分' },
-  { coins: [1, 3, 4], note: '「看」里那套奇怪的硬币' },
-  { coins: [1, 2, 5, 10, 20, 50], note: '小卖部的硬币，人民币分、角也是 1、2、5 一组' },
-  { coins: [1, 5, 10, 20, 25], note: '在美元里加一枚 20 美分' },
-  { coins: [1, 3, 6, 12, 24, 30], note: '英国 1971 年以前的便士、先令、弗罗林、半克朗（单位：便士）' },
-  { coins: [1, 2, 4, 8, 16, 32], note: '每种都是上一种的两倍' },
+export const CHALLENGE: { coins: number[]; note: Msg }[] = [
+  { coins: [1, 5, 10, 25], note: m('chal.note.0') },
+  { coins: [1, 3, 4], note: m('chal.note.1') },
+  { coins: [1, 2, 5, 10, 20, 50], note: m('chal.note.2') },
+  { coins: [1, 5, 10, 20, 25], note: m('chal.note.3') },
+  { coins: [1, 3, 6, 12, 24, 30], note: m('chal.note.4') },
+  { coins: [1, 2, 4, 8, 16, 32], note: m('chal.note.5') },
 ];
+
+/**
+ * 挑战的状态：每套面值先判断贪心是不是对每个金额都拿到最少，答完用动态规划揭晓。
+ * answers[k] 是第 k 题孩子的回答（true 是「总是最少」），没答是 null。
+ */
+export interface ChallengeGame {
+  k: number;
+  answers: (boolean | null)[];
+}
+
+export type ChallengeAction = { type: 'answer'; alwaysBest: boolean } | { type: 'next' } | { type: 'restart' };
+
+const fresh = (): ChallengeGame => ({ k: 0, answers: CHALLENGE.map(() => null) });
+const truthOf = (k: number) => counterexample(CHALLENGE[k].coins);
+const rightAt = (g: ChallengeGame, k: number) => g.answers[k] !== null && g.answers[k] === (truthOf(k) === null);
+export const challengeScore = (g: ChallengeGame) => g.answers.filter((_, k) => rightAt(g, k)).length;
+export const challengeFinished = (g: ChallengeGame) => g.answers.every((a) => a !== null);
+
+/** 答完这一题以后的揭晓：对错，加动态规划查出的结果。还没答返回 null */
+export function challengeReveal(g: ChallengeGame): { verdict: Msg; text: Msg } | null {
+  if (g.answers[g.k] === null) return null;
+  const truth = truthOf(g.k);
+  const verdict = m(rightAt(g, g.k) ? 'chal.right' : 'chal.wrong');
+  if (truth) {
+    return {
+      verdict,
+      text: m('chal.found', { amount: truth.amount, greedy: truth.greedy.join(' + '), gn: truth.greedy.length, best: truth.best.join(' + '), bn: truth.best.length }),
+    };
+  }
+  const limit = checkLimit(CHALLENGE[g.k].coins);
+  return { verdict, text: m('chal.none', { upto: limit - 1, limit }) };
+}
+
+export const challengeRules: GameRules<ChallengeGame, ChallengeAction> = {
+  start: () => ({ state: fresh() }),
+
+  act(g, a) {
+    switch (a.type) {
+      case 'answer':
+        if (g.answers[g.k] !== null) return null;
+        return { state: { ...g, answers: g.answers.map((x, k) => (k === g.k ? a.alwaysBest : x)) } };
+      case 'next':
+        return g.answers[g.k] !== null && g.k < CHALLENGE.length - 1 ? { state: { ...g, k: g.k + 1 } } : null;
+      case 'restart':
+        return challengeFinished(g) ? { state: fresh() } : null;
+    }
+  },
+
+  clickable: () => false,
+
+  controls(g) {
+    if (challengeFinished(g)) return [{ type: 'button', action: { type: 'restart' }, label: m('chal.restart'), look: 'small' }];
+    if (g.answers[g.k] === null) {
+      return [
+        { type: 'button', action: { type: 'answer', alwaysBest: true }, label: m('chal.yes'), look: 'small' },
+        { type: 'button', action: { type: 'answer', alwaysBest: false }, label: m('chal.no'), look: 'small' },
+      ];
+    }
+    return [{ type: 'button', action: { type: 'next' }, label: m('chal.next'), look: 'smallPrimary' }];
+  },
+
+  hud: (g) => ({ chips: [[m('chal.chipQ'), m('chal.qOf', { k: g.k + 1, n: CHALLENGE.length })], [m('chal.chipRight'), challengeScore(g)]] }),
+
+  result(g) {
+    if (!challengeFinished(g)) return null;
+    const score = challengeScore(g);
+    return {
+      title: score === CHALLENGE.length ? m('chal.perfect') : m('chal.score', { score, n: CHALLENGE.length }),
+      body: m('chal.body'),
+    };
+  },
+};
+
+/* ---------- 延伸 ---------- */
 
 /** 延伸里展示的动态规划版本（Kotlin 练习 minCoins 的参考写法） */
 export const DP_CODE = [
@@ -490,3 +913,33 @@ export const DP_CODE = [
   '    return if (best[amount] == inf) -1 else best[amount]',
   '}',
 ];
+
+/** 延伸 Markdown 里 <!-- code:名字 --> 要放的代码 */
+export const moreCode: Record<string, string[]> = { dp: DP_CODE };
+
+/** 「快，但不一定对」的对比图：6 种面值，贪心每种面值算一次，动态规划每个金额 × 每种面值算一次（对数刻度画） */
+export function compareRows() {
+  const K = 6;
+  return [
+    { label: '100', unit: m('compare.hundred'), n: 100 },
+    { label: '10,000', unit: m('compare.tenK'), n: 10000 },
+    { label: '1,000,000', unit: m('compare.million'), n: 1000000 },
+  ].map((r) => ({
+    label: r.label,
+    unit: r.unit,
+    bars: [
+      { name: m('compare.greedy'), value: K, tone: 'accent' as const },
+      { name: m('compare.dp'), value: K * r.n, tone: 'muted' as const },
+    ],
+  }));
+}
+
+/* ---------- 关卡模块：level.json 按名字引用这里的规则 ---------- */
+
+export const level: LevelModule = {
+  look: { story: lookRules },
+  trace: { main: traceRules },
+  predict: { main: predictRules },
+  bugs: { main: bugRules },
+  games: { cashier: cashierRules, robot: robotRules, challenge: challengeRules },
+};

@@ -1,4 +1,9 @@
-import type { BugInfo, LookFrame, Step, Trace } from './types';
+import { m } from '../core/i18n';
+import { FOLLOW_END, FOLLOW_STEP, PAUSE_SHORT } from '../core/timing';
+import type {
+  BugInfo, BugRules, Control, GameRules, LevelModule, LookFrame, LookRules, Msg, PredictRules, Puzzle, Rand, Step, Trace,
+  TraceRules, Var,
+} from '../core/types';
 
 /* ---------- 看、玩：小动物排队合并 ---------- */
 
@@ -19,6 +24,8 @@ export const halve = (size: number) => Math.floor(size / 2);
 const sortIds = (ids: number[], values: number[]) => [...ids].sort((a, b) => values[a] - values[b] || a - b);
 
 export interface LookPage extends LookFrame {
+  /** 这一队小动物的身高，下标是小动物的 id（画面用它算柱子高度） */
+  values: number[];
   /** 上排：一队一队的小动物（id），队内从左到右就是队头到队尾 */
   queues: number[][];
   /** 下排：正在合成的新队伍；null 表示没有这一排 */
@@ -45,15 +52,15 @@ export function lookFrames(values: number[]): LookPage[] {
   const left = sortIds(ids.slice(0, mid), values);
   const right = sortIds(ids.slice(mid), values);
   const out: LookPage[] = [];
-  const push = (say: string, extra: Partial<LookPage>) =>
-    out.push({ say, queues: [], out: null, cmp: null, moved: null, fresh: [], ...extra });
+  const push = (say: Msg, extra: Partial<LookPage>) =>
+    out.push({ say, values, queues: [], out: null, cmp: null, moved: null, fresh: [], ...extra });
 
   // 第一章：合并两队
   const l = [...left];
   const r = [...right];
   const o: number[] = [];
-  push('两个班各自排好队啦，矮的在前面 📏', { queues: [[...l], [...r]] });
-  push('要合成一队。每次只比两个队头 👀', { queues: [[...l], [...r]], out: [] });
+  push(m('look.sorted'), { queues: [[...l], [...r]] });
+  push(m('look.merge'), { queues: [[...l], [...r]], out: [] });
   let compares = 0;
   while (l.length && r.length) {
     const a = l[0];
@@ -62,13 +69,13 @@ export function lookFrames(values: number[]): LookPage[] {
     const takeLeft = v(a) <= v(b);
     const w = takeLeft ? l.shift()! : r.shift()!;
     o.push(w);
-    push(v(a) + ' 和 ' + v(b) + ' 比，' + v(w) + ' 矮，先走 🚶', { queues: [[...l], [...r]], out: [...o], cmp: [a, b], moved: w });
+    push(m('look.cmp', { a: v(a), b: v(b), w: v(w) }), { queues: [[...l], [...r]], out: [...o], cmp: [a, b], moved: w });
   }
   if (l.length || r.length) {
     o.push(...l, ...r);
-    push((l.length ? '右' : '左') + '边没人了，另一边剩下的直接跟上 ➡️', { queues: [[], []], out: [...o] });
+    push(m(l.length ? 'look.rest.r' : 'look.rest.l'), { queues: [[], []], out: [...o] });
   }
-  push('合成一队啦 🎉 只比了 ' + compares + ' 次', { queues: [], out: [...o] });
+  push(m('look.done', { n: compares }), { queues: [], out: [...o] });
 
   // 第二章：往回倒，看这两队怎么排好的
   type Node = [number, number];
@@ -81,16 +88,15 @@ export function lookFrames(values: number[]): LookPage[] {
     }));
   }
   const shapes = (lv: Node[]) => lv.map(([a, b]) => ids.slice(a, b));
-  push('这两队是怎么排好的？倒回去看 ⏪', { queues: shapes(levels[0]) });
-  const splitSay = ['一队对半分 ✂️', '再对半分 ✂️', '再分 ✂️'];
+  push(m('look.back'), { queues: shapes(levels[0]) });
   for (let d = 1; d < levels.length; d++) {
     const last = d === levels.length - 1;
-    push(last ? '每队只剩 1 个。1 个当然是排好的 ✅' : splitSay[Math.min(d - 1, splitSay.length - 1)], { queues: shapes(levels[d]) });
+    push(last ? m('look.ones') : m('look.split.' + Math.min(d - 1, 2)), { queues: shapes(levels[d]) });
   }
   for (let d = levels.length - 2; d >= 0; d--) {
     const lv = levels[d];
     const fresh = lv.map(([a, b], x) => (b - a > 1 ? x : -1)).filter((x) => x >= 0);
-    push(d === 0 ? '最后两队合成一队，排好啦 🎉' : '两两合并，每次比队头 🔀', {
+    push(d === 0 ? m('look.last') : m('look.pairs'), {
       queues: lv.map(([a, b]) => sortIds(ids.slice(a, b), values)),
       fresh,
     });
@@ -103,6 +109,12 @@ export const STORY_N = 6;
 export function genStory(rand: () => number = Math.random): number[] {
   return dealKids(STORY_N, rand, STORY_N);
 }
+
+const lookRules: LookRules<number[], LookPage> = {
+  first: STORY_KIDS,
+  next: (_prev, rand) => genStory(rand),
+  frames: lookFrames,
+};
 
 /** 发牌：n 个身高各不相同的小动物（1 到 max），顺序打乱 */
 export function dealKids(n: number, rand: () => number = Math.random, max = 9): number[] {
@@ -207,6 +219,187 @@ export function countChoices(answer: number): number[] {
   return [...set].sort((a, b) => a - b);
 }
 
+/* ---------- 玩法一：合并两队（GameRules） ---------- */
+
+export interface MergeGame {
+  /** 每只小动物的身高，下标就是 id */
+  values: number[];
+  left: number[];
+  right: number[];
+  out: number[];
+  mistakes: number;
+  /** pick：等孩子点；tail：一队走光了，剩下的自动跟上；done：合成一队了 */
+  phase: 'pick' | 'tail' | 'done';
+  moved: number | null;
+  /** 透光提示：更矮的那个队头 */
+  glow: number | null;
+  /** 点错的小动物摇一下，格式 [id, 计数] */
+  shake: [number, number] | null;
+}
+
+export type MergeAction = { type: 'pick'; side: 'L' | 'R' } | { type: 'again' };
+
+function freshMerge(rand?: Rand): MergeGame {
+  const q = dealQueues(rand);
+  return {
+    values: [...q.left, ...q.right],
+    left: q.left.map((_, k) => k),
+    right: q.right.map((_, k) => q.left.length + k),
+    out: [],
+    mistakes: 0,
+    phase: 'pick',
+    moved: null,
+    glow: null,
+    shake: null,
+  };
+}
+
+/** 队头 id 走进新队伍 */
+function goMerge(g: MergeGame, side: 'L' | 'R'): MergeGame {
+  const src = side === 'L' ? g.left : g.right;
+  const id = src[0];
+  return { ...g, left: side === 'L' ? g.left.slice(1) : g.left, right: side === 'R' ? g.right.slice(1) : g.right, out: [...g.out, id], moved: id };
+}
+
+export const mergeRules: GameRules<MergeGame, MergeAction> = {
+  start: (rand) => ({ state: freshMerge(rand), say: m('merge.say.start') }),
+  act(g, a, rand) {
+    if (a.type === 'again') return g.phase === 'done' ? { state: freshMerge(rand), say: m('merge.say.start') } : null;
+    if (g.phase !== 'pick') return null;
+    const vals = (ids: number[]) => ids.map((id) => g.values[id]);
+    const j = judgeHeads(vals(g.left), vals(g.right), a.side);
+    const pickedId = a.side === 'L' ? g.left[0] : g.right[0];
+    const otherId = a.side === 'L' ? g.right[0] : g.left[0];
+    if (!j.ok) {
+      // 点错了不说错：被点的摇一摇，更矮的那个透出光，让孩子自己再比一比
+      return {
+        state: { ...g, mistakes: g.mistakes + 1, shake: [pickedId, (g.shake?.[1] ?? 0) + 1], glow: otherId },
+        say: m('merge.say.compare', { a: j.picked, b: j.other }),
+        sound: 'wrong',
+      };
+    }
+    const next = goMerge({ ...g, glow: null }, a.side);
+    if (next.left.length && next.right.length) {
+      return { state: next, say: m('merge.say.next', { a: j.picked, b: j.other }), sound: 'right' };
+    }
+    // 一队走光了：另一队剩下的自动跟上；两队同时走光（不会发生）就直接结束
+    const rest = next.left.length ? 'L' : next.right.length ? 'R' : null;
+    if (!rest) return { state: { ...next, phase: 'done', moved: null }, say: m('merge.say.done'), sound: 'win' };
+    return { state: { ...next, phase: 'tail' }, say: m(rest === 'L' ? 'merge.say.tailR' : 'merge.say.tailL'), sound: 'right', after: FOLLOW_STEP };
+  },
+  tick(g) {
+    const rest = g.left.length ? 'L' : g.right.length ? 'R' : null;
+    if (!rest) return { state: { ...g, phase: 'done', moved: null }, say: m('merge.say.done'), sound: 'win' };
+    const next = goMerge(g, rest);
+    return { state: next, after: next.left.length || next.right.length ? FOLLOW_STEP : FOLLOW_END };
+  },
+  // 切换标签时剩下的小动物还没跟完：重新开一局
+  interrupt: (g) => (g.phase === 'tail' ? { state: freshMerge(), say: m('merge.say.start') } : { state: g }),
+  clickable: (g) => g.phase === 'pick',
+  controls: (g): Control<MergeAction>[] =>
+    g.phase === 'done' ? [{ type: 'button', action: { type: 'again' }, label: m('again'), look: 'primary' }] : [],
+  result: (g) => (g.phase === 'done' ? { stars: stars(g.mistakes), body: m('merge.done') } : null),
+};
+
+/* ---------- 玩法二：拆一拆（GameRules） ---------- */
+
+export interface SplitGame {
+  /** 这是第几局（决定 4 个还是 8 个） */
+  games: number;
+  n: number;
+  /** 一排一排的队伍，最后一排是正在切的 */
+  rows: Piece[][];
+  /** 每一排已经切下去的位置（下标 g 表示在 g 前面切一刀） */
+  cuts: number[][];
+  phase: 'cut' | 'ask' | 'done';
+  /** 这一排切完了，等一下翻到下一排 */
+  waiting: boolean;
+  mistakes: number;
+  /** 切歪的那一刀：哪一队、切在哪、这一队已经歪了几次 */
+  probe: { start: number; at: number; misses: number } | null;
+  /** 答错的那个选项，加答错的次数（按钮晃一下） */
+  wrong: [number, number] | null;
+  /** 显示「第几轮」 */
+  hintNums: boolean;
+}
+
+export type SplitAction = { type: 'cut'; start: number; at: number } | { type: 'answer'; c: number } | { type: 'again' };
+
+function freshSplit(games: number): SplitGame {
+  const n = games % 2 === 0 ? 8 : 4;
+  return {
+    games: games + 1, n, rows: [[{ start: 0, size: n }]], cuts: [[]], phase: 'cut', waiting: false,
+    mistakes: 0, probe: null, wrong: null, hintNums: false,
+  };
+}
+
+/** 这一队在这一排有没有切过；切在哪 */
+export const cutAt = (cuts: number[], p: Piece): number | undefined => cuts.find((g) => g > p.start && g < p.start + p.size);
+
+/** 这一局一共要分几轮 */
+export const splitTotal = (g: SplitGame) => splitRounds(g.n);
+
+export const splitRules: GameRules<SplitGame, SplitAction> = {
+  start: () => ({ state: freshSplit(0), say: m('split.say.start') }),
+  act(g, a) {
+    if (a.type === 'again') return g.phase === 'done' ? { state: freshSplit(g.games), say: m('split.say.start') } : null;
+    if (a.type === 'answer') {
+      if (g.phase !== 'ask') return null;
+      const total = splitTotal(g);
+      if (a.c !== total) {
+        return {
+          state: { ...g, mistakes: g.mistakes + 1, wrong: [a.c, (g.wrong?.[1] ?? 0) + 1], hintNums: true },
+          say: m('split.say.count'),
+          sound: 'wrong',
+        };
+      }
+      return { state: { ...g, phase: 'done', hintNums: true }, say: m('split.say.win', { n: g.n, rounds: total }), sound: 'win' };
+    }
+    if (g.phase !== 'cut' || g.waiting) return null;
+    const live = g.rows.length - 1;
+    const p = g.rows[live].find((q) => q.start === a.start);
+    if (!p || p.size <= 1 || cutAt(g.cuts[live], p) !== undefined) return null;
+    const j = judgeCut(p.size, a.at);
+    if (!j.ok) {
+      const prev = g.probe && g.probe.start === p.start ? g.probe.misses : 0;
+      return {
+        state: { ...g, mistakes: g.mistakes + 1, probe: { start: p.start, at: a.at, misses: prev + 1 } },
+        say: m('split.say.uneven', { l: j.left, r: j.right }),
+        sound: 'wrong',
+      };
+    }
+    const cuts = g.cuts.map((c, r) => (r === live ? [...c, p.start + a.at] : c));
+    const row = g.rows[live];
+    const state = { ...g, probe: null, cuts };
+    const say = m('split.say.cut', { l: j.left, r: j.right });
+    if (row.every((q) => q.size <= 1 || cutAt(cuts[live], q) !== undefined)) {
+      return { state: { ...state, waiting: true }, say, sound: 'right', after: PAUSE_SHORT };
+    }
+    return { state, say, sound: 'right' };
+  },
+  // 这一排切完了：翻到下一排；每队都只剩 1 个就问一共分了几轮
+  tick(g) {
+    const rows = [...g.rows, nextRow(g.rows[g.rows.length - 1])];
+    const state: SplitGame = { ...g, rows, cuts: [...g.cuts, []], waiting: false };
+    if (rows[rows.length - 1].every((q) => q.size <= 1)) return { state: { ...state, phase: 'ask' }, say: m('split.say.ask'), sound: 'tick' };
+    return { state, say: m('split.say.again'), sound: 'tick' };
+  },
+  interrupt: (g) => (g.phase === 'cut' && g.waiting ? { state: freshSplit(g.games), say: m('split.say.start') } : { state: g }),
+  clickable: (g) => g.phase === 'cut' && !g.waiting,
+  controls: (g): Control<SplitAction>[] =>
+    g.phase === 'done' ? [{ type: 'button', action: { type: 'again' }, label: m('again'), look: 'primary' }] : [],
+  result: (g) => {
+    if (g.phase !== 'done') return null;
+    return {
+      stars: stars(g.mistakes),
+      body: m('split.done', {
+        chain: g.rows.map((r) => r[0].size).join(' → '), n: g.n, rounds: splitTotal(g),
+        next: m('split.next', { n: g.n === 8 ? 4 : 8 }),
+      }),
+    };
+  },
+};
+
 /* ---------- 做：逐步执行 ---------- */
 
 export const CODE = [
@@ -306,7 +499,7 @@ export function simulate(values: number[], variant: Variant = 'ok'): Trace<Merge
   const steps: MergeStep[] = [];
   let compares = 0;
 
-  const push = (c: Ctx, line: number, note: string, extra: Partial<MergeStep> = {}) => {
+  const push = (c: Ctx, line: number, note: Msg, extra: Partial<MergeStep> = {}) => {
     if (steps.length > MAX_STEPS) throw new Abort();
     steps.push({
       line, note, done: false, arr: [...arr], ids: [...ids], lo: c.lo, hi: c.hi, mid: c.mid,
@@ -321,9 +514,9 @@ export function simulate(values: number[], variant: Variant = 'ok'): Trace<Merge
   function call(lo: number, hi: number) {
     const c: Ctx = { lo, hi, mid: null, tmp: [], tmpIds: [], i: null, j: null, k: null };
     stack.push([lo, hi]);
-    push(c, 1, '调用 mergeSort(a, ' + lo + ', ' + hi + ')：处理区间 [' + lo + ', ' + hi + ')，共 ' + (hi - lo) + ' 个。');
+    push(c, 1, m('trace.note.call', { lo, hi, n: hi - lo }));
     if (stack.length > MAX_DEPTH) {
-      push(c, 1, '递归已经 ' + stack.length + ' 层了，区间却一直是 [' + lo + ', ' + hi + ')，永远走不到头：StackOverflowError！', {
+      push(c, 1, m('trace.note.stuck', { d: stack.length, lo, hi }), {
         done: true, outcome: 'stuck',
       });
       throw new Abort();
@@ -332,27 +525,27 @@ export function simulate(values: number[], variant: Variant = 'ok'): Trace<Merge
     const isBase = variant === 'base' ? size < 1 : size <= 1;
     if (isBase) {
       if (size === 1) sorted[lo] = true;
-      push(c, 2, baseCond + ' 成立（hi - lo = ' + size + '）：' + (size === 1 ? '只剩 1 个，不用排，直接返回。' : '区间是空的，直接返回。'));
+      push(c, 2, m(size === 1 ? 'trace.note.base1' : 'trace.note.base0', { cond: baseCond, size }));
       stack.pop();
       return;
     }
-    push(c, 2, baseCond + ' 不成立（hi - lo = ' + size + '），还要继续分。');
+    push(c, 2, m('trace.note.baseNo', { cond: baseCond, size }));
     const mid = (lo + hi) >> 1;
     c.mid = mid;
-    push(c, 3, 'mid = (' + lo + ' + ' + hi + ') / 2 = ' + mid + '。左半 [' + lo + ', ' + mid + ')，右半 [' + mid + ', ' + hi + ')。');
-    push(c, 4, '先把左半 [' + lo + ', ' + mid + ') 交给 mergeSort。');
+    push(c, 3, m('trace.note.mid', { lo, hi, mid }));
+    push(c, 4, m('trace.note.left', { lo, mid }));
     call(lo, mid);
-    push(c, 5, '左半排好了。再把右半 [' + mid + ', ' + hi + ') 交给 mergeSort。');
+    push(c, 5, m('trace.note.right', { mid, hi }));
     call(mid, hi);
     c.tmp = Array(size).fill(null);
     c.tmpIds = Array(size).fill(null);
-    push(c, 6, '左右两半都排好了，开一个临时数组 tmp，长度 hi - lo = ' + size + '。');
+    push(c, 6, m('trace.note.tmp', { size }));
     c.i = lo;
-    push(c, 7, 'i = lo = ' + lo + '：指着左半的队头。');
+    push(c, 7, m('trace.note.i', { lo }));
     c.j = mid;
-    push(c, 8, 'j = mid = ' + mid + '：指着右半的队头。');
+    push(c, 8, m('trace.note.j', { mid }));
     c.k = 0;
-    push(c, 9, 'k = 0：下一个放进 tmp 的位置。');
+    push(c, 9, m('trace.note.k'));
 
     const take = (from: number, line: number, side: string) => {
       const k = c.k!;
@@ -369,25 +562,25 @@ export function simulate(values: number[], variant: Variant = 'ok'): Trace<Merge
       compares++;
       const left = variant === 'lt' ? arr[i] < arr[j] : arr[i] <= arr[j];
       const op = variant === 'lt' ? '<' : '<=';
-      push(c, 11, '比较 a[' + i + '] = ' + arr[i] + ' ' + op + ' a[' + j + '] = ' + arr[j] + (left ? ' 成立：取左边的。' : ' 不成立：取右边的。'), { cmp: [i, j] });
+      push(c, 11, m(left ? 'trace.note.cmpYes' : 'trace.note.cmpNo', { i, j, x: arr[i], y: arr[j], op }), { cmp: [i, j] });
       if (left) {
         const t = take(i, 11, '左');
-        push(c, 11, 'tmp[' + t.k + '] = a[' + i + ']：' + arr[i] + ' 放进 tmp，i 和 k 各加 1。', { put: t.k, src: i });
+        push(c, 11, m('trace.note.putL', { k: t.k, i, x: arr[i] }), { put: t.k, src: i });
       } else {
         const t = take(j, 12, '右');
-        push(c, 12, 'tmp[' + t.k + '] = a[' + j + ']：' + arr[j] + ' 放进 tmp，j 和 k 各加 1。', { put: t.k, src: j });
+        push(c, 12, m('trace.note.putR', { k: t.k, j, x: arr[j] }), { put: t.k, src: j });
       }
     }
-    push(c, 10, 'i < mid && j < hi 不成立：' + (c.i! >= mid ? '左半' : '右半') + '已经用完了。');
+    push(c, 10, m(c.i! >= mid ? 'trace.note.exitL' : 'trace.note.exitR'));
     while (c.i! < mid) {
       const i = c.i!;
       const t = take(i, 14, '左');
-      push(c, 14, '左半剩下的 ' + arr[i] + ' 直接放进 tmp[' + t.k + ']。', { put: t.k, src: i });
+      push(c, 14, m('trace.note.restL', { x: arr[i], k: t.k }), { put: t.k, src: i });
     }
     while (c.j! < hi) {
       const j = c.j!;
       const t = take(j, 15, '右');
-      push(c, 15, '右半剩下的 ' + arr[j] + ' 直接放进 tmp[' + t.k + ']。', { put: t.k, src: j });
+      push(c, 15, m('trace.note.restR', { x: arr[j], k: t.k }), { put: t.k, src: j });
     }
     const at = variant === 'copy0' ? 0 : lo;
     for (let x = 0; x < size; x++) {
@@ -396,9 +589,8 @@ export function simulate(values: number[], variant: Variant = 'ok'): Trace<Merge
     }
     for (let x = lo; x < hi; x++) sorted[x] = true;
     const wrong = variant === 'copy0' && lo > 0;
-    push(c, 16, 'tmp.copyInto(a, ' + at + ')：把 tmp 整个抄回 a，从下标 ' + at + ' 开始，盖住 [' + at + ', ' + (at + size) + ')。' +
-      (wrong ? '应该从 lo = ' + lo + ' 开始抄，这样盖住的是别人的位置！' : ''));
-    push(c, 17, 'mergeSort(a, ' + lo + ', ' + hi + ') 结束，回到上一层。');
+    push(c, 16, m('trace.note.copy', { at, end: at + size, warn: wrong ? m('trace.note.copyWrong', { lo }) : '' }));
+    push(c, 17, m('trace.note.end', { lo, hi }));
     stack.pop();
   }
 
@@ -407,7 +599,8 @@ export function simulate(values: number[], variant: Variant = 'ok'): Trace<Merge
     call(0, n);
   } catch (e) {
     if (e instanceof Abort) {
-      if (!steps.at(-1)?.done) push(c0, 1, '步数太多，判定为死循环！', { done: true, outcome: 'stuck' });
+      steps.length = Math.min(steps.length, MAX_STEPS); // 超限时 push 自己会再抛，先留出位置
+      if (!steps.at(-1)?.done) push(c0, 1, m('trace.note.loop'), { done: true, outcome: 'stuck' });
       return steps;
     }
     throw e;
@@ -435,10 +628,10 @@ export interface Round {
   /** 题目画面停在 trace 的哪一步，答完再翻到 revealAt */
   at: number;
   revealAt: number;
-  prompt: string;
-  options: { value: string; label: string }[];
+  prompt: Msg;
+  options: { value: string; label: Msg }[];
   answer: string;
-  why: string;
+  why: Msg;
 }
 
 const rangeText = (r: [number, number]) => '[' + r[0] + ', ' + r[1] + ')';
@@ -479,14 +672,10 @@ export function rounds(steps: Trace<MergeStep>, rand: () => number = Math.random
         kind: 'side',
         at: t,
         revealAt: t + 1,
-        prompt: 'a[i] = ' + s.arr[i] + '，a[j] = ' + s.arr[j] + '。下一个放进 tmp 的来自哪边？',
-        options: [{ value: 'L', label: '左边 a[i]' }, { value: 'R', label: '右边 a[j]' }],
+        prompt: m('predict.side', { x: s.arr[i], y: s.arr[j] }),
+        options: [{ value: 'L', label: m('predict.opt.left') }, { value: 'R', label: m('predict.opt.right') }],
         answer: left ? 'L' : 'R',
-        why: left
-          ? tie
-            ? s.arr[i] + ' <= ' + s.arr[j] + ' 成立（相等时取左边，这就是稳定的关键），取 a[i]。'
-            : s.arr[i] + ' <= ' + s.arr[j] + ' 成立，左边更小，取 a[i]。'
-          : s.arr[i] + ' <= ' + s.arr[j] + ' 不成立，右边更小，取 a[j]。',
+        why: m(left ? (tie ? 'predict.why.tie' : 'predict.why.left') : 'predict.why.right', { x: s.arr[i], y: s.arr[j] }),
       });
     }
     if (nx.line === 1) {
@@ -505,12 +694,10 @@ export function rounds(steps: Trace<MergeStep>, rand: () => number = Math.random
         kind: 'range',
         at: t,
         revealAt: t + 1,
-        prompt: '现在是 [' + s.lo + ', ' + s.hi + ') 在执行（第 ' + s.line + ' 行）。递归下一个处理哪个区间？',
-        options: opts.map((r) => ({ value: rangeText(r), label: rangeText(r) })),
+        prompt: m('predict.range', { lo: s.lo, hi: s.hi, line: s.line }),
+        options: opts.map((r) => ({ value: rangeText(r), label: m('predict.opt.range', { r: rangeText(r) }) })),
         answer: key,
-        why: goLeft
-          ? '第 4 行 mergeSort(a, lo, mid)：先递归左半，区间是 [lo, mid) = ' + key + '。'
-          : '左半已经排好了，第 5 行 mergeSort(a, mid, hi)：轮到右半，区间是 [mid, hi) = ' + key + '。',
+        why: m(goLeft ? 'predict.why.goLeft' : 'predict.why.goRight', { r: key }),
       });
     }
   });
@@ -533,36 +720,36 @@ function variant(line: number, text: string): string[] {
 export const BUGS: readonly Bug[] = [
   {
     id: 'lt',
-    title: '数字排对了，两个 3 却换了位置',
+    title: m('bug.lt.title'),
     code: variant(11, '        if (a[i] < a[j]) tmp[k++] = a[i++]'),
     wrongLine: 11,
     fixed: '        if (a[i] <= a[j]) tmp[k++] = a[i++]',
     values: [3, 1, 3, 2],
     suits: true,
-    expect: '应该排成 [1, 2, 3♥, 3♣]，3♥ 本来在 3♣ 前面',
-    explain: '两边队头相等时，< 不成立，就取了右边的，右边的 3 跑到了左边的 3 前面。结果数字是对的，但归并排序不再稳定。比较要写 <=：相等时取左边的。',
+    expect: m('bug.lt.expect'),
+    explain: m('bug.lt.explain'),
   },
   {
     id: 'copy0',
-    title: '排完以后数字丢了',
+    title: m('bug.copy0.title'),
     code: variant(16, '    tmp.copyInto(a, 0)'),
     wrongLine: 16,
     fixed: '    tmp.copyInto(a, lo)',
     values: [3, 4, 2, 1],
     suits: false,
-    expect: '应该排成 [1, 2, 3, 4]',
-    explain: 'tmp 里装的是 [lo, hi) 这一段排好的结果，要抄回 a 的 lo 开头。写成 0 的话，处理右半 [2, 4) 时，结果会盖在最左边，把左半原来的 3 和 4 盖掉了。lo 为 0 时碰巧是对的，所以最容易漏测。',
+    expect: m('bug.copy0.expect'),
+    explain: m('bug.copy0.explain'),
   },
   {
     id: 'base',
-    title: '程序一直不结束，最后栈溢出',
+    title: m('bug.base.title'),
     code: variant(2, '    if (hi - lo < 1) return'),
     wrongLine: 2,
     fixed: '    if (hi - lo <= 1) return',
     values: [2, 1, 3],
     suits: false,
-    expect: '应该排成 [1, 2, 3]',
-    explain: '区间只剩 1 个时，hi - lo = 1，< 1 不成立，没有返回。mid = (lo + hi) / 2 还是 lo，左半 [lo, lo) 是空的，右半 [lo, hi) 依然是原来那 1 个，于是同样的调用无限重复下去，直到 StackOverflowError。递归的出口必须覆盖「只剩 1 个」。',
+    expect: m('bug.base.expect'),
+    explain: m('bug.base.explain'),
   },
 ];
 
@@ -576,13 +763,14 @@ export function showCards(arr: number[], ids: number[], suits: boolean): string 
   return '[' + arr.map((v, k) => v + (suits ? suitOf(ids[k]) : '')).join(', ') + ']';
 }
 
-/** 找 bug 面板底部的判定：动画跑完后结果是什么 */
-export function bugVerdict(step: MergeStep, bug: Bug): string {
-  if (!step.done) return '';
-  if (step.outcome === 'stuck') return '🔁 区间永远分不完，递归停不下来，最后栈溢出（StackOverflowError）';
-  if (step.outcome === 'unstable') return '⚠️ 结果 ' + showCards(step.arr, step.ids, bug.suits) + '：数字排好了，但两个 3 换了先后顺序，不稳定';
-  if (step.outcome === 'wrong') return '❌ 结果 ' + showCards(step.arr, step.ids, bug.suits) + '，没排好，还丢了数';
-  return '✅ 排好了';
+/** 找 bug 面板底部的判定：动画跑完后结果是什么，没跑完是 null */
+export function bugVerdict(step: MergeStep, bug: Bug): Msg | null {
+  if (!step.done) return null;
+  const cards = showCards(step.arr, step.ids, bug.suits);
+  if (step.outcome === 'stuck') return m('bug.verdict.stuck');
+  if (step.outcome === 'unstable') return m('bug.verdict.unstable', { cards });
+  if (step.outcome === 'wrong') return m('bug.verdict.wrong', { cards });
+  return m('bug.verdict.ok');
 }
 
 /* ---------- 做：挑战 ---------- */
@@ -642,3 +830,211 @@ export function worstCase(n: number): number[] {
   };
   return build(Array.from({ length: n }, (_, k) => k + 1));
 }
+
+/* ---------- 做：逐步执行（TraceRules） ---------- */
+
+export type TraceKind = 'random' | 'sorted' | 'reversed';
+export interface TraceInput {
+  size: number;
+  kind: TraceKind;
+  arr: number[];
+}
+export type TraceAction = { type: 'size'; n: number } | { type: 'kind'; kind: TraceKind } | { type: 'fresh' };
+
+/** 按数组大小和初始顺序生成一组数 */
+export function makeTraceArray(n: number, kind: TraceKind, rand?: Rand): number[] {
+  if (kind === 'sorted') return Array.from({ length: n }, (_, k) => (k + 1) * 3);
+  if (kind === 'reversed') return Array.from({ length: n }, (_, k) => (n - k) * 3);
+  return genArray(n, 30, rand);
+}
+
+const KINDS: TraceKind[] = ['random', 'sorted', 'reversed'];
+
+export const traceRules: TraceRules<TraceInput, MergeStep, TraceAction> = {
+  code: CODE,
+  start: (rand) => ({ size: 6, kind: 'random', arr: makeTraceArray(6, 'random', rand) }),
+  act(input, a, rand) {
+    switch (a.type) {
+      case 'size': return { ...input, size: a.n, arr: makeTraceArray(a.n, input.kind, rand) };
+      case 'kind': return { ...input, kind: a.kind, arr: makeTraceArray(input.size, a.kind, rand) };
+      case 'fresh': return { ...input, arr: makeTraceArray(input.size, input.kind, rand) };
+    }
+  },
+  controls: (input) => [
+    {
+      type: 'segmented', legend: m('trace.size'), value: input.size,
+      options: [4, 6, 8].map((n) => ({ value: n, label: m('num', { n }) })),
+      choose: (v) => ({ type: 'size', n: Number(v) }),
+    },
+    {
+      type: 'segmented', legend: m('trace.kind'), value: input.kind,
+      options: KINDS.map((k) => ({ value: k, label: m('trace.kind.' + k) })),
+      choose: (v) => ({ type: 'kind', kind: v as TraceKind }),
+    },
+    { type: 'button', action: { type: 'fresh' }, label: m('trace.fresh'), look: 'small' },
+  ],
+  trace: (input) => buildTrace(input.arr),
+  vars: (_input, s): Var[] => [
+    ['lo', s.lo], ['hi', s.hi], ['mid', s.mid ?? '—'], [m('trace.v.depth'), s.depth],
+    ['i', s.i ?? '—'], ['j', s.j ?? '—'], ['k', s.k ?? '—'], [m('trace.v.compares'), m('trace.times', { n: s.compares })],
+  ],
+  summary(input, s) {
+    if (!s.done) return null;
+    const n = input.arr.length;
+    const b = compareBounds(n);
+    const steps = buildTrace(input.arr);
+    return m('trace.summary', {
+      compares: s.compares, n, min: b.min, max: b.max,
+      calls: steps.filter((x) => x.line === 1).length,
+      merges: steps.filter((x) => x.line === 16).length,
+      depth: Math.max(...steps.map((x) => x.depth)),
+    });
+  },
+  jumps: [
+    { label: m('trace.jump.call'), stop: (x) => x.line === 1 || x.done },
+    { label: m('trace.jump.merge'), stop: (x) => x.line === 16 || x.done },
+  ],
+  foot: m('trace.legend'),
+};
+
+/* ---------- 做：猜下一步（PredictRules） ---------- */
+
+/** 一道题：从一条随机数组的轨迹里挑一问。画面是轨迹的一步，答完翻到下一步 */
+function makePuzzle(rand?: Rand): Puzzle<MergeStep, string> {
+  const steps = buildTrace(genPredict(rand));
+  const pool = rounds(steps, rand);
+  const q = pool[pickRound(pool, -1, rand)];
+  const next = steps[q.revealAt];
+  const reveal = { view: next, prompt: m('predict.reveal', { n: q.revealAt + 1, note: next.note }) };
+  return {
+    endless: true,
+    end: reveal,
+    asks: [{
+      view: steps[q.at],
+      prompt: q.prompt,
+      kind: 'choose',
+      answer: q.answer,
+      options: q.options,
+      why: m('predict.no', { why: q.why }),
+      right: m('predict.yes', { why: q.why }),
+      reveal,
+      revealOnRight: true,
+    }],
+  };
+}
+
+export const predictRules: PredictRules<MergeStep, string> = {
+  goal: 6,
+  puzzle: (rand) => makePuzzle(rand),
+};
+
+/* ---------- 做：找 bug（BugRules） ---------- */
+
+const bugRules: BugRules<Bug, MergeStep> = {
+  bugs: BUGS,
+  run: runBug,
+  input: (bug) => m('bug.input', { arr: showCards(bug.values, bug.values.map((_, k) => k), bug.suits), expect: bug.expect }),
+  vars: (s): Var[] => [['lo', s.lo], ['hi', s.hi], [m('trace.v.depth'), s.depth], [m('trace.v.compares'), m('trace.times', { n: s.compares })]],
+  verdict: bugVerdict,
+};
+
+/* ---------- 做：挑战（GameRules） ---------- */
+
+export type ChallengeMode = 'max' | 'min';
+export interface ChallengeState {
+  mode: ChallengeMode;
+  /** 孩子排的队，1 到 CHALLENGE_N 各用一次 */
+  line: number[];
+  /** 排满过几次 */
+  tries: number;
+}
+export type ChallengeAction =
+  | { type: 'mode'; mode: ChallengeMode }
+  | { type: 'add'; v: number }
+  | { type: 'undo' }
+  | { type: 'clear' }
+  | { type: 'peek' };
+
+export const challengeFull = (s: ChallengeState) => s.line.length === CHALLENGE_N;
+export const challengeTarget = (s: ChallengeState) => compareBounds(CHALLENGE_N)[s.mode];
+/** 排满以后的比较情况；没排满是 null */
+export const challengeResult = (s: ChallengeState) => (challengeFull(s) ? mergeCompares(s.line) : null);
+export const challengeWin = (s: ChallengeState) => challengeResult(s)?.total === challengeTarget(s);
+/** 「看一种答案」按钮：试过 3 次还没达成 */
+export const challengePeekable = (s: ChallengeState) => s.tries >= 3 && !challengeWin(s);
+
+/** 题干下面那一段：目标，加一句随试了几次变化的提示（排满以后没有提示） */
+export function challengeNote(s: ChallengeState): Msg {
+  const hint = challengeFull(s)
+    ? ''
+    : m(s.mode === 'min' ? 'chal.hint.min' : s.tries >= 2 ? 'chal.hint.deep' : 'chal.hint.max');
+  return m('chal.note', { n: CHALLENGE_N, goal: m(s.mode === 'max' ? 'chal.goal.max' : 'chal.goal.min'), hint });
+}
+
+export const challengeRules: GameRules<ChallengeState, ChallengeAction> = {
+  start: () => ({ state: { mode: 'max', line: [], tries: 0 } }),
+  act(s, a) {
+    switch (a.type) {
+      case 'mode': return { state: { mode: a.mode, line: [], tries: 0 } };
+      case 'add': {
+        if (challengeFull(s) || s.line.includes(a.v) || a.v < 1 || a.v > CHALLENGE_N) return null;
+        const line = [...s.line, a.v];
+        return { state: { ...s, line, tries: line.length === CHALLENGE_N ? s.tries + 1 : s.tries } };
+      }
+      case 'undo': return s.line.length ? { state: { ...s, line: s.line.slice(0, -1) } } : null;
+      case 'clear': return s.line.length ? { state: { ...s, line: [] } } : null;
+      case 'peek':
+        return { state: { ...s, line: s.mode === 'max' ? worstCase(CHALLENGE_N) : Array.from({ length: CHALLENGE_N }, (_, k) => k + 1) } };
+    }
+  },
+  clickable: () => true,
+  controls: (s): Control<ChallengeAction>[] => {
+    if (!challengeFull(s)) return [];
+    const out: Control<ChallengeAction>[] = [{ type: 'button', action: { type: 'clear' }, label: m('chal.again'), look: 'smallPrimary' }];
+    if (challengePeekable(s)) out.push({ type: 'button', action: { type: 'peek' }, label: m('chal.peek'), look: 'small' });
+    return out;
+  },
+  // 结算：整块结果由画面 ChallengeResult 画（里面有加粗和列表）
+  result: (s) => {
+    const r = challengeResult(s);
+    if (!r) return null;
+    return {
+      art: {
+        scene: 'ChallengeResult',
+        props: {
+          line: s.line, mode: s.mode, total: r.total, merges: r.merges, win: challengeWin(s), ...compareBounds(CHALLENGE_N),
+        },
+      },
+    };
+  },
+};
+
+/* ---------- 延伸：对比图 ---------- */
+
+/** 「快还是慢，看数据」的对比图：归并取最坏情况（精确值），插入排序随机打乱约 n²/4，选择排序固定 n(n − 1)/2 */
+export function compareRows() {
+  return [
+    { label: '10', unit: m('compare.hand'), n: 10 },
+    { label: '1,000', unit: m('compare.thousand'), n: 1000 },
+    { label: '100,000', unit: m('compare.hundredK'), n: 100000 },
+    { label: '1,000,000', unit: m('compare.million'), n: 1000000 },
+  ].map((r) => ({
+    label: r.label,
+    unit: r.unit,
+    bars: [
+      { name: m('compare.merge'), value: compareBounds(r.n).max, tone: 'accent' as const },
+      { name: m('compare.insertion'), value: (r.n * r.n) / 4, tone: 'muted' as const, approx: true },
+      { name: m('compare.selection'), value: (r.n * (r.n - 1)) / 2, tone: 'warn' as const },
+    ],
+  }));
+}
+
+/* ---------- 关卡模块：level.json 按名字引用这里的规则 ---------- */
+
+export const level: LevelModule = {
+  look: { story: lookRules },
+  trace: { main: traceRules },
+  predict: { main: predictRules },
+  bugs: { main: bugRules },
+  games: { merge: mergeRules, split: splitRules, challenge: challengeRules },
+};

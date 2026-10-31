@@ -1,9 +1,12 @@
-# 测试通过后构建网站，推到 main 时部署到 GitHub Pages
+# 测试通过后构建网站，推到 main 或 preview 时部署到 GitHub Pages：
+# - main    → https://yuy-qk.github.io/algorithm-stories/
+# - preview → https://yuy-qk.github.io/algorithm-stories/preview/
+# Pages 每个仓库只有一个网站，所以每次部署都把两个分支一起构建，合成一个站点。
 name: 测试和部署
 
 on:
   push:
-    branches: [main]
+    branches: [main, preview]
   pull_request:
   workflow_dispatch:
 
@@ -17,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,15 +44,55 @@ jobs:
       - run: npm test
       - run: npm run check
       - run: npm run build
-      - uses: actions/upload-pages-artifact@v3
-        if: github.ref == 'refs/heads/main'
+
+  build-site:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/preview')
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
         with:
-          path: dist
+          ref: main
+          path: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: main/package-lock.json
+      - name: 构建正式版（main）
+        working-directory: main
+        run: npm ci && npm run build
+      - name: 有没有 preview 分支
+        id: has
+        run: |
+          if git ls-remote --exit-code --heads "https://github.com/${{ github.repository }}" preview >/dev/null; then
+            echo "preview=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.has.outputs.preview == 'true'
+        with:
+          ref: preview
+          path: preview
+      - name: 构建预览版（preview），放到 /preview/ 下
+        if: steps.has.outputs.preview == 'true'
+        working-directory: preview
+        env:
+          SITE_BASE: /algorithm-stories/preview
+        run: |
+          npm ci && npm run build
+          mkdir -p ../main/dist/preview
+          cp -r dist/. ../main/dist/preview/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: main/dist
 
   deploy:
-    if: github.ref == 'refs/heads/main'
-    needs: build
+    needs: build-site
     runs-on: ubuntu-latest
+    # main 和 preview 共用一个站点，部署排队进行，不互相取消
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

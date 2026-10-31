@@ -1,0 +1,73 @@
+/* 由 scripts/gen-theme.cjs 从 src/theme/tokens.json 生成，不要手改。 */
+:root {
+  --bg: #E6EEEA;
+  --surface: #FFFFFF;
+  --inset: #F0F5F2;
+  --shadow: 0 1px 2px rgba(19, 35, 31, 0.06), 0 6px 20px rgba(19, 35, 31, 0.07);
+  --shadow-lift: 0 2px 4px rgba(19, 35, 31, 0.08), 0 10px 26px rgba(19, 35, 31, 0.12);
+  --fg: #13231F;
+  --muted: #566A63;
+  --line: #D3DFD9;
+  --accent: #0B7A62;
+  --accent-ink: #FFFFFF;
+  --mid: #F0A52E;
+  --mid-ink: #2A1B00;
+  --out: #DCE5E0;
+  --out-ink: #8A9C95;
+  --warn: #B3341F;
+  --code-bg: #12201C;
+  --code-fg: #D7E8E1;
+  --code-dim: #6F8B80;
+  --code-hl: rgba(240, 165, 46, 0.24);
+  --tint: color-mix(in srgb, var(--accent) 9%, transparent);
+  --radius: 20px;
+  --display: "ZCOOL KuaiLe", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --body: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0A1311;
+    --surface: #14221E;
+    --inset: #0E1A17;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
+    --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.5), 0 10px 26px rgba(0, 0, 0, 0.5);
+    --fg: #E4EFEA;
+    --muted: #93A89F;
+    --line: #263A34;
+    --accent: #3CCBA4;
+    --accent-ink: #06231B;
+    --mid: #F2B24B;
+    --mid-ink: #2A1B00;
+    --out: #1B2C27;
+    --out-ink: #5C7369;
+    --warn: #FF8A73;
+    --code-bg: #0A1311;
+    --code-fg: #D7E8E1;
+    --code-dim: #6F8B80;
+    --code-hl: rgba(242, 178, 75, 0.22);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0A1311;
+  --surface: #14221E;
+  --inset: #0E1A17;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.5), 0 10px 26px rgba(0, 0, 0, 0.5);
+  --fg: #E4EFEA;
+  --muted: #93A89F;
+  --line: #263A34;
+  --accent: #3CCBA4;
+  --accent-ink: #06231B;
+  --mid: #F2B24B;
+  --mid-ink: #2A1B00;
+  --out: #1B2C27;
+  --out-ink: #5C7369;
+  --warn: #FF8A73;
+  --code-bg: #0A1311;
+  --code-fg: #D7E8E1;
+  --code-dim: #6F8B80;
+  --code-hl: rgba(242, 178, 75, 0.22);
+  color-scheme: dark;
+}

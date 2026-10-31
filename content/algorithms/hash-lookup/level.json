@@ -1,0 +1,19 @@
+{
+  "look": [
+    { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookShelves" }
+  ],
+  "play": [
+    { "id": "walk", "kind": "game", "icon": "🚶", "rules": "walk", "scene": "PlayWalk" },
+    { "id": "clash", "kind": "game", "icon": "💥", "rules": "clash", "scene": "PlayClash" }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceShelves" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictShelves" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugShelves" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "HashLookup.kt", "package": "hashlookup" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "ChallengeBoard", "after": "ChallengeNote", "frame": "stage" }
+  ],
+  "more": [
+    { "kind": "markdown", "src": "more" }
+  ]
+}

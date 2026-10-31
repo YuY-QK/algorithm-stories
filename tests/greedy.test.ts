@@ -4,7 +4,15 @@ import {
   cashierAmount, cashierStars, cashierTrace, counterexample, countOptions, desc, genPredict, greedyNext, greedyPicks,
   judgePuzzle, lookFrames, minCoins, randomAmount, rounds, runBug, whyCoin,
 } from '../src/engine/greedy';
+import { mergeCopy, t } from '../src/core/i18n';
+import coreCopy from '../src/core/copy.zh.json';
+import levelCopy from '../content/algorithms/greedy/copy.zh.json';
+import type { Msg } from '../src/core/types';
 import { seeded } from './helpers/seeded';
+
+const copy = mergeCopy(coreCopy, levelCopy);
+/** Msg 填成文字，断言台词内容用 */
+const T = (msg: Msg | null) => t(msg ?? { key: 'none' }, copy);
 
 const sum = (a: number[]) => a.reduce((s, x) => s + x, 0);
 
@@ -103,21 +111,22 @@ describe('贪心 看：lookFrames', () => {
   const frames = lookFrames();
 
   it('台词都在引擎里，一页一行，前两页是开场，最后一页是结论', () => {
-    expect(frames[0].say).toContain('46');
+    expect(T(frames[0].say)).toContain('46');
     for (const f of frames) {
-      expect(f.say.length).toBeGreaterThan(0);
-      expect(f.say).not.toContain('\n');
+      expect(T(f.say).length).toBeGreaterThan(0);
+      expect(T(f.say)).not.toContain('\n');
+      expect(T(f.say)).not.toContain('⟦');
     }
-    expect(frames.at(-1)!.say).toContain('不一定最少');
+    expect(T(frames.at(-1)!.say)).toContain('不一定最少');
   });
 
   it('第一章：46 找成 20、20、5、1，最少；第二章：1、3、4 找 6，贪心 3 枚，对比的拿法是 3 + 3', () => {
-    const one = frames.find((f) => f.say.includes('最少！'))!;
+    const one = frames.find((f) => T(f.say).includes('最少！'))!;
     expect(one.plate).toEqual([20, 20, 5, 1]);
     expect(one.left).toBe(0);
-    const two = frames.find((f) => f.say.startsWith('贪心用了'))!;
+    const two = frames.find((f) => T(f.say).startsWith('贪心用了'))!;
     expect(two.plate).toEqual(greedyPicks(ODD.coins, ODD.amount));
-    expect(two.say).toContain('3 枚');
+    expect(T(two.say)).toContain('3 枚');
     expect(frames.at(-1)!.compare).toEqual([3, 3]);
     expect(frames.filter((f) => f.compare).length).toBe(2);
   });
@@ -217,8 +226,8 @@ describe('贪心 做：猜下一步（解释和出题）', () => {
         expect(r.options).toContain(r.count);
         expect(new Set(r.options).size).toBe(r.options.length);
         expect(r.options.every((x) => x >= 1)).toBe(true);
-        expect(r.why).toContain(r.left + ' ÷ ' + r.coin + ' = ' + r.count);
-        expect(r.why).toContain('余 ' + (r.left - r.count * r.coin));
+        expect(T(r.why)).toContain(r.left + ' ÷ ' + r.coin + ' = ' + r.count);
+        expect(T(r.why)).toContain('余 ' + (r.left - r.count * r.coin));
       }
     }
     expect(countOptions(1)).toEqual([1, 2, 3, 4]);
@@ -228,8 +237,8 @@ describe('贪心 做：猜下一步（解释和出题）', () => {
   it('whyCoin：太大和不是最大两种说法', () => {
     const r = rounds([1, 5, 10, 25], 37)[0];
     expect(r.coin).toBe(25);
-    expect(whyCoin(r, 50)).toContain('比剩下的 37 大');
-    expect(whyCoin(r, 10)).toContain('更大的 25');
+    expect(T(whyCoin(r, 50))).toContain('比剩下的 37 大');
+    expect(T(whyCoin(r, 10))).toContain('更大的 25');
   });
 
   it('genPredict / randomAmount：固定种子结果固定，范围和面值都在约定里', () => {
@@ -271,9 +280,9 @@ describe('贪心 做：找 bug', () => {
   it('bugVerdict：没跑完是空，跑完按结果说话', () => {
     for (const b of BUGS) {
       const tr = runBug(b);
-      for (const st of tr.slice(0, -1)) expect(bugVerdict(st, b)).toBe('');
+      for (const st of tr.slice(0, -1)) expect(bugVerdict(st, b)).toBeNull();
     }
-    const v = Object.fromEntries(BUGS.map((b) => [b.id, bugVerdict(runBug(b).at(-1)!, b)]));
+    const v = Object.fromEntries(BUGS.map((b) => [b.id, T(bugVerdict(runBug(b).at(-1)!, b))]));
     expect(v.ascending).toBe('❌ 找了 12 枚，太多了');
     expect(v.if).toBe('❌ 只找出 18，还差 9');
     expect(v.reset).toContain('死循环');

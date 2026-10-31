@@ -1,0 +1,19 @@
+{
+  "look": [
+    { "id": "story", "kind": "book", "icon": "📖", "rules": "story", "scene": "LookHand" }
+  ],
+  "play": [
+    { "id": "place", "kind": "game", "icon": "🃏", "rules": "place", "scene": "PlayPlace" },
+    { "id": "shift", "kind": "game", "icon": "🪙", "rules": "shift", "scene": "PlayShift", "sayLines": 2 }
+  ],
+  "do": [
+    { "id": "trace", "kind": "trace", "icon": "①", "rules": "main", "scene": "TraceRow" },
+    { "id": "predict", "kind": "predict", "icon": "②", "rules": "main", "scene": "PredictRow" },
+    { "id": "bug", "kind": "bugs", "icon": "③", "rules": "main", "scene": "BugRow" },
+    { "id": "write", "kind": "exercise", "icon": "④", "file": "InsertionSort.kt", "package": "insertionsort" },
+    { "id": "challenge", "kind": "game", "icon": "⑤", "rules": "challenge", "scene": "ChallengeRace", "frame": "stage" }
+  ],
+  "more": [
+    { "kind": "markdown", "src": "more" }
+  ]
+}
