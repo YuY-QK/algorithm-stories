@@ -70,8 +70,8 @@ export interface BookFrame extends LookFrame {
   trips: number;
 }
 
-/** 书的名字，如「📕1 号」：图案加编号，是数据不是文案 */
-const bookName = (b: number) => BOOK_EMOJI[b] + b + ' 号';
+/** 书的名字，如「📕1 号」：图案加编号 */
+const bookName = (b: number) => m('bookName', { emoji: BOOK_EMOJI[b], b });
 
 /** 「看」的全部页：真的跑一遍 simulate，台词和画面都由结果生成 */
 export function lookFrames(seq: number[] = LOOK_SEQ, cap: number = KID_CAP): BookFrame[] {

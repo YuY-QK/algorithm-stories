@@ -42,7 +42,6 @@ export const coord = (m: Maze, id: number) => '(' + rowOf(m, id) + ',' + colOf(m
 
 /** 四个方向，顺序和 Kotlin 代码里的 DIRS 一致：上、下、左、右 */
 export const DIRS: readonly (readonly [number, number])[] = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-export const DIR_NAMES = ['上', '下', '左', '右'];
 
 /** id 的四个方向上的格子，出界的是 null */
 export function around(m: Maze, id: number): (number | null)[] {
@@ -950,7 +949,7 @@ export const predictRules: PredictRules<PredictView, string> = {
     const mz = parseMaze(rows);
     const list = rounds(mz);
     const viewOf = (r: Round): PredictView => ({ rows, cur: r.cur, queue: r.queue, visited: r.visited, dist: r.dist, pushed: r.pushed });
-    const chips = (k: number): Var[] => [['第', msg('predict.chip', { n: k + 1 })]];
+    const chips = (k: number): Var[] => [[msg('predict.chipName'), msg('predict.chip', { n: k + 1 })]];
     const last = list.length - 1;
     const views = list.map(viewOf);
     return {

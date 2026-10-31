@@ -2,7 +2,7 @@
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { m } from '../../../../core/i18n';
 import type { Msg } from '../../../../core/types';
-import { PLATE_ICONS, PLATE_NAMES } from '../../../../engine/stack';
+import { PLATE_ICONS } from '../../../../engine/stack';
 import { useStageStop } from '../../shared/usePlayer';
 import { SHAKE_MS } from '../../../../core/timing';
 
@@ -47,6 +47,9 @@ watch(() => props.glow, (v) => {
   glowing.value = false;
   if (v) requestAnimationFrame(() => (glowing.value = true));
 });
+
+/** 盘子的名字，顺序和 PLATE_ICONS 一致 */
+const PLATE_NAMES = [m('plates.name.star'), m('plates.name.moon'), m('plates.name.heart'), m('plates.name.flower'), m('plates.name.clover'), m('plates.name.fish')];
 
 function label(p: number, k: number) {
   const name = PLATE_NAMES[p];

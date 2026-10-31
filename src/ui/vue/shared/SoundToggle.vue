@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { muted, play, setMuted } from './sound';
+import { useCopy } from '../i18n';
+
+const { ui } = useCopy();
 
 // 页面右上角的音效开关，所有关卡共用
 function toggle() {
@@ -9,7 +12,7 @@ function toggle() {
 </script>
 
 <template>
-  <button type="button" class="sound-toggle" :aria-pressed="!muted" :aria-label="muted ? '打开音效' : '关闭音效'" @click="toggle">
+  <button type="button" class="sound-toggle" :aria-pressed="!muted" :aria-label="muted ? ui('ui.sound.on') : ui('ui.sound.off')" @click="toggle">
     {{ muted ? '🔇' : '🔊' }}
   </button>
 </template>

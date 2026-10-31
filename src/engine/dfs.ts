@@ -44,7 +44,6 @@ export const coord = (m: { w: number }, id: number) => '(' + rowOf(m, id) + ',' 
 
 /** 四个方向，顺序和 Kotlin 代码里的 DIRS 一致：上、右、下、左 */
 export const DIRS: readonly (readonly [number, number])[] = [[-1, 0], [0, 1], [1, 0], [0, -1]];
-export const DIR_NAMES = ['上', '右', '下', '左'];
 export const DIR_ARROWS = ['⬆️', '➡️', '⬇️', '⬅️'];
 
 /** id 的四个方向上的格子，出界的是 null */
@@ -1329,7 +1328,7 @@ export const predictRules: PredictRules<PredictView, PredictAnswer> = {
     const rows = genPredict(rand);
     const mz = parseMaze(rows);
     const list = rounds(mz);
-    const chips = (k: number): Var[] => [['第', msg('predict.chip', { n: k + 1 })]];
+    const chips = (k: number): Var[] => [[msg('predict.chipName'), msg('predict.chip', { n: k + 1 })]];
     const view = (r: Round, back: boolean): PredictView => ({ rows, cur: r.cur, path: r.path, visited: r.visited, back });
     const options = [
       { value: 'back' as const, label: msg('predict.back') },

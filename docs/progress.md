@@ -4,6 +4,8 @@
 
 ## 现状
 
+**2026-10-31 告一段落**：阶段 R 和收尾都已合并上线，先用这个版本一段时间（下面计划里的 V 试玩验证），有了结果再决定后续开发。
+
 15 个关卡完成，都有看、玩、做、延伸四步和 Kotlin 练习，列表见根目录 `README.md`：
 
 - 查找：顺序查找、二分查找（样板关）、哈希查找
@@ -42,7 +44,7 @@
 - [x] R3 后两组（10-31）：BFS、DFS、贪心、动态规划已迁，15 关全部在新结构上。整站 check-pages（15 关每个标签 + 首页 + 故事集，两种宽度）全过，`npm test` 65 个文件 853 个测试
 - [x] R3 迁移后的小差别：Yumor 决定只补插入排序「挪一挪」数错时的晃动提示（已补），其余保持现状（列表见 `refactor-plan.md` 7.7）
 - [x] R4（10-31）：删掉 `src/demos/`、没人用的旧共享组件（`BugHunt.vue`、`useStreak.ts`、`timing.ts` 转发）；其余底层组件移到 `src/ui/vue/shared/`；`level-spec.md`、`AGENTS.md`、`README.md`、`demo-builder` 和 `content-reviewer` 的说明改成新分层
-- [ ] 迁移遗留的中文（应进文案表）：`engine/bfs.ts`、`engine/dfs.ts` 的 `DIR_NAMES` 和 BFS 猜下一步的「第」、`engine/stack.ts` 的 `PLATE_NAMES`、`engine/lru-cache.ts` 的「号」、`scenes/dynamic-programming/Stairs.vue` 的「地」、`SoundToggle` 的读屏文字、`BookPager`/`CodePanel`/`PredictFrame`/`Transport` 的默认中文 `labels`（新控件都传了，默认值可删）
+- [x] 迁移遗留的中文（10-31）：BFS、DFS 的「第」、栈的盘子名、LRU 的书名、台阶的「地」、音效开关的读屏文字都进了文案表；没人用的 `DIR_NAMES` 删掉；`BookPager`、`CodePanel`、`PredictFrame`、`Transport` 的默认中文去掉，文字改为必传。页面显示不变。网站外框（首页、标签名、页脚）的中文还在 `src/stages.ts`、`src/layouts/`、`src/pages/` 里，做英文版时再处理
 - [ ] `refactor-plan.md` 7.5 留下的：画面注册表改成按关懒加载；`GameRules.act` 的 `rand` 控件里还没传；速度档名字还没进文案表
 - [ ] 人声旁白：音效层已留好接口（`SoundBackend`），选定第三方库后接入
 - [ ] `project-plan.md` 第 9 节的待定问题：网站域名、博客首发平台、初级年龄段、是否做英文版

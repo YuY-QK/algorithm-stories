@@ -307,7 +307,7 @@ describe('猜下一步', () => {
       expect(p.asks.length).toBeGreaterThan(0);
       p.asks.forEach((a, i) => {
         expect(a.kind).toBe('pick');
-        expect(a.chips).toEqual([['第', m('predict.chip', { n: i + 1 })]]);
+        expect(a.chips).toEqual([[m('predict.chipName'), m('predict.chip', { n: i + 1 })]]);
         expect(a.answer === 'end' ? a.view.pushed : a.answer.split(',').filter(Boolean).map(Number)).toEqual(a.answer === 'end' ? [] : a.view.pushed.slice().sort((x, y) => x - y));
         expect(a.view.queue[0]).toBe(a.view.cur);
       });

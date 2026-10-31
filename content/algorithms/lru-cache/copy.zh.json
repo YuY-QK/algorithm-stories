@@ -186,5 +186,6 @@
   "compare.tenK": "一万",
   "compare.million": "一百万",
   "compare.listOnly": "只用链表",
-  "compare.hashList": "哈希表 + 链表"
+  "compare.hashList": "哈希表 + 链表",
+  "bookName": "{emoji}{b} 号"
 }

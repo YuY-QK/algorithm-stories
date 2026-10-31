@@ -7,7 +7,7 @@ import AlgoLayout from '../../layouts/AlgoLayout.astro';
 import Block from './shared/Block.astro';
 import CodePanel from './shared/CodePanel.vue';
 import LogCompare from './shared/LogCompare.astro';
-import { t } from '../../core/i18n';
+import { m, t } from '../../core/i18n';
 import type { Msg } from '../../core/types';
 import { loadLevel } from '../levelData';
 import BlockView from './BlockView.astro';
@@ -16,6 +16,8 @@ import { COPY_ELEMENT_ID } from './i18n';
 interface Props { slug: string; title: string; lede: string }
 const { slug } = Astro.props;
 const { level, copy, engine, html } = await loadLevel(slug);
+
+const codeLabels = { group: t(m('ui.code.group', { lang: 'KOTLIN' }), copy), line: (n: number, text: string) => t(m('ui.code.line', { n, text }), copy) };
 
 const COMPARE = '<!-- compare -->';
 /** 正文里单独一行 <!-- code:名字 -->，换成一块 Kotlin 代码（代码行在引擎导出的 moreCode[名字]） */
@@ -79,7 +81,7 @@ const more = (level.more ?? []).flatMap((b) => (b.kind === 'markdown' ? sections
       {more.map((sec) => (
         <Block icon={sec.icon} title={sec.title}>
           <div class="md">
-            {sec.segs.map((seg) => (seg === COMPARE ? <LogCompare rows={compareRows()} /> : CODE_MARK.test(seg) ? <CodePanel lines={codeLines(seg.match(CODE_MARK)![1])} active={0} lang="KOTLIN" /> : <Fragment set:html={seg} />))}
+            {sec.segs.map((seg) => (seg === COMPARE ? <LogCompare rows={compareRows()} /> : CODE_MARK.test(seg) ? <CodePanel lines={codeLines(seg.match(CODE_MARK)![1])} active={0} lang="KOTLIN" labels={codeLabels} /> : <Fragment set:html={seg} />))}
           </div>
         </Block>
       ))}

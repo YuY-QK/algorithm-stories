@@ -38,7 +38,7 @@ function label(i: number, v: number | null): string {
       </div>
       <div class="step-block" :style="{ '--h': i }" :aria-label="label(i, notes[i] ?? null)">
         <span class="sticky" :class="{ empty: notes[i] === null, ask: ask === i }">{{ notes[i] ?? (ask === i ? '❓' : '') }}</span>
-        <span class="lv">{{ i === 0 ? '地' : i }}</span>
+        <span class="lv">{{ i === 0 ? t(m('scene.stairs.ground')) : i }}</span>
       </div>
     </div>
   </div>

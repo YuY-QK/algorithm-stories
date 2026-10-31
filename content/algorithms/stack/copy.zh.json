@@ -182,5 +182,11 @@
 
   "compare.unit": "个括号",
   "compare.slow": "反复删",
-  "compare.stack": "用栈"
+  "compare.stack": "用栈",
+  "plates.name.star": "星星",
+  "plates.name.moon": "月亮",
+  "plates.name.heart": "爱心",
+  "plates.name.flower": "小花",
+  "plates.name.clover": "四叶草",
+  "plates.name.fish": "小鱼"
 }
